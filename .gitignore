@@ -1,0 +1,15 @@
+.DS_Store
+
+# logs
+
+**/logs
+
+# agent related
+/prompt.md
+.qwen/**
+**/qwen/qwen.json
+**/memories
+
+# test
+test/**
+!test/.gitkeep

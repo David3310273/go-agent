@@ -1,0 +1,21 @@
+{
+  "type": "function",
+  "function": {
+    "name": "WriteToFile",
+    "description": "Create file and write content to a specified file path. The default filename would be 'temp.txt', or overwrites it if it does.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "The absolute or relative file path to write to"
+        },
+        "content": {
+          "type": "string",
+          "description": "The text content to write into the file"
+        }
+      },
+      "required": ["path", "content"]
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+    "agent": {
+        "questionBufferSize": 10,
+        "logPath": "logs/agent-%s.log",
+        "prompt": {
+            "paths": [
+                "prompt.md"
+            ],
+            "bufferSizeInKB": 10
+        },
+        "tool": [
+            {
+                "name": "filewriter",
+                "schema": "filewriter.schema.json",
+                "decription": "Write content to a specified file path. Creates the file if it does not exist, or overwrites it if it does."
+            }
+        ]
+    },
+    "session": {
+        "logPath": "logs/session-%s.log",
+        "reActMaxRounds": 10,
+        "maxRetryOnLock": 3,
+        "MemoryFilePathFormat": "session-%s-memory.txt"
+    }
+}

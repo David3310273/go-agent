@@ -1,0 +1,12 @@
+{
+    "timeZone": "Asia/Shanghai",
+    "language": "zh-CN",
+    "logPath": "logs/app-%s.log",
+    "maxWaitingRequest": 10,
+    "maxWaitingSeconds": 30,
+    "requestQueueLength": 10,
+    "service": {
+        "port": 8080,
+        "maxCloseWaitingSeconds": 60
+    }
+}
