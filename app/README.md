@@ -66,7 +66,7 @@ curl -X POST http://localhost:8080/v1/ask \
 |-------|------|-------------|
 | sessionID | string | The session ID associated with this conversation. |
 | answer | string | The agent's response. |
-| model | string | The agent's response. |
+| model | string | The model agent used in this request. |
 
 **Bad Request (400):**
 ```json
