@@ -43,6 +43,7 @@ Content-Type: application/json
 |-------|------|----------|-------------|
 | sessionID | string | No | Session ID for conversation continuity. If not provided, a new session will be created. |
 | question | string | Yes | The question to ask the agent. |
+| model | string | No | The model agent used in this request. |
 
 **Example:**
 ```bash
