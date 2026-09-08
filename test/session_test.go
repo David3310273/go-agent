@@ -170,13 +170,11 @@ func TestMockSession_SaveHistory(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockSession := testmock.NewMockSession(ctrl)
-	conversation := core.Conversation{
-		{Role: core.RoleUser, Content: "hello"},
-	}
+	message := core.ReActMessage{Role: core.RoleAssistant, Content: "final answer"}
 
-	mockSession.EXPECT().SaveHistory(conversation).Return(nil)
+	mockSession.EXPECT().SaveHistory(message).Return(nil)
 
-	err := mockSession.SaveHistory(conversation)
+	err := mockSession.SaveHistory(message)
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}

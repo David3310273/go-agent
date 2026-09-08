@@ -257,7 +257,7 @@ func (mr *MockSessionMockRecorder) RegisterEventChans() *gomock.Call {
 }
 
 // SaveHistory mocks base method.
-func (m *MockSession) SaveHistory(arg0 core.Conversation) *core.Diagnostic {
+func (m *MockSession) SaveHistory(arg0 core.ReActMessage) *core.Diagnostic {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveHistory", arg0)
 	ret0, _ := ret[0].(*core.Diagnostic)

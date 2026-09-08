@@ -6,7 +6,6 @@ fixs:
 
 - path management
 - support loading history in session
-- support benchmark
 - support for streaming mode
 
 feature:

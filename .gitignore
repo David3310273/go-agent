@@ -3,6 +3,10 @@
 # logs
 
 **/logs
+**/agentLogs/
+**/sessionLogs/
+**/sessionMemories/
+
 
 # agent related
 /prompt.md

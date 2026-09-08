@@ -37,7 +37,7 @@ type Session interface {
 	// dynamically select local kb given question
 	SelectLocalKB(Question) string
 	// save history
-	SaveHistory(Conversation) *Diagnostic
+	SaveHistory(ReActMessage) *Diagnostic
 	// return pointer so ProcessQuestion can modify session conversation in place
 	GetConversation() *Conversation
 }

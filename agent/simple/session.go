@@ -216,7 +216,7 @@ func (s *SimpleAgentSession) GetConversation() *core.Conversation {
 	return &s.Conversation
 }
 
-func (s *SimpleAgentSession) SaveHistory(conversation core.Conversation) *core.Diagnostic {
+func (s *SimpleAgentSession) SaveHistory(history core.ReActMessage) *core.Diagnostic {
 	//  use RootPath instead of hardcoded relative path
 	filePath := path.Join(s.Config.RootPath, s.Config.MemoryFilePathFormat)
 	filename := fmt.Sprintf(filePath, s.GetID())
@@ -233,7 +233,10 @@ func (s *SimpleAgentSession) SaveHistory(conversation core.Conversation) *core.D
 		}
 	}
 
-	if err := utils.RotateWrite(filename, s.Config.MemoryFileSplitter, 1024*1024*1024, []byte(conversation.ToString())); err != nil {
+	content := []byte(history.ToString())
+	content = append(content, '\n')
+
+	if err := utils.RotateWrite(filename, s.Config.MemoryFileSplitter, 1024*1024*1024, content); err != nil {
 		return &core.Diagnostic{
 			Level:   core.SeverityError,
 			Code:    core.MessageCodeWriteHistoryError,
@@ -372,13 +375,13 @@ func (s *SimpleAgentSession) OnEvent() {
 			if s.Logger != nil {
 				s.Logger.Printf("session %s stopped", s.GetID())
 			}
-		case e := <-s.eventChans[core.SessionFinalAnswer]:
-			// handle session final answer event
-			log.Printf("Session %s: received SessionFinalAnswer event", s.GetID())
-			history, ok := e.GetData().(core.Conversation)
+		case e := <-s.eventChans[core.SessionHistory]:
+			// handle session answer generated event
+			log.Printf("Session %s: received SessionHistory event", s.GetID())
+			history, ok := e.GetData().(core.ReActMessage)
 			if ok {
 				//  save the history to storage for future use
-				log.Printf("Session %s: saving history, length=%d", s.GetID(), len(history))
+				log.Printf("Session %s saving history: %s", s.GetID(), history.ToString())
 				if diag := s.SaveHistory(history); diag.Code != 0 {
 					log.Printf("Session %s: save history error: %s", s.GetID(), diag.Message)
 				}
@@ -414,7 +417,7 @@ func (s *SimpleAgentSession) RegisterEventChans() {
 	s.eventChans[core.SessionEventStart] = make(chan core.Event[any], DefaultEventBufferSize)
 	s.eventChans[core.SessionEventStop] = make(chan core.Event[any], DefaultEventBufferSize)
 	s.eventChans[core.SessionEventSaveHistoryFailed] = make(chan core.Event[any], DefaultEventBufferSize)
-	s.eventChans[core.SessionFinalAnswer] = make(chan core.Event[any], DefaultEventBufferSize)
+	s.eventChans[core.SessionHistory] = make(chan core.Event[any], DefaultEventBufferSize)
 	//  register missing event channels
 	s.eventChans[core.SessionStartProcessQuestion] = make(chan core.Event[any], DefaultEventBufferSize)
 	s.eventChans[core.SessionFinishQuestion] = make(chan core.Event[any], DefaultEventBufferSize)
