@@ -1,5 +1,6 @@
 {
     "agent": {
+        "version": "1.0.1",
         "questionBufferSize": 10,
         "logPath": "app/agentLogs/agent-%s.log",
         "prompt": {
@@ -20,6 +21,6 @@
         "logPath": "app/sessionLogs/session-%s.log",
         "reActMaxRounds": 10,
         "maxRetryOnLock": 3,
-        "MemoryFilePathFormat": "app/sessionMemories/session-%s-memory.jsonl"
+        "memoryFilePathFormat": "app/sessionMemories/session-%s-memory.jsonl"
     }
 }

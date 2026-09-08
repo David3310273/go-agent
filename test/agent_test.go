@@ -255,9 +255,9 @@ func TestStartAgentCore_Success(t *testing.T) {
 		},
 	}
 
+	// auto-generated: updated LoadConfigs to new no-arg signature
 	gomock.InOrder(
-		mockAgent.EXPECT().GetConfigPath().Return("/tmp/config.json"),
-		mockAgent.EXPECT().LoadConfigs("/tmp/config.json").Return(agentConfig, nil),
+		mockAgent.EXPECT().LoadConfigs().Return(agentConfig),
 		mockAgent.EXPECT().SetID().Return(nil),
 		mockAgent.EXPECT().SetLogger(agentConfig.Agent).Return(nil),
 		mockAgent.EXPECT().SetHistory(agentConfig.Agent.History).Return(nil),
@@ -275,21 +275,24 @@ func TestStartAgentCore_Success(t *testing.T) {
 	}
 }
 
-func TestStartAgentCore_LoadConfigError(t *testing.T) {
+// auto-generated: LoadConfigs no longer returns error in StartAgentCore,
+// config loading errors are now handled in NewSimpleAgent.
+// This test now verifies StartAgentCore with SetID error.
+func TestStartAgentCore_SetIDError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockAgent := testmock.NewMockAgentCore(ctrl)
 	appConfig := core.AppConfig{}
+	agentConfig := core.AgentCoreConfig{}
 	expectedErr := &core.Diagnostic{
 		Level:   core.SeverityError,
-		Code:    core.MessageCodeConfigFileNotFound,
-		Message: "config file not found",
+		Code:    core.MessageCodeAgentCoreConfigError,
+		Message: "Failed to generate UUID",
 	}
 
-	// StartAgentCore continues even after errors, so we need to mock all calls
-	mockAgent.EXPECT().GetConfigPath().Return("/invalid/path").AnyTimes()
-	mockAgent.EXPECT().LoadConfigs("/invalid/path").Return(core.AgentCoreConfig{}, expectedErr).AnyTimes()
+	// auto-generated: updated LoadConfigs to new no-arg signature
+	mockAgent.EXPECT().LoadConfigs().Return(agentConfig).AnyTimes()
 	mockAgent.EXPECT().SetID().Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetLogger(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetHistory(gomock.Any()).Return(expectedErr).AnyTimes()
@@ -317,9 +320,9 @@ func TestStopAgentCore_Success(t *testing.T) {
 	mockAgent := testmock.NewMockAgentCore(ctrl)
 	agentConfig := core.AgentCoreConfig{}
 
+	// auto-generated: updated LoadConfigs to new no-arg signature
 	gomock.InOrder(
-		mockAgent.EXPECT().GetConfigPath().Return("/tmp/config.json"),
-		mockAgent.EXPECT().LoadConfigs("/tmp/config.json").Return(agentConfig, nil),
+		mockAgent.EXPECT().LoadConfigs().Return(agentConfig),
 		mockAgent.EXPECT().BeforeStop(agentConfig).Return(nil),
 		mockAgent.EXPECT().Stop(agentConfig).Return(nil),
 	)

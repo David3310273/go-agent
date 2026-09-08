@@ -74,6 +74,7 @@ func TestMockContext_GetHistory(t *testing.T) {
 	}
 }
 
+// auto-generated: updated LoadConfigs to new no-arg signature
 func TestMockContext_LoadConfigs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -83,12 +84,9 @@ func TestMockContext_LoadConfigs(t *testing.T) {
 		Agent: core.AgentConfig{Version: "1.0.0"},
 	}
 
-	mockContext.EXPECT().LoadConfigs("/path/to/config.json").Return(expectedConfig, nil)
+	mockContext.EXPECT().LoadConfigs().Return(expectedConfig)
 
-	config, err := mockContext.LoadConfigs("/path/to/config.json")
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
-	}
+	config := mockContext.LoadConfigs()
 	if config.Agent.Version != "1.0.0" {
 		t.Errorf("expected version '1.0.0', got %s", config.Agent.Version)
 	}

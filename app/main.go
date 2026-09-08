@@ -55,17 +55,11 @@ func initLogger(appConfig *core.AppConfig) *log.Logger {
 // initAgent creates, configures and starts the agent
 // rootPath parameter for resolving all runtime file paths
 func initAgent(rootPath string) (*simple.SimpleAgent, *core.Diagnostic) {
-	agent := simple.NewSimpleAgent()
-	//  set RootPath on agent so GetConfigPath and other methods can use it
-	agent.RootPath = rootPath
-
-	// load agent core config
-	agentConfig, diag := agent.LoadConfigs("")
+	agent, diag := simple.NewSimpleAgent(rootPath)
 	if diag != nil {
 		return nil, diag
 	}
 
-	agent.Configs = agentConfig
 	// set agent ID
 	if diag := agent.SetID(); diag != nil {
 		return nil, diag
