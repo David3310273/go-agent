@@ -116,7 +116,7 @@ func TestMockSession_SelectTools(t *testing.T) {
 	}
 }
 
-// auto-added: test for ProcessQuery method
+// test for ProcessQuery method
 func TestMockSession_ProcessQuery(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -129,7 +129,7 @@ func TestMockSession_ProcessQuery(t *testing.T) {
 	mockSession.ProcessQuery(mockQuestion)
 }
 
-// auto-added: test for SelectLocalKB method
+// test for SelectLocalKB method
 func TestMockSession_SelectLocalKB(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

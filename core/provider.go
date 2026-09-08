@@ -152,7 +152,7 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 				// send stop event
 				log.Printf("final answer: %s", answer.Choices[0].Message.Content)
 				log.Printf("token used: %d", tokenUsage)
-				// auto-added: emit final answer event before returning
+				//  emit final answer event before returning
 				Emit(session, CommonEvent[Conversation]{
 					SourceType: SessionFinalAnswer,
 					Data:       messages,
@@ -234,7 +234,8 @@ func ValidateProviders(providers []Provider) []Diagnostic {
 }
 
 // Abstract ProviderFactory creates a Provider single instance
-type ProviderFactory func() (Provider, *Diagnostic)
+// rootPath parameter for resolving provider config file paths
+type ProviderFactory func(rootPath string) (Provider, *Diagnostic)
 
 // providerFactories registry for independent provider components
 var providerFactories = map[string]ProviderFactory{}

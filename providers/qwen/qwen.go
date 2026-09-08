@@ -30,8 +30,8 @@ const (
 
 // register QwenProvider factory so core can create singleton
 func init() {
-	core.RegisterProviderFactory("qwen", func() (core.Provider, *core.Diagnostic) {
-		return NewQwenProvider()
+	core.RegisterProviderFactory("qwen", func(rootPath string) (core.Provider, *core.Diagnostic) {
+		return NewQwenProvider(rootPath)
 	})
 }
 
@@ -41,10 +41,9 @@ const (
 	Qwen38MaxModelName SupportModelName = "qwen3.8-max"
 )
 
-func NewQwenProvider() (*QwenProvider, *core.Diagnostic) {
-	cwd, _ := os.Getwd()
-	// hard code here, for simplicity
-	filePath := path.Join(cwd, "..", "providers/qwen", ConfigFileName)
+func NewQwenProvider(rootPath string) (*QwenProvider, *core.Diagnostic) {
+	// use rootPath instead of hardcoded relative path
+	filePath := path.Join(rootPath, "providers/qwen", ConfigFileName)
 	log.Printf("provider config path: %s", filePath)
 
 	var configs []byte

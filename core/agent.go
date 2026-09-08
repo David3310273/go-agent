@@ -72,6 +72,12 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 	if err != nil {
 		diagnostics = append(diagnostics, *err)
 	}
+	//  inject RootPath from AppConfig to all sub-configs
+	agentConfigs.RootPath = appConfigs.RootPath
+	agentConfigs.Session.RootPath = appConfigs.RootPath
+	for i := range agentConfigs.Tool {
+		agentConfigs.Tool[i].RootPath = appConfigs.RootPath
+	}
 
 	// set ID
 	err = agent.SetID()
