@@ -9,7 +9,3 @@
 .qwen/**
 **/qwen/qwen.json
 **/memories
-
-# test
-test/**
-!test/.gitkeep

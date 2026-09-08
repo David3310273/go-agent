@@ -33,3 +33,36 @@ Using param injection from outside app to start eventual tool call
   - app related configs(such as language, timeZone...), logs, etc.
 - providers: only focus on specific model insertion(such as claude...), if you want to use agent data, using param injection rather than define the variable in provider struct.
 - app: agent app for user. such as server, web app, command line...
+
+## How to Develop your own Agent using go-agent
+
+### Adding a New Provider
+
+1. Create a new directory under `providers/` (e.g., `providers/openai/`)
+2. Implement the `core.Provider` interface
+3. Register your provider factory in `init()`:
+   ```go
+   func init() {
+       core.RegisterProviderFactory("openai", func() (core.Provider, *core.Diagnostic) {
+           return NewOpenAIProvider()
+       })
+   }
+   ```
+4. Add a `<provider>.template.json` with placeholder values
+5. **Never commit real API keys** — add your config file to `.gitignore`
+
+### Adding a New Tool
+
+1. Implement the `core.Tool` interface
+2. Place tool implementations under `agent/<agent_name>/tools/`
+3. Include a schema JSON file (e.g., `mytool.schema.json`)
+
+### Adding a New Agent
+
+1. Create a new directory under `agent/` (e.g., `agent/advanced/`)
+2. Implement the `core.AgentCore` interface
+3. Include a `config.json` for agent-specific configuration
+4. Add a compile-time interface check:
+   ```go
+   var _ core.AgentCore = (*MyAgent)(nil)
+   ```
