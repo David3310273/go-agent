@@ -9,7 +9,7 @@ type Context interface {
 	SetHistory(HistoryConfig) *Diagnostic
 	GetHistory() []byte
 	// load config
-	LoadConfigs(path string) (AgentCoreConfig, *Diagnostic)
+	LoadConfigs() AgentCoreConfig
 	// load prompt
 	SetPrompt(PromptConfig) *Diagnostic
 	GetPrompt() []byte

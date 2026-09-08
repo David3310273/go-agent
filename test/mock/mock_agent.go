@@ -561,18 +561,19 @@ func (mr *MockAgentCoreMockRecorder) GetToolsConfig() *gomock.Call {
 }
 
 // LoadConfigs mocks base method.
-func (m *MockAgentCore) LoadConfigs(path string) (core.AgentCoreConfig, *core.Diagnostic) {
+// auto-generated: updated to match new LoadConfigs() signature
+func (m *MockAgentCore) LoadConfigs() core.AgentCoreConfig {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LoadConfigs", path)
+	ret := m.ctrl.Call(m, "LoadConfigs")
 	ret0, _ := ret[0].(core.AgentCoreConfig)
-	ret1, _ := ret[1].(*core.Diagnostic)
-	return ret0, ret1
+	return ret0
 }
 
 // LoadConfigs indicates an expected call of LoadConfigs.
-func (mr *MockAgentCoreMockRecorder) LoadConfigs(path any) *gomock.Call {
+// auto-generated: updated to match new LoadConfigs() signature
+func (mr *MockAgentCoreMockRecorder) LoadConfigs() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadConfigs", reflect.TypeOf((*MockAgentCore)(nil).LoadConfigs), path)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadConfigs", reflect.TypeOf((*MockAgentCore)(nil).LoadConfigs))
 }
 
 // OnEvent mocks base method.

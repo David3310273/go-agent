@@ -196,24 +196,47 @@ const (
 	DefaultEventBufferSize = 50
 )
 
-func NewSimpleAgent() *SimpleAgent {
+func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
+	// load config from file
+	configPath := path.Join(rootPath, SimpleAgentPath, ConfigFileName)
+
+	allConfigs := core.AgentCoreConfig{}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, &core.Diagnostic{
+			Level: core.SeverityError,
+			Code:  core.MessageCodeConfigFileFormatError,
+		}
+	}
+
+	err = json.Unmarshal(data, &allConfigs)
+	if err != nil {
+		return nil, &core.Diagnostic{
+			Level: core.SeverityError,
+			Code:  core.MessageCodeConfigFileFormatError,
+		}
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
+
 	agent := &SimpleAgent{
+		RootPath:         rootPath,
 		eventChans:       make(map[string]chan core.Event[any]),
 		eventHandlers:    make(map[string]func(core.Event[any]) core.Diagnostic),
 		eventBufferSize:  DefaultEventBufferSize,
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		// current sessions in memory, key is session id
 		sessions: make(map[string]*SimpleAgentSession),
-
+		// configs
+		Configs:  allConfigs,
 		mu:       make(chan struct{}, 1),
-		Question: make(chan core.Question, QuestionBufferSize),
+		Question: make(chan core.Question, allConfigs.Agent.QuestionBufferSize),
 
 		ctx:    ctx,
 		cancel: cancel,
 	}
 
-	return agent
+	return agent, nil
 }
 
 const (
@@ -248,29 +271,8 @@ func (a *SimpleAgent) GetConfigPath() string {
 	return result
 }
 
-func (a *SimpleAgent) LoadConfigs(path string) (core.AgentCoreConfig, *core.Diagnostic) {
-	if path == "" {
-		path = a.GetConfigPath()
-	}
-
-	allConfigs := core.AgentCoreConfig{}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return allConfigs, &core.Diagnostic{
-			Level: core.SeverityError,
-			Code:  core.MessageCodeConfigFileFormatError,
-		}
-	}
-
-	err = json.Unmarshal(data, &allConfigs)
-	if err != nil {
-		return allConfigs, &core.Diagnostic{
-			Level: core.SeverityError,
-			Code:  core.MessageCodeConfigFileFormatError,
-		}
-	}
-
-	return allConfigs, nil
+func (a *SimpleAgent) LoadConfigs() core.AgentCoreConfig {
+	return a.Configs
 }
 
 // Logger

@@ -78,6 +78,10 @@ type AgentConfig struct {
 	Tool []ToolConfig `json:"tool"`
 	// log path
 	LogPath string `json:"logPath"`
+	// streaming
+	Streaming bool `json:"streaming"`
+	// question buffer size
+	QuestionBufferSize int `json:"questionBufferSize"`
 }
 
 type PromptConfig struct {

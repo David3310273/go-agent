@@ -68,19 +68,16 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 	// DON'T modify the init order here.
 
 	// load all configs
-	agentConfigs, err := agent.LoadConfigs(agent.GetConfigPath())
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
-	}
-	//  inject RootPath from AppConfig to all sub-configs
-	agentConfigs.RootPath = appConfigs.RootPath
+	agentConfigs := agent.LoadConfigs()
+
+	// inject RootPath from AppConfig to all sub-configs
 	agentConfigs.Session.RootPath = appConfigs.RootPath
 	for i := range agentConfigs.Tool {
 		agentConfigs.Tool[i].RootPath = appConfigs.RootPath
 	}
 
 	// set ID
-	err = agent.SetID()
+	err := agent.SetID()
 	if err != nil {
 		diagnostics = append(diagnostics, *err)
 	}
@@ -139,10 +136,7 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 func StopAgentCore(agent AgentCore) []Diagnostic {
 	// load all configs
 	diagnostics := []Diagnostic{}
-	agentConfigs, err := agent.LoadConfigs(agent.GetConfigPath())
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
-	}
+	agentConfigs := agent.LoadConfigs()
 
 	beforeStopDiagnostics := agent.BeforeStop(agentConfigs)
 	if len(beforeStopDiagnostics) > 0 {
