@@ -19,7 +19,25 @@ go-agent is an interface-implemented, multi-layered agent framework written in G
 - **Interface composition** with single-responsibility interface units
 - **core/** must not import specific implementation packages, for example, from agent or app implementations
 
-## Development Setup
+## How to Contribute
+
+1. **Providing more thoughts on architecture or design partterns**. Such as what do you think of sandbox, MCP server and how to insert these components into the framework. Also, inserting new providers is welcome.
+2. **Don't have to pay more attention on the simple app**, that is just an example of this framework. Of course, good advices and implementations are also welcome.
+
+### Pull Request Guidelines
+
+1. for the specific PR, **using following format for commit message**, and don't forget to add changelog.
+    ```bash
+    <type>(<scope>): <description>
+    # e.g. "feat(agent/core/app/session/provider...): add new provider for agent"
+    ``` 
+2. **Keep changes focused** — one feature/fix per PR
+3. **Follow existing conventions** — read surrounding code before making changes, especially interfaces under core directory.
+4. **Test your changes** — ensure `go build ./...` and `go test ./...` pass
+5. **Update documentation** — if your change affects usage or configuration
+
+
+## Local dev environment setup
 
 ### Prerequisites
 
@@ -71,41 +89,9 @@ go test ./...
 ### File Organization
 
 - One primary type per file
-- Keep related helper functions in the same file
-- Use `template.json` files for config examples (never commit real credentials)
-
-## How to Contribute
-
-### Adding a New Provider
-
-1. Create a new directory under `providers/` (e.g., `providers/openai/`)
-2. Implement the `core.Provider` interface
-3. Register your provider factory in `init()`:
-   ```go
-   func init() {
-       core.RegisterProviderFactory("openai", func() (core.Provider, *core.Diagnostic) {
-           return NewOpenAIProvider()
-       })
-   }
-   ```
-4. Add a `<provider>.template.json` with placeholder values
-5. **Never commit real API keys** — add your config file to `.gitignore`
-
-### Adding a New Tool
-
-1. Implement the `core.Tool` interface
-2. Place tool implementations under `agent/<agent_name>/tools/`
-3. Include a schema JSON file (e.g., `mytool.schema.json`)
-
-### Adding a New Agent
-
-1. Create a new directory under `agent/` (e.g., `agent/advanced/`)
-2. Implement the `core.AgentCore` interface
-3. Include a `config.json` for agent-specific configuration
-4. Add a compile-time interface check:
-   ```go
-   var _ core.AgentCore = (*MyAgent)(nil)
-   ```
+- AI coding is also welcome. **But don't submit your local ai coding Prompt or any related ai coding tool configs**.
+- Keep related helper functions/package in the same file/directory
+- Use `template.json` files for critical config examples (never commit real credentials)
 
 ## Configuration
 
@@ -138,14 +124,6 @@ Agent configs are located under `agent/<agent_name>/config.json`. Key sections:
 - Write tests for new interfaces using `go-mock`
 - Place test files under `test/` directory
 - Name test files as `<interface_name>_test.go`
-
-## Pull Request Guidelines
-
-1. **Keep changes focused** — one feature/fix per PR
-2. **Follow existing conventions** — read surrounding code before making changes, especially interfaces under core directory.
-3. **Add comments** — mark new code with `// auto-added:` and explain the purpose
-4. **Test your changes** — ensure `go build ./...` and `go test ./...` pass
-5. **Update documentation** — if your change affects usage or configuration
 
 ## Questions or Advices?
 
