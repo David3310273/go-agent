@@ -14,7 +14,7 @@ const (
 	SessionEventSaveHistoryFailed = "session_save_history_failed"
 	// session answer event
 	SessionStartProcessQuestion = "session_start_process_question"
-	SessionFinalAnswer          = "session_final_answer"
+	SessionHistory              = "session_answer"
 	SessionFinishQuestion       = "session_finish_question"
 	// agent operation event
 	AgentEventStart               = "agent_start"

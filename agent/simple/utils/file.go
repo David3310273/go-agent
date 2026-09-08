@@ -41,7 +41,6 @@ func RotateWrite(filename string, splitter string, maxSize int64, data []byte) e
 
 func evictUntilSize(filename string, splitter string, maxSize int64) error {
 	for {
-		// 检查当前文件大小
 		stat, err := os.Stat(filename)
 		if err != nil {
 			return err
@@ -50,7 +49,6 @@ func evictUntilSize(filename string, splitter string, maxSize int64) error {
 			return nil
 		}
 
-		// 逐出第一个条目
 		if err := evictFirst(filename, splitter); err != nil {
 			return err
 		}

@@ -20,6 +20,6 @@
         "logPath": "app/sessionLogs/session-%s.log",
         "reActMaxRounds": 10,
         "maxRetryOnLock": 3,
-        "MemoryFilePathFormat": "app/sessionMemories/session-%s-memory.txt"
+        "MemoryFilePathFormat": "app/sessionMemories/session-%s-memory.jsonl"
     }
 }

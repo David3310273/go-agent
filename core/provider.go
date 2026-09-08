@@ -68,10 +68,22 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 	messages := session.GetConversation()
 
 	if len(*messages) == 0 {
-		*messages = append(*messages, ReActMessage{Role: RoleSystem, Content: prompt})
+		contextMessage := ReActMessage{Role: RoleSystem, Content: prompt}
+		*messages = append(*messages, contextMessage)
+		// emit each message event before returning
+		Emit(session, CommonEvent[ReActMessage]{
+			SourceType: SessionHistory,
+			Data:       contextMessage,
+		})
 	}
 
-	*messages = append(*messages, ReActMessage{Role: RoleUser, Content: question.GetQuery()})
+	userMessage := ReActMessage{Role: RoleUser, Content: question.GetQuery()}
+	*messages = append(*messages, userMessage)
+	// emit each message event before returning
+	Emit(session, CommonEvent[ReActMessage]{
+		SourceType: SessionHistory,
+		Data:       userMessage,
+	})
 
 	defaultAnswer := AgentResponse{
 		Response: question.GetDefaultAnswer().ToString(),
@@ -93,7 +105,13 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 		if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil {
 			// retry with retry query when response format is invalid
 			question.SetQuery(question.GetRetryQuery())
-			(*messages)[len(*messages)-1] = ReActMessage{Role: RoleUser, Content: question.GetRetryQuery()}
+			retryMessage := ReActMessage{Role: RoleUser, Content: question.GetRetryQuery()}
+			(*messages)[len(*messages)-1] = retryMessage
+			// emit each message event before returning
+			Emit(session, CommonEvent[ReActMessage]{
+				SourceType: SessionHistory,
+				Data:       retryMessage,
+			})
 			continue
 		} else {
 			// for simplicity, only use the first choice
@@ -107,10 +125,16 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 			if operation.Message.ToolCalls != nil && len(*operation.Message.ToolCalls) > 0 {
 				// handle tool calls
 				// 1. append assistant message with tool_calls
-				*messages = append(*messages, ReActMessage{
+				toolMessage := ReActMessage{
 					Role:      RoleAssistant,
 					Content:   operation.Message.Content,
 					ToolCalls: operation.Message.ToolCalls,
+				}
+				*messages = append(*messages, toolMessage)
+
+				Emit(session, CommonEvent[ReActMessage]{
+					SourceType: SessionHistory,
+					Data:       toolMessage,
 				})
 
 				// 2. execute each tool and append tool response
@@ -143,30 +167,32 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 					}
 
 					// append tool response
-					*messages = append(*messages, ReActMessage{
+					toolResultMessage := ReActMessage{
 						Role:       RoleTool,
 						Content:    toolResult,
 						ToolCallID: toolCall.ID,
+					}
+					*messages = append(*messages, toolResultMessage)
+					Emit(session, CommonEvent[ReActMessage]{
+						SourceType: SessionHistory,
+						Data:       toolResultMessage,
 					})
 				}
 			} else if operation.FinishReason == FinishReasonStop {
-				// session reached final answer, implementation layer should handle event emission
-				// send stop event
-				log.Printf("final answer: %s", answer.Choices[0].Message.Content)
-				//  emit final answer event before returning
-				Emit(session, CommonEvent[Conversation]{
-					SourceType: SessionFinalAnswer,
-					Data:       *messages,
+				// append final assistant message to conversation so next question has full history
+				finalMessage := ReActMessage{
+					Role:    RoleAssistant,
+					Content: operation.Message.Content,
+				}
+				*messages = append(*messages, finalMessage)
+				Emit(session, CommonEvent[ReActMessage]{
+					SourceType: SessionHistory,
+					Data:       finalMessage,
 				})
 				return answer, nil
 			}
 		}
 	}
-
-	Emit(session, CommonEvent[Conversation]{
-		SourceType: SessionFinalAnswer,
-		Data:       *messages,
-	})
 
 	return defaultAnswer, diagnostics
 }
