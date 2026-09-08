@@ -67,11 +67,22 @@ type SimpleAgentSession struct {
 	SimpleSessionContext
 }
 
+const (
+	SimpleSessionLogDir     = "sessionLogs"
+	SimpleSessionMemoryPath = "sessionMemories"
+)
+
 // NewAgentSession creates a new session from an AgentCore
 // log providers count when creating session
 func NewAgentSession(agent core.AgentCore) *SimpleAgentSession {
 	providers := agent.GetModelProviders()
 	log.Printf("NewAgentSession: providers count = %d", len(providers))
+
+	sessionConfig := agent.GetSessionConfig()
+	//  propagate RootPath from agent to session config
+	if a, ok := agent.(*SimpleAgent); ok {
+		sessionConfig.RootPath = a.RootPath
+	}
 
 	session := &SimpleAgentSession{
 		Providers:   providers,
@@ -79,7 +90,7 @@ func NewAgentSession(agent core.AgentCore) *SimpleAgentSession {
 		mu:          make(chan struct{}, 1),
 		lockTimeOut: LockTimeout,
 		Question:    make(chan core.Question),
-		Config:      agent.GetSessionConfig(),
+		Config:      sessionConfig,
 
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		eventChans:       make(map[string]chan core.Event[any]),
@@ -125,8 +136,9 @@ func (s *SimpleAgentSession) NewSubSession() core.Session {
 }
 
 func (s *SimpleAgentSession) SetLogger(config core.SessionConfig) *core.Diagnostic {
-	pathFormat := config.LogPath
-	folder := path.Dir(pathFormat)
+	//  use RootPath for log directory instead of relative path
+	realPath := path.Join(config.RootPath, config.LogPath)
+	folder := path.Dir(realPath)
 
 	if _, err := os.Stat(folder); os.IsNotExist(err) {
 		err = os.MkdirAll(folder, 0755)
@@ -138,7 +150,7 @@ func (s *SimpleAgentSession) SetLogger(config core.SessionConfig) *core.Diagnost
 		}
 	}
 
-	logPath := fmt.Sprintf(pathFormat, s.GetID())
+	logPath := path.Join(fmt.Sprintf(realPath, s.GetID()))
 	s.Logger = core.NewLogger(logPath)
 
 	return nil
@@ -202,9 +214,8 @@ func (s *SimpleAgentSession) SetStatus(status core.SessionStatus) *core.Diagnost
 }
 
 func (s *SimpleAgentSession) SaveHistory(conversation core.Conversation) *core.Diagnostic {
-	cwd, _ := os.Getwd()
-	// hard code here, for simplicity
-	basePath := path.Join(cwd, "..", "agent/simple", "memories")
+	//  use RootPath instead of hardcoded relative path
+	basePath := path.Join(s.Config.RootPath, SimpleSessionMemoryPath)
 
 	filename := fmt.Sprintf(s.Config.MemoryFilePathFormat, s.GetID())
 	filePath := path.Join(basePath, filename)
@@ -228,8 +239,9 @@ func (s *SimpleAgentSession) SelectTools(query core.Question, message core.ReAct
 	// TODO: support dynamicly loading tool
 	return []core.Tool{
 		tools.FileWriterCall{
-			Name:   toolConfigs[0].Name,
-			Schema: toolConfigs[0].Schema,
+			Name:     toolConfigs[0].Name,
+			Schema:   toolConfigs[0].Schema,
+			RootPath: s.Config.RootPath,
 		},
 	}
 }
@@ -352,13 +364,13 @@ func (s *SimpleAgentSession) OnEvent() {
 			log.Printf("Session %s: received SessionFinalAnswer event", s.GetID())
 			history, ok := e.GetData().(core.Conversation)
 			if ok {
-				// auto-added: save the history to storage for future use
+				//  save the history to storage for future use
 				log.Printf("Session %s: saving history, length=%d", s.GetID(), len(history))
 				if diag := s.SaveHistory(history); diag.Code != 0 {
 					log.Printf("Session %s: save history error: %s", s.GetID(), diag.Message)
 				}
 				if s.Logger != nil {
-					s.Logger.Printf("session %s final answer: %v", s.GetID(), history)
+					s.Logger.Printf("session %s final answer: %v", s.GetID(), history.ToString())
 				}
 			} else {
 				log.Printf("Session %s: failed to cast event data to Conversation", s.GetID())
@@ -390,7 +402,7 @@ func (s *SimpleAgentSession) RegisterEventChans() {
 	s.eventChans[core.SessionEventStop] = make(chan core.Event[any], DefaultEventBufferSize)
 	s.eventChans[core.SessionEventSaveHistoryFailed] = make(chan core.Event[any], DefaultEventBufferSize)
 	s.eventChans[core.SessionFinalAnswer] = make(chan core.Event[any], DefaultEventBufferSize)
-	// auto-added: register missing event channels
+	//  register missing event channels
 	s.eventChans[core.SessionStartProcessQuestion] = make(chan core.Event[any], DefaultEventBufferSize)
 	s.eventChans[core.SessionFinishQuestion] = make(chan core.Event[any], DefaultEventBufferSize)
 }

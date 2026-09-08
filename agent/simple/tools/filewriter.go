@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	SchemaPath      = "tools/filewriter.schema.json"
+	SchemaPath      = "agent/simple/tools"
 	MaxBytesAllowed = 10 * 1024 * 1024 // 10K
 )
 
@@ -20,6 +20,8 @@ const (
 type FileWriterCall struct {
 	Name   string `json:"name"`
 	Schema string `json:"schema"`
+	//  project root path for resolving schema file path
+	RootPath string
 }
 
 // GetName returns the function name from schema for matching with LLM tool calls
@@ -29,11 +31,10 @@ func (f FileWriterCall) GetName() string {
 
 // implement core.Tool interface, returns provider-agnostic ToolSchema
 func (f FileWriterCall) GetSchema() core.ToolSchema {
-	cwd, _ := os.Getwd()
 	var schema core.ToolSchema
 
-	// hard code here, for simplicity
-	content, err := os.ReadFile(path.Join(cwd, "..", "agent/simple/tools", f.Schema))
+	//  use RootPath instead of hardcoded relative path
+	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
 		log.Printf("GetSchema: failed to read schema file: %v", err)
 		return schema

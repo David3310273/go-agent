@@ -1,7 +1,7 @@
 {
     "agent": {
         "questionBufferSize": 10,
-        "logPath": "logs/agent-%s.log",
+        "logPath": "agentLogs/agent-%s.log",
         "prompt": {
             "paths": [
                 "prompt.md"
@@ -17,7 +17,7 @@
         ]
     },
     "session": {
-        "logPath": "logs/session-%s.log",
+        "logPath": "sessionLogs/session-%s.log",
         "reActMaxRounds": 10,
         "maxRetryOnLock": 3,
         "MemoryFilePathFormat": "session-%s-memory.txt"

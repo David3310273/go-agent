@@ -1,6 +1,6 @@
 # Changelog
 
-## V1.0.1: (will comming soon...)
+## V1.0.1: (will coming soon...)
 
 fixs:
 

@@ -37,18 +37,19 @@ func loadAppConfig(configPath string) (*core.AppConfig, error) {
 
 // initLogger creates and returns a logger instance
 func initLogger(appConfig *core.AppConfig) *log.Logger {
-	cwd, _ := os.Getwd()
-
-	// create log directory if it doesn't exist
+	//  use RootPath instead of os.Getwd()
 	logPath := fmt.Sprintf(appConfig.LogPath, time.Now().Format(time.RFC3339))
-	logFile := path.Join(cwd, logPath)
+	logFile := path.Join(appConfig.RootPath, logPath)
 
 	return core.NewLogger(logFile)
 }
 
 // initAgent creates, configures and starts the agent
-func initAgent() (*simple.SimpleAgent, *core.Diagnostic) {
+// rootPath parameter for resolving all runtime file paths
+func initAgent(rootPath string) (*simple.SimpleAgent, *core.Diagnostic) {
 	agent := simple.NewSimpleAgent()
+	//  set RootPath on agent so GetConfigPath and other methods can use it
+	agent.RootPath = rootPath
 
 	// load agent core config
 	agentConfig, diag := agent.LoadConfigs("")
@@ -63,7 +64,7 @@ func initAgent() (*simple.SimpleAgent, *core.Diagnostic) {
 	}
 
 	// create providers from registry and set on agent before start
-	providers := simple.CreateProviders()
+	providers := simple.CreateProviders(rootPath)
 	if diag := agent.SetProviders(providers); diag != nil {
 		return nil, diag
 	}
@@ -89,7 +90,7 @@ func main() {
 	logger.Printf("app starting, config loaded from %s", configPath)
 
 	// 3. init agent
-	agent, initErr := initAgent()
+	agent, initErr := initAgent(appConfig.RootPath)
 	if initErr != nil {
 		log.Fatalf("failed to init agent: %v", initErr.ToString())
 	}

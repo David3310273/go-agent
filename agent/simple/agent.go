@@ -33,6 +33,7 @@ type SimpleAgentContext struct {
 
 const (
 	QuestionBufferSize = 10
+	SimpleAgentPath    = "agent/simple"
 )
 
 // Context getter methods
@@ -63,11 +64,10 @@ func (a *SimpleAgent) SetPrompt(prompt core.PromptConfig) *core.Diagnostic {
 	a.Prompt = make([]byte, 0, a.Configs.Agent.Prompt.BufferSizeInKB*1024)
 	// load prompt in memory per file as much as possible
 	contentSize := 0
-	cwd, _ := os.Getwd()
 
 	for _, filename := range prompt.Paths {
-		// hard code here, for simplicity
-		realPath := path.Join(cwd, "..", "agent/simple", filename)
+		//  use RootPath instead of hardcoded relative path
+		realPath := path.Join(a.RootPath, SimpleAgentPath, filename)
 		log.Printf("real prompt path: %s", realPath)
 		tempPrompt, err := os.ReadFile(realPath)
 		if err != nil {
@@ -128,10 +128,12 @@ func (a *SimpleAgent) SetProviders(providers []core.Provider) *core.Diagnostic {
 }
 
 // creates all registered providers from the core providerregistry
-func CreateProviders() []core.Provider {
+//
+//	rootPath parameter for resolving provider config file paths
+func CreateProviders(rootPath string) []core.Provider {
 	providers := []core.Provider{}
 	for name, factory := range core.GetProviderFactories() {
-		provider, err := factory()
+		provider, err := factory(rootPath)
 		if err != nil {
 			log.Printf("failed to create provider %s: %s", name, err.Message)
 			continue
@@ -155,6 +157,8 @@ var _ core.AgentCore = (*SimpleAgent)(nil)
 
 type SimpleAgent struct {
 	ID string
+	//  project root path, set from AppConfig at startup
+	RootPath string
 	// event
 	eventChans      map[string]chan core.Event[any]
 	eventHandlers   map[string]func(core.Event[any]) core.Diagnostic
@@ -238,12 +242,8 @@ func (a *SimpleAgent) SetID() *core.Diagnostic {
 // Configure
 
 func (a *SimpleAgent) GetConfigPath() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ""
-	}
-	// hard code here, for simplicity
-	result := path.Join(cwd, "..", "agent/simple", ConfigFileName)
+	//  use RootPath instead of hardcoded relative path
+	result := path.Join(a.RootPath, SimpleAgentPath, ConfigFileName)
 
 	return result
 }
@@ -276,8 +276,9 @@ func (a *SimpleAgent) LoadConfigs(path string) (core.AgentCoreConfig, *core.Diag
 // Logger
 
 func (a *SimpleAgent) SetLogger(config core.AgentConfig) *core.Diagnostic {
-	pathFormat := config.LogPath
-	folder := path.Dir(pathFormat)
+	//  use RootPath for log directory instead of relative path
+	realPath := path.Join(a.RootPath, config.LogPath)
+	folder := path.Dir(realPath)
 
 	if _, err := os.Stat(folder); os.IsNotExist(err) {
 		err = os.MkdirAll(folder, 0755)
@@ -289,8 +290,8 @@ func (a *SimpleAgent) SetLogger(config core.AgentConfig) *core.Diagnostic {
 		}
 	}
 
-	logPath := fmt.Sprintf(pathFormat, a.GetID())
-	log.Printf("set agent log path: %s, %s", pathFormat, logPath)
+	logPath := path.Join(fmt.Sprintf(realPath, a.GetID()))
+	log.Printf("set agent log path: %s", logPath)
 	a.Logger = core.NewLogger(logPath)
 
 	return nil
@@ -459,7 +460,7 @@ func (a *SimpleAgent) StopSession(sessionID string) *core.Diagnostic {
 			}
 		}
 
-		// auto-added: acquire lock first, only release if acquired
+		//  acquire lock first, only release if acquired
 		if err := a.Acquire(); err == nil {
 			defer a.Release()
 			delete(a.sessions, sessionID)

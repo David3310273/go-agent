@@ -10,10 +10,12 @@ const (
 )
 
 type AgentCoreConfig struct {
-	Agent   AgentConfig   `json:"agent"`
-	Session SessionConfig `json:"session"`
-	Model   []ModelConfig `json:"model"`
-	Tool    []ToolConfig  `json:"tool"`
+	//  project root path for resolving relative paths at runtime
+	RootPath string
+	Agent    AgentConfig   `json:"agent"`
+	Session  SessionConfig `json:"session"`
+	Model    []ModelConfig `json:"model"`
+	Tool     []ToolConfig  `json:"tool"`
 }
 
 type PlanType int
@@ -37,6 +39,8 @@ type Plan struct {
 }
 
 type AppConfig struct {
+	//  project root path, used as base path for all runtime file operations
+	RootPath           string        `json:"rootPath"`
 	TimeZone           string        `json:"timeZone"`
 	Language           LanguageType  `json:"language"`
 	LogPath            string        `json:"logPath"`
@@ -92,6 +96,8 @@ type ToolConfig struct {
 	Schema string `json:"schema"`
 	// brief description
 	Description string `json:"description"`
+	//  project root path, propagated at runtime for resolving tool resource files
+	RootPath string
 }
 
 type KnowledgeBaseConfig struct {
@@ -129,6 +135,8 @@ type HistoryConfig struct {
 }
 
 type SessionConfig struct {
+	//  project root path, propagated at runtime for resolving file paths
+	RootPath string
 	// reAct max rounds
 	ReActMaxRounds int `json:"reActMaxRounds"`
 	// memory file path for current session

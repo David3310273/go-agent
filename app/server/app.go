@@ -58,7 +58,7 @@ func (s *SimpleAgentServer) Start() {
 		diagnostics := core.StartAgentCore(s.agent, s.Config)
 		if len(diagnostics) > 0 {
 			for _, d := range diagnostics {
-				// auto-added: only log errors, not warnings like system closed
+				//  only log errors, not warnings like system closed
 				if d.Level >= core.SeverityError {
 					s.Logger.Printf("StartAgentCore error: %s", d.ToString())
 				}

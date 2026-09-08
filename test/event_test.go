@@ -153,7 +153,7 @@ func TestEmit_InvalidSource(t *testing.T) {
 // =============================================================================
 
 func TestSimpleEvent_GetSourceType(t *testing.T) {
-	// auto-added: SimpleEvent is now in agent/simple package, test via mock
+	// SimpleEvent is now in agent/simple package, test via mock
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -167,7 +167,7 @@ func TestSimpleEvent_GetSourceType(t *testing.T) {
 }
 
 func TestSimpleEvent_GetData(t *testing.T) {
-	// auto-added: test event data retrieval via mock
+	//  test event data retrieval via mock
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -182,7 +182,7 @@ func TestSimpleEvent_GetData(t *testing.T) {
 }
 
 func TestSimpleEvent_WriteToStorage(t *testing.T) {
-	// auto-added: test WriteToStorage via mock
+	//  test WriteToStorage via mock
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 

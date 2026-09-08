@@ -1,4 +1,5 @@
 {
+    "rootPath": "[Your root path of the project]",
     "timeZone": "Asia/Shanghai",
     "language": "zh-CN",
     "logPath": "logs/app-%s.log",
