@@ -64,34 +64,36 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 	contextContent := session.GenerateFinalContext(question)
 	prompt := contextContent + config.MemoryFileSplitter + "\n"
 
-	messages := []ReActMessage{
-		{Role: RoleSystem, Content: prompt},
-		{Role: RoleUser, Content: question.GetQuery()},
+	// use pointer to conversation so modifications are reflected in session
+	messages := session.GetConversation()
+
+	if len(*messages) == 0 {
+		*messages = append(*messages, ReActMessage{Role: RoleSystem, Content: prompt})
 	}
+
+	*messages = append(*messages, ReActMessage{Role: RoleUser, Content: question.GetQuery()})
 
 	defaultAnswer := AgentResponse{
 		Response: question.GetDefaultAnswer().ToString(),
 	}
 
-	var tokenUsage uint64 = 0
-
 	// set max reAct rounds
 	for i := 0; i < maxReActRounds; i++ {
 		// dynamically load tools based on latest message and original question
-		tools := session.SelectTools(question, messages[len(messages)-1])
-		response, errs := AskQuestion(session, messages, tools, question)
+		tools := session.SelectTools(question, (*messages)[len(*messages)-1])
+		log.Printf("init messages: %v", messages.ToString())
+		response, errs := AskQuestion(session, *messages, tools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
 			return defaultAnswer, diagnostics
 		}
 
 		answer, ok := response.(AgentResponse)
-		tokenUsage += answer.Usage.TotalTokens
 
 		if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil {
 			// retry with retry query when response format is invalid
 			question.SetQuery(question.GetRetryQuery())
-			messages[len(messages)-1] = ReActMessage{Role: RoleUser, Content: question.GetRetryQuery()}
+			(*messages)[len(*messages)-1] = ReActMessage{Role: RoleUser, Content: question.GetRetryQuery()}
 			continue
 		} else {
 			// for simplicity, only use the first choice
@@ -105,7 +107,7 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 			if operation.Message.ToolCalls != nil && len(*operation.Message.ToolCalls) > 0 {
 				// handle tool calls
 				// 1. append assistant message with tool_calls
-				messages = append(messages, ReActMessage{
+				*messages = append(*messages, ReActMessage{
 					Role:      RoleAssistant,
 					Content:   operation.Message.Content,
 					ToolCalls: operation.Message.ToolCalls,
@@ -141,7 +143,7 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 					}
 
 					// append tool response
-					messages = append(messages, ReActMessage{
+					*messages = append(*messages, ReActMessage{
 						Role:       RoleTool,
 						Content:    toolResult,
 						ToolCallID: toolCall.ID,
@@ -151,11 +153,10 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 				// session reached final answer, implementation layer should handle event emission
 				// send stop event
 				log.Printf("final answer: %s", answer.Choices[0].Message.Content)
-				log.Printf("token used: %d", tokenUsage)
 				//  emit final answer event before returning
 				Emit(session, CommonEvent[Conversation]{
 					SourceType: SessionFinalAnswer,
-					Data:       messages,
+					Data:       *messages,
 				})
 				return answer, nil
 			}
@@ -164,7 +165,7 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 
 	Emit(session, CommonEvent[Conversation]{
 		SourceType: SessionFinalAnswer,
-		Data:       messages,
+		Data:       *messages,
 	})
 
 	return defaultAnswer, diagnostics

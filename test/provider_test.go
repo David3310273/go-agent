@@ -233,9 +233,8 @@ func TestValidateProviders_Success(t *testing.T) {
 	mockProvider := testmock.NewMockProvider(ctrl)
 	config := core.ModelConfig{APIKey: core.APIKey{Key: "test-key"}}
 
-	// ValidateProviders calls Auth first, then GetModelConfig only if Auth succeeds
 	mockProvider.EXPECT().Auth(gomock.Any()).Return(nil)
-	mockProvider.EXPECT().GetModelConfig().Return(config).Times(2) // called twice: once for Auth, once for Init
+	mockProvider.EXPECT().GetModelConfig().Return(config).Times(2)
 	mockProvider.EXPECT().Init(config).Return(nil)
 
 	diagnostics := core.ValidateProviders([]core.Provider{mockProvider})
@@ -330,7 +329,6 @@ func TestAskQuestion_ProviderNotFound(t *testing.T) {
 	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
 	mockQuestion.EXPECT().GetProviderName().Return("unknown-provider")
 	mockProvider.EXPECT().GetName().Return("qwen")
-	// When provider name doesn't match, it still uses the first provider
 	mockProvider.EXPECT().Complete(messages, tools).Return(nil, nil)
 
 	answer, diagnostics := core.AskQuestion(mockSession, messages, tools, mockQuestion)
@@ -413,7 +411,6 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 		MemoryFileSplitter: "---",
 	}
 
-	// Setup expectations
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
 	mockSession.EXPECT().GenerateFinalContext(mockQuestion).Return("context")
 	mockSession.EXPECT().SelectTools(mockQuestion, gomock.Any()).Return([]core.Tool{}).AnyTimes()
@@ -424,9 +421,10 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockQuestion.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
 	mockQuestion.EXPECT().SetQuery("retry query").AnyTimes()
 	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
+	emptyConversation := core.Conversation{}
+	mockSession.EXPECT().GetConversation().Return(&emptyConversation)
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 
-	// First call returns invalid response (nil choices)
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
 	answer, diagnostics := core.ProcessQuestion(mockSession, mockQuestion)
@@ -467,6 +465,8 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockSession.EXPECT().GenerateFinalContext(mockQuestion).Return("context")
 	mockSession.EXPECT().SelectTools(mockQuestion, gomock.Any()).Return([]core.Tool{}).AnyTimes()
 	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
+	emptyConversation := core.Conversation{}
+	mockSession.EXPECT().GetConversation().Return(&emptyConversation)
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen")
 	mockQuestion.EXPECT().GetProviderName().Return("qwen")
@@ -508,7 +508,6 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 		},
 	}
 
-	// First response: tool call
 	firstResponse := core.AgentResponse{
 		Choices: []core.Choices{
 			{
@@ -522,7 +521,6 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 		},
 	}
 
-	// Second response: final answer
 	finalResponse := core.AgentResponse{
 		Choices: []core.Choices{
 			{
@@ -539,21 +537,18 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockSession.EXPECT().GenerateFinalContext(mockQuestion).Return("context")
 	mockSession.EXPECT().SelectTools(mockQuestion, gomock.Any()).Return([]core.Tool{mockTool}).AnyTimes()
 	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
+	emptyConversation := core.Conversation{}
+	mockSession.EXPECT().GetConversation().Return(&emptyConversation)
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 
-	// First call returns tool call
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
-
-	// Tool expectations
 	mockTool.EXPECT().GetName().Return("test_tool")
 	mockTool.EXPECT().Validate(gomock.Any()).Return(nil)
 	mockTool.EXPECT().GetRunner().Return(func(args map[string]any) *core.Diagnostic { return nil })
-
-	// Second call returns final answer
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(finalResponse, nil)
 
 	answer, diagnostics := core.ProcessQuestion(mockSession, mockQuestion)
@@ -616,8 +611,10 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
 	mockSession.EXPECT().GenerateFinalContext(mockQuestion).Return("context")
-	mockSession.EXPECT().SelectTools(mockQuestion, gomock.Any()).Return([]core.Tool{}).AnyTimes() // No tools
+	mockSession.EXPECT().SelectTools(mockQuestion, gomock.Any()).Return([]core.Tool{}).AnyTimes()
 	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
+	emptyConversation := core.Conversation{}
+	mockSession.EXPECT().GetConversation().Return(&emptyConversation)
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
@@ -653,7 +650,7 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 			Type: "function",
 			Function: core.Function{
 				Name:      "test_tool",
-				Arguments: `invalid json`, // Invalid JSON
+				Arguments: `invalid json`,
 			},
 		},
 	}
@@ -687,6 +684,8 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockSession.EXPECT().GenerateFinalContext(mockQuestion).Return("context")
 	mockSession.EXPECT().SelectTools(mockQuestion, gomock.Any()).Return([]core.Tool{mockTool}).AnyTimes()
 	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
+	emptyConversation := core.Conversation{}
+	mockSession.EXPECT().GetConversation().Return(&emptyConversation)
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()

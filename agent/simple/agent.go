@@ -66,7 +66,7 @@ func (a *SimpleAgent) SetPrompt(prompt core.PromptConfig) *core.Diagnostic {
 	contentSize := 0
 
 	for _, filename := range prompt.Paths {
-		//  use RootPath instead of hardcoded relative path
+		// use RootPath instead of hardcoded relative path
 		realPath := path.Join(a.RootPath, SimpleAgentPath, filename)
 		log.Printf("real prompt path: %s", realPath)
 		tempPrompt, err := os.ReadFile(realPath)
@@ -479,6 +479,7 @@ func (a *SimpleAgent) StopSession(sessionID string) *core.Diagnostic {
 // get session, if not exist and forceCreate is true, create a new one
 func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	if session, ok := a.sessions[sessionID]; ok {
+		log.Printf("session %s found, will enter conversation", sessionID)
 		return session, nil
 	} else if forceCreate {
 		log.Printf("session %s not found, will create new one", sessionID)

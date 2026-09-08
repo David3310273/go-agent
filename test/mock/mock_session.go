@@ -122,18 +122,18 @@ func (mr *MockSessionMockRecorder) GetConfigs() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigs", reflect.TypeOf((*MockSession)(nil).GetConfigs))
 }
 
-// GetConversations mocks base method.
-func (m *MockSession) GetConversations() map[string]core.Conversation {
+// GetConversation mocks base method.
+func (m *MockSession) GetConversation() *core.Conversation {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConversations")
-	ret0, _ := ret[0].(map[string]core.Conversation)
+	ret := m.ctrl.Call(m, "GetConversation")
+	ret0, _ := ret[0].(*core.Conversation)
 	return ret0
 }
 
-// GetConversations indicates an expected call of GetConversations.
-func (mr *MockSessionMockRecorder) GetConversations() *gomock.Call {
+// GetConversation indicates an expected call of GetConversation.
+func (mr *MockSessionMockRecorder) GetConversation() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversations", reflect.TypeOf((*MockSession)(nil).GetConversations))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversation", reflect.TypeOf((*MockSession)(nil).GetConversation))
 }
 
 // GetEventChans mocks base method.
@@ -256,6 +256,20 @@ func (mr *MockSessionMockRecorder) RegisterEventChans() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterEventChans", reflect.TypeOf((*MockSession)(nil).RegisterEventChans))
 }
 
+// SaveHistory mocks base method.
+func (m *MockSession) SaveHistory(arg0 core.Conversation) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveHistory", arg0)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// SaveHistory indicates an expected call of SaveHistory.
+func (mr *MockSessionMockRecorder) SaveHistory(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveHistory", reflect.TypeOf((*MockSession)(nil).SaveHistory), arg0)
+}
+
 // SelectLocalKB mocks base method.
 func (m *MockSession) SelectLocalKB(arg0 core.Question) string {
 	m.ctrl.T.Helper()
@@ -268,20 +282,6 @@ func (m *MockSession) SelectLocalKB(arg0 core.Question) string {
 func (mr *MockSessionMockRecorder) SelectLocalKB(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelectLocalKB", reflect.TypeOf((*MockSession)(nil).SelectLocalKB), arg0)
-}
-
-// auto-added: SaveHistory mocks base method.
-func (m *MockSession) SaveHistory(arg0 core.Conversation) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveHistory", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// auto-added: SaveHistory indicates an expected call of SaveHistory.
-func (mr *MockSessionMockRecorder) SaveHistory(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveHistory", reflect.TypeOf((*MockSession)(nil).SaveHistory), arg0)
 }
 
 // SelectTools mocks base method.
@@ -354,68 +354,54 @@ func (mr *MockSessionMockRecorder) Stop(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSession)(nil).Stop), arg0)
 }
 
-// MockConversation is a mock of Conversation interface.
-type MockConversation struct {
+// MockSessionAnswer is a mock of SessionAnswer interface.
+type MockSessionAnswer struct {
 	ctrl     *gomock.Controller
-	recorder *MockConversationMockRecorder
+	recorder *MockSessionAnswerMockRecorder
 	isgomock struct{}
 }
 
-// MockConversationMockRecorder is the mock recorder for MockConversation.
-type MockConversationMockRecorder struct {
-	mock *MockConversation
+// MockSessionAnswerMockRecorder is the mock recorder for MockSessionAnswer.
+type MockSessionAnswerMockRecorder struct {
+	mock *MockSessionAnswer
 }
 
-// NewMockConversation creates a new mock instance.
-func NewMockConversation(ctrl *gomock.Controller) *MockConversation {
-	mock := &MockConversation{ctrl: ctrl}
-	mock.recorder = &MockConversationMockRecorder{mock}
+// NewMockSessionAnswer creates a new mock instance.
+func NewMockSessionAnswer(ctrl *gomock.Controller) *MockSessionAnswer {
+	mock := &MockSessionAnswer{ctrl: ctrl}
+	mock.recorder = &MockSessionAnswerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockConversation) EXPECT() *MockConversationMockRecorder {
+func (m *MockSessionAnswer) EXPECT() *MockSessionAnswerMockRecorder {
 	return m.recorder
 }
 
-// GetContent mocks base method.
-func (m *MockConversation) GetContent() core.Serializable {
+// GetSessionID mocks base method.
+func (m *MockSessionAnswer) GetSessionID() string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetContent")
-	ret0, _ := ret[0].(core.Serializable)
-	return ret0
-}
-
-// GetContent indicates an expected call of GetContent.
-func (mr *MockConversationMockRecorder) GetContent() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContent", reflect.TypeOf((*MockConversation)(nil).GetContent))
-}
-
-// GetID mocks base method.
-func (m *MockConversation) GetID() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetID")
+	ret := m.ctrl.Call(m, "GetSessionID")
 	ret0, _ := ret[0].(string)
 	return ret0
 }
 
-// GetID indicates an expected call of GetID.
-func (mr *MockConversationMockRecorder) GetID() *gomock.Call {
+// GetSessionID indicates an expected call of GetSessionID.
+func (mr *MockSessionAnswerMockRecorder) GetSessionID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetID", reflect.TypeOf((*MockConversation)(nil).GetID))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionID", reflect.TypeOf((*MockSessionAnswer)(nil).GetSessionID))
 }
 
-// SaveConversation mocks base method.
-func (m *MockConversation) SaveConversation(result core.Serializable) *core.Diagnostic {
+// ToString mocks base method.
+func (m *MockSessionAnswer) ToString() string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveConversation", result)
-	ret0, _ := ret[0].(*core.Diagnostic)
+	ret := m.ctrl.Call(m, "ToString")
+	ret0, _ := ret[0].(string)
 	return ret0
 }
 
-// SaveConversation indicates an expected call of SaveConversation.
-func (mr *MockConversationMockRecorder) SaveConversation(result any) *gomock.Call {
+// ToString indicates an expected call of ToString.
+func (mr *MockSessionAnswerMockRecorder) ToString() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveConversation", reflect.TypeOf((*MockConversation)(nil).SaveConversation), result)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToString", reflect.TypeOf((*MockSessionAnswer)(nil).ToString))
 }
