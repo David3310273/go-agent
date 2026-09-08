@@ -25,8 +25,8 @@ const (
 // SimpleSessionContext holds session-specific context data
 type SimpleSessionContext struct {
 	SimpleAgentContext
-	// Conversation would be saved to storage for future use
-	Conversations [][]core.ReActMessage
+
+	Conversation core.Conversation
 }
 
 // SimpleAgentSession represents a single agent session
@@ -66,11 +66,6 @@ type SimpleAgentSession struct {
 	// session context
 	SimpleSessionContext
 }
-
-const (
-	SimpleSessionLogDir     = "sessionLogs"
-	SimpleSessionMemoryPath = "sessionMemories"
-)
 
 // NewAgentSession creates a new session from an AgentCore
 // log providers count when creating session
@@ -112,8 +107,10 @@ func NewAgentSession(agent core.AgentCore) *SimpleAgentSession {
 	session.Skills = agent.GetSkills()
 	session.KnowledgeBase = agent.GetKnowledgeBase()
 	session.Tools = agent.GetToolsConfig()
+	session.Conversation = core.Conversation{}
 
-	session.SetLogger(agent.GetSessionConfig())
+	// use sessionConfig (with RootPath set) instead of original config
+	session.SetLogger(sessionConfig)
 
 	return session
 }
@@ -213,14 +210,30 @@ func (s *SimpleAgentSession) SetStatus(status core.SessionStatus) *core.Diagnost
 	return nil
 }
 
+// return pointer so callers can modify the conversation in place
+func (s *SimpleAgentSession) GetConversation() *core.Conversation {
+	// TODO: sliding window for controlling history
+	return &s.Conversation
+}
+
 func (s *SimpleAgentSession) SaveHistory(conversation core.Conversation) *core.Diagnostic {
 	//  use RootPath instead of hardcoded relative path
-	basePath := path.Join(s.Config.RootPath, SimpleSessionMemoryPath)
+	filePath := path.Join(s.Config.RootPath, s.Config.MemoryFilePathFormat)
+	filename := fmt.Sprintf(filePath, s.GetID())
 
-	filename := fmt.Sprintf(s.Config.MemoryFilePathFormat, s.GetID())
-	filePath := path.Join(basePath, filename)
+	basePath := path.Dir(filename)
+	if _, err := os.Stat(basePath); os.IsNotExist(err) {
+		err = os.MkdirAll(basePath, 0755)
+		if err != nil {
+			return &core.Diagnostic{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeWriteHistoryError,
+				Message: err.Error(),
+			}
+		}
+	}
 
-	if err := utils.RotateWrite(filePath, s.Config.MemoryFileSplitter, 1024*1024*1024, []byte(conversation.ToString())); err != nil {
+	if err := utils.RotateWrite(filename, s.Config.MemoryFileSplitter, 1024*1024*1024, []byte(conversation.ToString())); err != nil {
 		return &core.Diagnostic{
 			Level:   core.SeverityError,
 			Code:    core.MessageCodeWriteHistoryError,

@@ -85,20 +85,27 @@ func TestMockSession_GetModelProviders(t *testing.T) {
 	}
 }
 
-func TestMockSession_GetConversations(t *testing.T) {
+func TestMockSession_GetConversation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockSession := testmock.NewMockSession(ctrl)
-	mockConversations := map[string]core.Conversation{
-		"conv-1": nil,
+	conversation := core.Conversation{
+		{Role: core.RoleUser, Content: "hello"},
+		{Role: core.RoleAssistant, Content: "hi"},
 	}
 
-	mockSession.EXPECT().GetConversations().Return(mockConversations)
+	mockSession.EXPECT().GetConversation().Return(&conversation)
 
-	conversations := mockSession.GetConversations()
-	if len(conversations) != 1 {
-		t.Errorf("expected 1 conversation, got %d", len(conversations))
+	result := mockSession.GetConversation()
+	if result == nil {
+		t.Fatal("expected conversation, got nil")
+	}
+	if len(*result) != 2 {
+		t.Errorf("expected 2 messages, got %d", len(*result))
+	}
+	if (*result)[0].Content != "hello" {
+		t.Errorf("expected first message 'hello', got '%s'", (*result)[0].Content)
 	}
 }
 
@@ -116,7 +123,6 @@ func TestMockSession_SelectTools(t *testing.T) {
 	}
 }
 
-// test for ProcessQuery method
 func TestMockSession_ProcessQuery(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -129,7 +135,6 @@ func TestMockSession_ProcessQuery(t *testing.T) {
 	mockSession.ProcessQuery(mockQuestion)
 }
 
-// test for SelectLocalKB method
 func TestMockSession_SelectLocalKB(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -160,49 +165,18 @@ func TestMockSession_NewSubSession(t *testing.T) {
 	}
 }
 
-// =============================================================================
-// Conversation interface tests
-// =============================================================================
-
-func TestMockConversation_GetID(t *testing.T) {
+func TestMockSession_SaveHistory(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockConv := testmock.NewMockConversation(ctrl)
-	mockConv.EXPECT().GetID().Return("conv-123")
-
-	id := mockConv.GetID()
-	if id != "conv-123" {
-		t.Errorf("expected id 'conv-123', got %s", id)
+	mockSession := testmock.NewMockSession(ctrl)
+	conversation := core.Conversation{
+		{Role: core.RoleUser, Content: "hello"},
 	}
-}
 
-func TestMockConversation_GetContent(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	mockSession.EXPECT().SaveHistory(conversation).Return(nil)
 
-	mockConv := testmock.NewMockConversation(ctrl)
-	mockContent := testmock.NewMockSerializable(ctrl)
-	mockContent.EXPECT().ToString().Return("test content")
-
-	mockConv.EXPECT().GetContent().Return(mockContent)
-
-	content := mockConv.GetContent()
-	if content.ToString() != "test content" {
-		t.Errorf("expected content 'test content', got %s", content.ToString())
-	}
-}
-
-func TestMockConversation_SaveConversation(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockConv := testmock.NewMockConversation(ctrl)
-	mockContent := testmock.NewMockSerializable(ctrl)
-
-	mockConv.EXPECT().SaveConversation(mockContent).Return(nil)
-
-	err := mockConv.SaveConversation(mockContent)
+	err := mockSession.SaveHistory(conversation)
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}
@@ -267,5 +241,23 @@ func TestStopSession_Success(t *testing.T) {
 	diagnostics := core.StopSession(mockSession, config)
 	if len(diagnostics) != 0 {
 		t.Errorf("expected 0 diagnostics, got %d", len(diagnostics))
+	}
+}
+
+func TestStopSession_BeforeStopError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockSession := testmock.NewMockSession(ctrl)
+	config := core.AgentCoreConfig{}
+	expectedErr := []core.Diagnostic{
+		{Level: core.SeverityError, Code: core.MessageCodeSessionStopError},
+	}
+
+	mockSession.EXPECT().BeforeStop(config).Return(expectedErr)
+
+	diagnostics := core.StopSession(mockSession, config)
+	if len(diagnostics) != 1 {
+		t.Errorf("expected 1 diagnostic, got %d", len(diagnostics))
 	}
 }

@@ -38,6 +38,8 @@ type Session interface {
 	SelectLocalKB(Question) string
 	// save history
 	SaveHistory(Conversation) *Diagnostic
+	// return pointer so ProcessQuestion can modify session conversation in place
+	GetConversation() *Conversation
 }
 
 type SessionAnswer interface {

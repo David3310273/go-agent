@@ -40,6 +40,14 @@ func initLogger(appConfig *core.AppConfig) *log.Logger {
 	//  use RootPath instead of os.Getwd()
 	logPath := fmt.Sprintf(appConfig.LogPath, time.Now().Format(time.RFC3339))
 	logFile := path.Join(appConfig.RootPath, logPath)
+	logDir := path.Dir(logFile)
+
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		err = os.MkdirAll(logDir, 0755)
+		if err != nil {
+			log.Fatalf("failed to create log directory: %v", err)
+		}
+	}
 
 	return core.NewLogger(logFile)
 }
