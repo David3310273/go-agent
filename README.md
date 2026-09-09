@@ -8,61 +8,44 @@ Using param injection from outside app to start eventual tool call
 
 ![architecture](https://github.com/David3310273/go-agent/blob/main/images/layer.png?raw=true)
 
-### Main entities
-
-- App: user oriented service or app, such as server, command or web application.
-- AgentCore: entrypoint to app, mainly for status management and session management, with customized system prompt, history, knowledge base and tools
-- Session: a conversation between user and agent, including questions, context(injected from AgentCore) and own history
-- Provider: model adapter between framework and specific llms
-- Context: agent/session runtime context. including prompt, history, knowledge base, available providers and tools
-- Tool: local tools for agent.
-- Sandbox: decorator of tool calls
-- Benchmark: single agent metrics watcher, should not belong to any agents.
-
 ### Design Principles
 
 - Param injection rather than variables in struct
 - Only composition on final interface, interface unit should have single responsibility.
 
-### Directory Structure
+## Highlights
 
-- core: core framework logics and interfaces(such as entities mentioned above). Should not include:
-  - any specific agents, sessions, logs, etc.
-  - import other specific implementation packages. Can only include other core interfaces.
-- agent: agent implementations. Create your own agent logic here. Already have an example called **simple agent**. Should not include:
-  - app related configs(such as language, timeZone...), logs, etc.
-- providers: only focus on specific model insertion(such as claude...), if you want to use agent data, using param injection rather than define the variable in provider struct.
-- app: agent app for user. such as server, web app, command line...
+- Multi-layered architecture, clear boundary and simple organization of directories, easy to understand
+- Easy to extend and customize based on interface implementation
 
-## How to Develop your own Agent using go-agent
+## How to start
 
-### Adding a New Provider
+### Prerequisites
 
-1. Create a new directory under `providers/` (e.g., `providers/openai/`)
-2. Implement the `core.Provider` interface
-3. Register your provider factory in `init()`:
-   ```go
-   func init() {
-       core.RegisterProviderFactory("openai", func() (core.Provider, *core.Diagnostic) {
-           return NewOpenAIProvider()
-       })
-   }
-   ```
-4. Add a `<provider>.template.json` with placeholder values
-5. **Never commit real API keys** — add your config file to `.gitignore`
+- Go 1.25+
+- Git
 
-### Adding a New Tool
+### Getting Started
 
-1. Implement the `core.Tool` interface
-2. Place tool implementations under `agent/<agent_name>/tools/`
-3. Include a schema JSON file (e.g., `mytool.schema.json`)
+```bash
+git clone https://github.com/David3310273/go-agent.git
+cd go-agent
+go mod download
+```
 
-### Adding a New Agent
+### Running the example application
 
-1. Create a new directory under `agent/` (e.g., `agent/advanced/`)
-2. Implement the `core.AgentCore` interface
-3. Include a `config.json` for agent-specific configuration
-4. Add a compile-time interface check:
-   ```go
-   var _ core.AgentCore = (*MyAgent)(nil)
-   ```
+```bash
+cd app
+go run main.go
+```
+
+### Make request to the agent
+
+For example:
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"question": "hello"}' http://localhost:8080/v1/ask
+```
+
+For mode details, see README.md under `app` directory

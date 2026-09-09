@@ -6,6 +6,17 @@ Thank you for your interest in contributing to go-agent! This document provides 
 
 go-agent is an interface-implemented, multi-layered agent framework written in Go. The project follows a layered architecture with clear separation of concerns.
 
+### Main entities
+
+- App: user oriented service or app, such as server, command or web application.
+- AgentCore: entrypoint to app, mainly for status management and session management, with customized system prompt, history, knowledge base and tools
+- Session: a conversation between user and agent, including questions, context(injected from AgentCore) and own history
+- Provider: model adapter between framework and specific llms
+- Context: agent/session runtime context. including prompt, history, knowledge base, available providers and tools
+- Tool: local tools for agent.
+- Sandbox: decorator of tool calls
+- Benchmark: single agent metrics watcher, should not belong to any agents.
+
 ### Architecture Layers
 
 - **core/**: Framework interfaces and core logic (AgentCore, Session, Provider, Tool, etc.)
@@ -21,8 +32,9 @@ go-agent is an interface-implemented, multi-layered agent framework written in G
 
 ## How to Contribute
 
-1. **Providing more thoughts on architecture or design partterns**. Such as what do you think of sandbox, MCP server and how to insert these components into the framework. Also, inserting new providers is welcome.
-2. **Don't have to pay more attention on the simple app**, that is just an example of this framework. Of course, good advices and implementations are also welcome.
+1. **Start from supporting other model providers if you're interested**, such as claude, openai, etc.
+2. **Providing more thoughts on architecture or design partterns**. Such as what do you think of sandbox, MCP server and how to insert these components into the framework.
+3. **Don't have to pay more attention on the simple app**, that is just an example of this framework. Of course, good advices and implementations are also welcome.
 
 ### Pull Request Guidelines
 
@@ -36,28 +48,6 @@ go-agent is an interface-implemented, multi-layered agent framework written in G
 4. **Test your changes** — ensure `go build ./...` and `go test ./...` pass
 5. **Update documentation** — if your change affects usage or configuration
 
-
-## Local dev environment setup
-
-### Prerequisites
-
-- Go 1.25+
-- Git
-
-### Getting Started
-
-```bash
-git clone https://github.com/David3310273/go-agent.git
-cd go-agent
-go mod download
-```
-
-### Running the example application
-
-```bash
-cd app
-go run main.go
-```
 
 ### Running Tests
 
