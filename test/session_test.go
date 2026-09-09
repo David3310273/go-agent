@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.Session interface and related functions
+// test cases for core.Session interface and related functions
 package test
 
 import (

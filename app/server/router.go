@@ -1,6 +1,8 @@
 package server
 
 import (
+	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -14,6 +16,9 @@ type AskRequest struct {
 	SessionID *string `json:"sessionID,omitempty"` // optional
 	Question  string  `json:"question" binding:"required"`
 	Model     *string `json:"model,omitempty"`
+	// option from request
+	Stream         bool `json:"stream,omitempty"`
+	EnableThinking bool `json:"enableThinking,omitempty"`
 }
 
 // AskResponse represents the response body for /v1/ask endpoint
@@ -74,14 +79,17 @@ func handleAsk(c *gin.Context, appConfig *core.AppConfig) {
 	}
 
 	// create response channel for receiving answer
-	responseChan := make(chan core.Answer, 1)
+	// larger buffer for streaming chunks
+	responseChan := make(chan core.Answer, 64)
 	hintChan := make(chan core.Answer, appConfig.RequestQueueLength)
 
 	// create question object
 	question := &SimpleQuestion{
-		query:        req.Question,
-		responseChan: responseChan,
-		hintChan:     hintChan,
+		query:          req.Question,
+		responseChan:   responseChan,
+		hintChan:       hintChan,
+		streaming:      req.Stream,
+		enableThinking: req.EnableThinking,
 	}
 
 	if req.SessionID != nil {
@@ -98,63 +106,138 @@ func handleAsk(c *gin.Context, appConfig *core.AppConfig) {
 		select {
 		case agent.Question <- question:
 		case <-time.After(requestWaitingTimeout):
-			responseChan <- question.GetDefaultAnswer()
+			// non-blocking send, abandon if handler already exited
+			select {
+			case responseChan <- question.GetDefaultAnswer():
+			default:
+			}
 		}
 	}()
 
-	responseWaitingTimeout := time.Duration(appConfig.MaxWaitingSeconds) * time.Second
-	// wait for response with timeout using select
-	select {
-	// TODO: receive hint from hint chan if streaming mode supported
-	case answer := <-responseChan:
-		if answer == nil {
-			c.JSON(http.StatusServiceUnavailable, gin.H{
-				"code":    core.MessageCodeSystemError,
-				"message": "agent is not ready, please try again later",
-				"level":   core.SeverityError,
-			})
-			return
-		}
-		// extract sessionID and AgentResponse via type assertion
-		sessionID := ""
-		response := AskResponse{
-			SessionID: sessionID,
-			Answer:    question.GetDefaultAnswer().ToString(),
-		}
-		if sessionResponse, ok := answer.(simple.SimpleSessionResponse); ok {
-			agentResponse := sessionResponse.Response
-			// use choices[0].message.content as the clean text answer
-			if len(agentResponse.Choices) > 0 && agentResponse.Choices[0].Message != nil {
-				response.Answer = agentResponse.Choices[0].Message.Content
-			} else {
-				response.Answer = agentResponse.Response
-			}
-			response.SessionID = sessionResponse.SessionID
-			response.Thought = agentResponse.Thought
-			response.Usage = agentResponse.Usage
-		}
+	log.Printf("will process question %s in mode: enableThinking=%v, stream=%v", question.query, question.enableThinking, question.streaming)
 
-		c.JSON(http.StatusOK, response)
-	case <-time.After(responseWaitingTimeout):
-		c.JSON(http.StatusRequestTimeout, gin.H{
-			"code":    core.MessageCodeSystemError,
-			"message": "request timeout",
-			"level":   core.SeverityError,
+	responseWaitingTimeout := time.Duration(appConfig.MaxWaitingSeconds) * time.Second
+	if req.Stream {
+		//  SSE streaming response
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+		c.Header("X-Accel-Buffering", "no")
+
+		// use local variable so we can nil it after hintChan closes
+		hintReader := hintChan
+		c.Stream(func(w io.Writer) bool {
+			select {
+			case hint, ok := <-hintReader:
+				if !ok {
+					// hintChan closed, stop listening but keep stream alive
+					hintReader = nil
+					return true
+				}
+				switch resp := hint.(type) {
+				case core.AgentResponse:
+					if len(resp.Choices) > 0 && resp.Choices[0].Message != nil && resp.Choices[0].Message.ReasoningContent != nil {
+						// mock method here: print it to log, should send to client socket in the real app
+						agent.GetLogger().Printf("\n\n[handleAsk][stream][thought] %s", *resp.Choices[0].Message.ReasoningContent)
+						c.SSEvent("thought", *resp.Choices[0].Message.ReasoningContent)
+					}
+				}
+				return true
+			case chunk, ok := <-responseChan:
+				if !ok {
+					log.Printf("[handleAsk][stream] responseChan closed, ending stream")
+					return false
+				}
+				switch resp := chunk.(type) {
+				case core.AgentResponse:
+					if len(resp.Choices) > 0 && resp.Choices[0].Message != nil && resp.Choices[0].Message.Content != "" {
+						log.Printf("[handleAsk][stream][chunk] %s", resp.Choices[0].Message.Content)
+						c.SSEvent("message", resp.Choices[0].Message.Content)
+					}
+				case simple.SimpleSessionResponse:
+					// send sessionID and usage as done event
+					log.Printf("[handleAsk][stream] finished, sessionID=%s, usage=%+v", resp.SessionID, resp.Response.Usage)
+					c.SSEvent("done", gin.H{
+						"sessionID": resp.SessionID,
+						"usage":     resp.Response.Usage,
+					})
+					return false
+				}
+				return true
+			case <-time.After(responseWaitingTimeout):
+				log.Printf("[handleAsk][stream] timeout after %v", responseWaitingTimeout)
+				c.SSEvent("error", "request timeout")
+				return false
+			}
 		})
+		log.Printf("[handleAsk] streaming ended for question: %s", req.Question)
+	} else {
+		// non-streaming: wait for single complete response
+		for {
+			select {
+			case hint := <-hintChan:
+				// log hints in non-streaming mode, then continue waiting for answer
+				if resp, ok := hint.(core.AgentResponse); ok {
+					if len(resp.Choices) > 0 && resp.Choices[0].Message != nil {
+						if resp.Choices[0].Message.ReasoningContent != nil {
+							agent.GetLogger().Printf("\n\n\n[Session][hint] thinking: %s", *resp.Choices[0].Message.ReasoningContent)
+						}
+					}
+				}
+			case answer := <-responseChan:
+				if answer == nil {
+					c.JSON(http.StatusServiceUnavailable, gin.H{
+						"code":    core.MessageCodeSystemError,
+						"message": "agent is not ready, please try again later",
+						"level":   core.SeverityError,
+					})
+					return
+				}
+				sessionID := ""
+				response := AskResponse{
+					SessionID: sessionID,
+					Answer:    question.GetDefaultAnswer().ToString(),
+				}
+				if sessionResponse, ok := answer.(simple.SimpleSessionResponse); ok {
+					agentResponse := sessionResponse.Response
+					if len(agentResponse.Choices) > 0 && agentResponse.Choices[0].Message != nil {
+						response.Answer = agentResponse.Choices[0].Message.Content
+					} else {
+						response.Answer = agentResponse.Response
+					}
+					response.SessionID = sessionResponse.SessionID
+					response.Thought = agentResponse.Thought
+					response.Usage = agentResponse.Usage
+				}
+				c.JSON(http.StatusOK, response)
+				return
+			case <-time.After(responseWaitingTimeout):
+				c.JSON(http.StatusRequestTimeout, gin.H{
+					"code":    core.MessageCodeSystemError,
+					"message": "request timeout",
+					"level":   core.SeverityError,
+				})
+				return
+			}
+		}
 	}
 }
 
 // SimpleQuestion implements core.Question interface for HTTP requests
 type SimpleQuestion struct {
-	query        string
-	sessionID    string
-	model        string
-	responseChan chan core.Answer
-	hintChan     chan core.Answer
+	query          string
+	sessionID      string
+	model          string
+	responseChan   chan core.Answer
+	hintChan       chan core.Answer
+	streaming      bool
+	enableThinking bool
 }
 
 func (q *SimpleQuestion) GetID() string                     { return q.sessionID }
 func (q *SimpleQuestion) GetProviderName() string           { return q.model }
+func (q *SimpleQuestion) GetStreaming() bool                { return q.streaming }
+func (q *SimpleQuestion) GetEnableThinking() bool           { return q.enableThinking }
 func (q *SimpleQuestion) GetQuery() string                  { return q.query }
 func (q *SimpleQuestion) SetQuery(query string)             { q.query = query }
 func (q *SimpleQuestion) GetRetryQuery() string             { return q.query }

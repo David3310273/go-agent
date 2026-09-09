@@ -1,8 +1,11 @@
 package core
 
+import "log"
+
 type Context interface {
 	// set logger
 	SetLogger(AgentConfig) *Diagnostic
+	GetLogger() *log.Logger
 	// set language type for answer
 	SetLanguage(LanguageType)
 	// load resources from history

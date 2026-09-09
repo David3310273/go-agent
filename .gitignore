@@ -13,3 +13,6 @@
 .qwen/**
 **/qwen/qwen.json
 **/memories
+
+# configs
+/app/config.json

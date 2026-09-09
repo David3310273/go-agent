@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.Observable interface and benchmark functions
+// test cases for core.Observable interface and benchmark functions
 package test
 
 import (

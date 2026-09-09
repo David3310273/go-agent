@@ -61,9 +61,14 @@ curl -X POST http://localhost:8080/v1/ask \
 **Success (200 OK):**
 ```json
 {
-  "sessionId": "test-123",
+  "sessionID": "test-123",
   "answer": "...",
-  "model": "..."
+  "model": "...",
+  "usage": {
+    "promptTokens": 0,
+    "completionTokens": 0,
+    "totalTokens": 0
+  }
 }
 ```
 
@@ -72,6 +77,7 @@ curl -X POST http://localhost:8080/v1/ask \
 | sessionID | string | The session ID associated with this conversation. |
 | answer | string | The agent's response. |
 | model | string | The model agent used in this request. |
+| usage | object | The token usage of this request. |
 
 **Bad Request (400):**
 ```json
@@ -98,3 +104,4 @@ curl -X POST http://localhost:8080/v1/ask \
 
 - The request timeout is configured in `config.json` (`maxWaitingSeconds`).
 - If the agent cannot respond within the timeout, a 408 status is returned.
+- **Also support streaming mode**, try with header `Accept: text/event-stream` and `stream: true` in request body

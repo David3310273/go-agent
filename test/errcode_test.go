@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.Serializable interface and Diagnostic
+// test cases for core.Serializable interface and Diagnostic
 package test
 
 import (

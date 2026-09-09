@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.AgentCore interface and related functions
+// test cases for core.AgentCore interface and related functions
 package test
 
 import (
@@ -198,9 +198,9 @@ func TestMockSessionManager_GetSessionOnCreate(t *testing.T) {
 	mockSessionMgr := testmock.NewMockSessionManager(ctrl)
 	mockSession := testmock.NewMockSession(ctrl)
 
-	mockSessionMgr.EXPECT().GetSessionOnCreate("session-123", true).Return(mockSession, nil)
+	mockSessionMgr.EXPECT().GetSessionOnCreate("session-123", false, false, true).Return(mockSession, nil)
 
-	session, err := mockSessionMgr.GetSessionOnCreate("session-123", true)
+	session, err := mockSessionMgr.GetSessionOnCreate("session-123", false, false, true)
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}
@@ -255,7 +255,7 @@ func TestStartAgentCore_Success(t *testing.T) {
 		},
 	}
 
-	// auto-generated: updated LoadConfigs to new no-arg signature
+	//  updated LoadConfigs to new no-arg signature
 	gomock.InOrder(
 		mockAgent.EXPECT().LoadConfigs().Return(agentConfig),
 		mockAgent.EXPECT().SetID().Return(nil),
@@ -275,7 +275,8 @@ func TestStartAgentCore_Success(t *testing.T) {
 	}
 }
 
-// auto-generated: LoadConfigs no longer returns error in StartAgentCore,
+//	LoadConfigs no longer returns error in StartAgentCore,
+//
 // config loading errors are now handled in NewSimpleAgent.
 // This test now verifies StartAgentCore with SetID error.
 func TestStartAgentCore_SetIDError(t *testing.T) {
@@ -291,7 +292,7 @@ func TestStartAgentCore_SetIDError(t *testing.T) {
 		Message: "Failed to generate UUID",
 	}
 
-	// auto-generated: updated LoadConfigs to new no-arg signature
+	//  updated LoadConfigs to new no-arg signature
 	mockAgent.EXPECT().LoadConfigs().Return(agentConfig).AnyTimes()
 	mockAgent.EXPECT().SetID().Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetLogger(gomock.Any()).Return(expectedErr).AnyTimes()
@@ -320,7 +321,7 @@ func TestStopAgentCore_Success(t *testing.T) {
 	mockAgent := testmock.NewMockAgentCore(ctrl)
 	agentConfig := core.AgentCoreConfig{}
 
-	// auto-generated: updated LoadConfigs to new no-arg signature
+	//  updated LoadConfigs to new no-arg signature
 	gomock.InOrder(
 		mockAgent.EXPECT().LoadConfigs().Return(agentConfig),
 		mockAgent.EXPECT().BeforeStop(agentConfig).Return(nil),

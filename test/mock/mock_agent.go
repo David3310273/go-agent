@@ -10,6 +10,7 @@
 package mock
 
 import (
+	"log"
 	reflect "reflect"
 
 	core "github.com/David3310273/go-agent/core"
@@ -285,18 +286,20 @@ func (m *MockSessionManager) EXPECT() *MockSessionManagerMockRecorder {
 }
 
 // GetSessionOnCreate mocks base method.
-func (m *MockSessionManager) GetSessionOnCreate(arg0 string, arg1 bool) (core.Session, *core.Diagnostic) {
+// auto-generated: updated to match new 4-param signature
+func (m *MockSessionManager) GetSessionOnCreate(id string, streaming bool, enableThinking bool, forceCreate bool) (core.Session, *core.Diagnostic) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSessionOnCreate", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetSessionOnCreate", id, streaming, enableThinking, forceCreate)
 	ret0, _ := ret[0].(core.Session)
 	ret1, _ := ret[1].(*core.Diagnostic)
 	return ret0, ret1
 }
 
 // GetSessionOnCreate indicates an expected call of GetSessionOnCreate.
-func (mr *MockSessionManagerMockRecorder) GetSessionOnCreate(arg0, arg1 any) *gomock.Call {
+// auto-generated: updated to match new 4-param signature
+func (mr *MockSessionManagerMockRecorder) GetSessionOnCreate(id, streaming, enableThinking, forceCreate any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockSessionManager)(nil).GetSessionOnCreate), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockSessionManager)(nil).GetSessionOnCreate), id, streaming, enableThinking, forceCreate)
 }
 
 // StopSession mocks base method.
@@ -461,6 +464,22 @@ func (mr *MockAgentCoreMockRecorder) GetID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetID", reflect.TypeOf((*MockAgentCore)(nil).GetID))
 }
 
+// GetLogger mocks base method.
+// auto-generated: added to match new GetLogger interface method
+func (m *MockAgentCore) GetLogger() *log.Logger {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLogger")
+	ret0, _ := ret[0].(*log.Logger)
+	return ret0
+}
+
+// GetLogger indicates an expected call of GetLogger.
+// auto-generated: added to match new GetLogger interface method
+func (mr *MockAgentCoreMockRecorder) GetLogger() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogger", reflect.TypeOf((*MockAgentCore)(nil).GetLogger))
+}
+
 // GetKnowledgeBase mocks base method.
 func (m *MockAgentCore) GetKnowledgeBase() []byte {
 	m.ctrl.T.Helper()
@@ -518,18 +537,20 @@ func (mr *MockAgentCoreMockRecorder) GetSessionConfig() *gomock.Call {
 }
 
 // GetSessionOnCreate mocks base method.
-func (m *MockAgentCore) GetSessionOnCreate(arg0 string, arg1 bool) (core.Session, *core.Diagnostic) {
+// auto-generated: updated to match new 4-param signature
+func (m *MockAgentCore) GetSessionOnCreate(id string, streaming bool, enableThinking bool, forceCreate bool) (core.Session, *core.Diagnostic) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSessionOnCreate", arg0, arg1)
+	ret := m.ctrl.Call(m, "GetSessionOnCreate", id, streaming, enableThinking, forceCreate)
 	ret0, _ := ret[0].(core.Session)
 	ret1, _ := ret[1].(*core.Diagnostic)
 	return ret0, ret1
 }
 
 // GetSessionOnCreate indicates an expected call of GetSessionOnCreate.
-func (mr *MockAgentCoreMockRecorder) GetSessionOnCreate(arg0, arg1 any) *gomock.Call {
+// auto-generated: updated to match new 4-param signature
+func (mr *MockAgentCoreMockRecorder) GetSessionOnCreate(id, streaming, enableThinking, forceCreate any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockAgentCore)(nil).GetSessionOnCreate), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockAgentCore)(nil).GetSessionOnCreate), id, streaming, enableThinking, forceCreate)
 }
 
 // GetSkills mocks base method.

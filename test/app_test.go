@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.AgentApp and related interfaces
+// test cases for core.AgentApp and related interfaces
 package test
 
 import (

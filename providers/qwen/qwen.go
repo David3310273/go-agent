@@ -177,6 +177,118 @@ func (q *QwenProvider) convertRequestMessages(messages []core.ReActMessage) []op
 	return result
 }
 
+// stream version of Complete, returns a channel of partial answers
+func (q *QwenProvider) CompleteStream(messages []core.ReActMessage, tools []core.Tool) (<-chan core.Answer, []core.Diagnostic) {
+	qwenTools := q.CreateAvailableTools(tools)
+	qwenMessages := q.convertRequestMessages(messages)
+
+	timeout := time.Duration(q.Configs.MaxWaitingTime) * time.Second
+	if timeout == 0 {
+		timeout = 60 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	stream := q.Client.Chat.Completions.NewStreaming(
+		ctx, openai.ChatCompletionNewParams{
+			Messages: qwenMessages,
+			Model:    string(Qwen38MaxModelName),
+			Tools:    qwenTools,
+			// return usage info
+			StreamOptions: openai.ChatCompletionStreamOptionsParam{
+				IncludeUsage: openai.Opt(true),
+			},
+		},
+	)
+
+	ch := make(chan core.Answer, 32)
+
+	go func() {
+		defer close(ch)
+		defer cancel()
+
+		for stream.Next() {
+			chunk := stream.Current()
+
+			//  check for usage in the final chunk (choices may be empty)
+			if chunk.Usage.PromptTokens > 0 || chunk.Usage.CompletionTokens > 0 || chunk.Usage.TotalTokens > 0 {
+				answer := core.AgentResponse{
+					Usage: core.Usage{
+						PromptTokens:     uint64(chunk.Usage.PromptTokens),
+						CompletionTokens: uint64(chunk.Usage.CompletionTokens),
+						TotalTokens:      uint64(chunk.Usage.TotalTokens),
+					},
+				}
+				ch <- answer
+				continue
+			}
+
+			if len(chunk.Choices) == 0 {
+				continue
+			}
+
+			delta := chunk.Choices[0].Delta
+			finishReason := core.FinishReasonType(chunk.Choices[0].FinishReason)
+
+			//  extract reasoning_content from raw delta JSON (not in SDK typed fields)
+			var reasoningContent string
+			var rawDelta map[string]json.RawMessage
+
+			if err := json.Unmarshal([]byte(delta.RawJSON()), &rawDelta); err == nil {
+				if raw, ok := rawDelta["reasoning_content"]; ok {
+					var s string
+					if err := json.Unmarshal(raw, &s); err == nil {
+						reasoningContent = s
+					}
+				}
+			}
+
+			//  log raw chunk details
+
+			var toolCallsPtr *[]core.ToolCall
+			if len(delta.ToolCalls) > 0 {
+				toolCalls := make([]core.ToolCall, 0, len(delta.ToolCalls))
+				for _, tc := range delta.ToolCalls {
+					toolCalls = append(toolCalls, core.ToolCall{
+						ID:    tc.ID,
+						Type:  tc.Type,
+						Index: int(tc.Index),
+						Function: core.Function{
+							Name:      tc.Function.Name,
+							Arguments: tc.Function.Arguments,
+						},
+					})
+				}
+				toolCallsPtr = &toolCalls
+			}
+
+			answer := core.AgentResponse{
+				Choices: []core.Choices{
+					{
+						FinishReason: finishReason,
+						Message: &core.ResponseMessage{
+							Role:      core.RoleType(delta.Role),
+							Content:   delta.Content,
+							ToolCalls: toolCallsPtr,
+						},
+					},
+				},
+			}
+			//  set reasoning content if present
+			if reasoningContent != "" {
+				answer.Choices[0].Message.ReasoningContent = &reasoningContent
+			}
+
+			ch <- answer
+		}
+
+		if err := stream.Err(); err != nil {
+			log.Printf("[CompleteStream] stream error: %s", err.Error())
+		}
+	}()
+
+	return ch, nil
+}
+
 func (q *QwenProvider) Complete(messages []core.ReActMessage, tools []core.Tool) (core.Answer, []core.Diagnostic) {
 	qwenTools := q.CreateAvailableTools(tools)
 	qwenMessages := q.convertRequestMessages(messages)
