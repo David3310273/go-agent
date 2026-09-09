@@ -10,6 +10,7 @@
 package mock
 
 import (
+	"log"
 	reflect "reflect"
 
 	core "github.com/David3310273/go-agent/core"
@@ -52,6 +53,22 @@ func (m *MockContext) GetHistory() []byte {
 func (mr *MockContextMockRecorder) GetHistory() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHistory", reflect.TypeOf((*MockContext)(nil).GetHistory))
+}
+
+// GetLogger mocks base method.
+// auto-generated: added to match new GetLogger interface method
+func (m *MockContext) GetLogger() *log.Logger {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLogger")
+	ret0, _ := ret[0].(*log.Logger)
+	return ret0
+}
+
+// GetLogger indicates an expected call of GetLogger.
+// auto-generated: added to match new GetLogger interface method
+func (mr *MockContextMockRecorder) GetLogger() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogger", reflect.TypeOf((*MockContext)(nil).GetLogger))
 }
 
 // GetKnowledgeBase mocks base method.

@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.Tool interface and related functions
+// test cases for core.Tool interface and related functions
 package test
 
 import (

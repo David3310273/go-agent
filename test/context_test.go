@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.Context and core.SessionContext interfaces
+// test cases for core.Context and core.SessionContext interfaces
 package test
 
 import (
@@ -74,7 +74,7 @@ func TestMockContext_GetHistory(t *testing.T) {
 	}
 }
 
-// auto-generated: updated LoadConfigs to new no-arg signature
+// updated LoadConfigs to new no-arg signature
 func TestMockContext_LoadConfigs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

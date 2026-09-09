@@ -50,6 +50,10 @@ type SimpleAgentSession struct {
 	startTime time.Time
 	// start process time
 	startProcessTime time.Time
+	// streaming
+	streaming bool
+	// enable thinking
+	enableThinking bool
 
 	Config core.SessionConfig
 
@@ -69,7 +73,7 @@ type SimpleAgentSession struct {
 
 // NewAgentSession creates a new session from an AgentCore
 // log providers count when creating session
-func NewAgentSession(agent core.AgentCore) *SimpleAgentSession {
+func NewAgentSession(agent core.AgentCore, streaming bool, enableThinking bool) *SimpleAgentSession {
 	providers := agent.GetModelProviders()
 	log.Printf("NewAgentSession: providers count = %d", len(providers))
 
@@ -89,6 +93,8 @@ func NewAgentSession(agent core.AgentCore) *SimpleAgentSession {
 
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		eventChans:       make(map[string]chan core.Event[any]),
+		streaming:        streaming,
+		enableThinking:   true,
 	}
 
 	id, _ := uuid.NewV4()
@@ -305,8 +311,18 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 			SessionID:    s.GetID(),
 		},
 	})
+
+	// async process query
 	go func() {
-		response, diagnostics := core.ProcessQuestion(s, query)
+		var response core.Answer
+		var diagnostics []core.Diagnostic
+
+		if s.streaming {
+			response, diagnostics = core.ProcessQuestionStream(s, query)
+		} else {
+			response, diagnostics = core.ProcessQuestion(s, query)
+		}
+
 		// use select to avoid goroutine leak when context is cancelled
 		select {
 		case resultChan <- processResult{response: response, diagnostics: diagnostics}:
@@ -334,6 +350,7 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 			}
 		}
 
+		// always send finalAnswer to responseChan so streaming handler can extract sessionID and usage
 		select {
 		case query.GetResponseChan() <- finalAnswer:
 			// finished process question

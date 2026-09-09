@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.Provider interface and related functions
+// test cases for core.Provider interface and related functions
 package test
 
 import (
@@ -472,6 +472,8 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockQuestion.EXPECT().GetProviderName().Return("qwen")
 	mockQuestion.EXPECT().GetQuery().Return("test query")
 	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
+	//  mock GetEnableThinking for ProcessQuestion
+	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(expectedAnswer, nil)
 
 	answer, diagnostics := core.ProcessQuestion(mockSession, mockQuestion)
@@ -544,6 +546,9 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
+	//  mock GetHintChan for ProcessQuestion hint sending
+	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
+	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool")
@@ -620,6 +625,9 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
+	//  mock GetHintChan for ProcessQuestion hint sending
+	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
+	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(finalResponse, nil)
@@ -691,6 +699,9 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
+	//  mock GetHintChan for ProcessQuestion hint sending
+	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
+	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool")

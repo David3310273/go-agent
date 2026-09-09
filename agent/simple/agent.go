@@ -277,6 +277,10 @@ func (a *SimpleAgent) LoadConfigs() core.AgentCoreConfig {
 
 // Logger
 
+func (a *SimpleAgent) GetLogger() *log.Logger {
+	return a.Logger
+}
+
 func (a *SimpleAgent) SetLogger(config core.AgentConfig) *core.Diagnostic {
 	//  use RootPath for log directory instead of relative path
 	realPath := path.Join(a.RootPath, config.LogPath)
@@ -311,7 +315,7 @@ func (a *SimpleAgent) OnEvent() {
 		// for benchmarker
 		case <-a.eventChans[core.AgentEventStart]:
 			a.startUpTime = time.Now()
-		// TODO: send agent during time to benckmarker
+		// TODO: send agent during time to benchmarker
 		// case <-a.eventChans[AgentEventStop]:
 		// 	if !a.startTime.IsZero() {
 		// 		a.benchmarkerChans
@@ -372,8 +376,10 @@ func (a *SimpleAgent) Start(config core.AgentCoreConfig) []core.Diagnostic {
 		select {
 		case query := <-a.Question:
 			sessionID := query.GetSessionID()
+			stream := query.GetStreaming()
+			enableThinking := query.GetEnableThinking()
 			// organize session
-			session, err := a.GetSessionOnCreate(sessionID, true)
+			session, err := a.GetSessionOnCreate(sessionID, stream, enableThinking, true)
 			if err != nil {
 				// send error to question's response channel when session creation fails
 				query.GetResponseChan() <- err
@@ -479,14 +485,14 @@ func (a *SimpleAgent) StopSession(sessionID string) *core.Diagnostic {
 }
 
 // get session, if not exist and forceCreate is true, create a new one
-func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (core.Session, *core.Diagnostic) {
+func (a *SimpleAgent) GetSessionOnCreate(sessionID string, streaming bool, enableThinking bool, forceCreate bool) (core.Session, *core.Diagnostic) {
 	if session, ok := a.sessions[sessionID]; ok {
 		log.Printf("session %s found, will enter conversation", sessionID)
 		return session, nil
 	} else if forceCreate {
 		log.Printf("session %s not found, will create new one", sessionID)
 
-		session := NewAgentSession(a)
+		session := NewAgentSession(a, streaming, enableThinking)
 
 		// acquire lock first
 		if err := a.Acquire(); err == nil {

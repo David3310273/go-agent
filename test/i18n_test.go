@@ -1,4 +1,4 @@
-// auto-generated: test cases for core.I18n interface
+// test cases for core.I18n interface
 package test
 
 import (

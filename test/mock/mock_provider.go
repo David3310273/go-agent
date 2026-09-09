@@ -152,6 +152,38 @@ func (mr *MockQuestionMockRecorder) GetSessionID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionID", reflect.TypeOf((*MockQuestion)(nil).GetSessionID))
 }
 
+// GetStreaming mocks base method.
+// auto-generated: added to match new GetStreaming interface method
+func (m *MockQuestion) GetStreaming() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStreaming")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// GetStreaming indicates an expected call of GetStreaming.
+// auto-generated: added to match new GetStreaming interface method
+func (mr *MockQuestionMockRecorder) GetStreaming() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStreaming", reflect.TypeOf((*MockQuestion)(nil).GetStreaming))
+}
+
+// GetEnableThinking mocks base method.
+// auto-generated: added to match new GetEnableThinking interface method
+func (m *MockQuestion) GetEnableThinking() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEnableThinking")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// GetEnableThinking indicates an expected call of GetEnableThinking.
+// auto-generated: added to match new GetEnableThinking interface method
+func (mr *MockQuestionMockRecorder) GetEnableThinking() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEnableThinking", reflect.TypeOf((*MockQuestion)(nil).GetEnableThinking))
+}
+
 // SetQuery mocks base method.
 func (m *MockQuestion) SetQuery(arg0 string) {
 	m.ctrl.T.Helper()
@@ -267,6 +299,23 @@ func (m *MockProvider) Complete(messages []core.ReActMessage, tools []core.Tool)
 func (mr *MockProviderMockRecorder) Complete(messages, tools any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Complete", reflect.TypeOf((*MockProvider)(nil).Complete), messages, tools)
+}
+
+// CompleteStream mocks base method.
+// auto-generated: added to match new CompleteStream interface method
+func (m *MockProvider) CompleteStream(messages []core.ReActMessage, tools []core.Tool) (<-chan core.Answer, []core.Diagnostic) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CompleteStream", messages, tools)
+	ret0, _ := ret[0].(<-chan core.Answer)
+	ret1, _ := ret[1].([]core.Diagnostic)
+	return ret0, ret1
+}
+
+// CompleteStream indicates an expected call of CompleteStream.
+// auto-generated: added to match new CompleteStream interface method
+func (mr *MockProviderMockRecorder) CompleteStream(messages, tools any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteStream", reflect.TypeOf((*MockProvider)(nil).CompleteStream), messages, tools)
 }
 
 // GetID mocks base method.

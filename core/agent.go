@@ -36,8 +36,8 @@ type WorkFlow interface {
 type SessionManager interface {
 	// stop a session
 	StopSession(string) *Diagnostic
-	// get session, if not exist, create a new one if force is true
-	GetSessionOnCreate(string, bool) (Session, *Diagnostic)
+	// get session, if not exist, create a new one with options
+	GetSessionOnCreate(id string, streaming bool, enableThinking bool, forceCreate bool) (Session, *Diagnostic)
 }
 
 type AgentCore interface {
