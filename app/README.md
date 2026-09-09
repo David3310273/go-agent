@@ -35,7 +35,9 @@ Content-Type: application/json
 {
   "sessionID": "string (optional)",
   "question": "string (required)",
-  "model": "string (optional)"
+  "model": "string (optional)",
+  "enableThinking": "bool (optional)",
+  "stream": "bool (optional)"
 }
 ```
 
@@ -44,12 +46,14 @@ Content-Type: application/json
 | sessionID | string | No | Session ID for conversation continuity. If not provided, a new session will be created. |
 | question | string | Yes | The question to ask the agent. |
 | model | string | No | The model agent used in this request. |
+| enableThinking | bool | No | Whether to enable thinking. |
+| stream | bool | No | Whether to stream the response. |
 
 **Example:**
 ```bash
 curl -X POST http://localhost:8080/v1/ask \
   -H "Content-Type: application/json" \
-  -d '{"question": "What is Go?", "sessionId": "test-123"}'
+  -d '{"question": "What is Go?", "sessionID": "test-123"}'
 ```
 
 #### Response
