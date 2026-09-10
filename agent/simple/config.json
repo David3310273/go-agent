@@ -14,6 +14,11 @@
                 "name": "filewriter",
                 "schema": "filewriter.schema.json",
                 "decription": "Write content to a specified file path. Creates the file if it does not exist, or overwrites it if it does."
+            },
+            {
+                "name": "getdate",
+                "schema": "getdate.schema.json",
+                "decription": "Get system current date and time."
             }
         ]
     },

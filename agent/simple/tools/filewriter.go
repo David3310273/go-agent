@@ -77,11 +77,19 @@ func (f FileWriterCall) Validate(args map[string]any) *core.Diagnostic {
 }
 
 // GetRunner returns the runner function for FileWriterCall
-func (f FileWriterCall) GetRunner() func(args map[string]any) *core.Diagnostic {
-	return func(args map[string]any) *core.Diagnostic {
+func (f FileWriterCall) GetRunner() func(args map[string]any) (string, *core.Diagnostic) {
+	return func(args map[string]any) (string, *core.Diagnostic) {
 		filePath, _ := args["path"].(string)
 		content, _ := args["content"].(string)
-		return WriteToFile(filePath, content)
+		diag := WriteToFile(filePath, content)
+		if diag != nil && diag.Level == core.SeverityError {
+			return "", diag
+		}
+		return "Success", &core.Diagnostic{
+			Level:   core.SeverityInfo,
+			Code:    core.MessageCodeSuccess,
+			Message: "Success",
+		}
 	}
 }
 

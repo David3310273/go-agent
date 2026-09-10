@@ -161,11 +161,12 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 						if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 							toolResult = "Error: invalid arguments format - " + err.Error()
 						} else {
-							// call tool using CallTool
-							if diag := CallTool(targetTool, args); diag != nil {
+							// auto-added: use result string from CallTool, check diagnostic level for error.
+							result, diag := CallTool(targetTool, args)
+							if diag != nil && diag.Level == SeverityError {
 								toolResult = "Error: " + diag.Message
 							} else {
-								toolResult = "Success"
+								toolResult = result
 							}
 						}
 					} else {
@@ -386,10 +387,12 @@ func ProcessQuestionStream(session Session, question Question) (Answer, []Diagno
 					if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 						toolResult = "Error: invalid arguments format - " + err.Error()
 					} else {
-						if diag := CallTool(targetTool, args); diag != nil {
+						// auto-added: use result string from CallTool, check diagnostic level for error.
+						result, diag := CallTool(targetTool, args)
+						if diag != nil && diag.Level == SeverityError {
 							toolResult = "Error: " + diag.Message
 						} else {
-							toolResult = "Success"
+							toolResult = result
 						}
 					}
 				} else {

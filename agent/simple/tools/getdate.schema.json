@@ -1,0 +1,12 @@
+{
+  "type": "function",
+  "function": {
+    "name": "GetDate",
+    "description": "get system current date and time.",
+    "parameters": {
+      "type": "object",
+      "properties": {},
+      "required": []
+    }
+  }
+}
