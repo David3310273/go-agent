@@ -1,0 +1,7 @@
+{
+    "name": "Your model name",
+    "baseUrl": "Your base url here",
+    "apiKey": {
+        "key": "Your api key here"
+    }
+}

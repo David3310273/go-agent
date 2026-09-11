@@ -107,10 +107,11 @@ func (mr *MockToolMockRecorder) GetName() *gomock.Call {
 }
 
 // GetRunner mocks base method.
-func (m *MockTool) GetRunner() func(map[string]any) *core.Diagnostic {
+// auto-added: updated to match new Tool interface signature.
+func (m *MockTool) GetRunner() func(map[string]any) (string, *core.Diagnostic) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetRunner")
-	ret0, _ := ret[0].(func(map[string]any) *core.Diagnostic)
+	ret0, _ := ret[0].(func(map[string]any) (string, *core.Diagnostic))
 	return ret0
 }
 

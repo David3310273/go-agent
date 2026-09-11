@@ -104,15 +104,6 @@ type ToolConfig struct {
 	RootPath string
 }
 
-type KnowledgeBaseConfig struct {
-	// knowledge base file path
-	Paths []string `json:"paths"`
-	// buffer size
-	BufferSize int `json:"bufferSize"`
-	// output root
-	OutputPathFormat string `json:"outputPathFormat"`
-}
-
 type BenchmarkerConfig struct {
 	MaxTimeout     int    `json:"maxTimeout"`
 	Port           int    `json:"port"`

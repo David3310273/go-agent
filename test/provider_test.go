@@ -553,7 +553,7 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool")
 	mockTool.EXPECT().Validate(gomock.Any()).Return(nil)
-	mockTool.EXPECT().GetRunner().Return(func(args map[string]any) *core.Diagnostic { return nil })
+	mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) { return "Success", nil })
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(finalResponse, nil)
 
 	answer, diagnostics := core.ProcessQuestion(mockSession, mockQuestion)

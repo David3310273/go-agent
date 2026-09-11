@@ -107,7 +107,7 @@ func TestMockTool_GetRunner(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockTool := testmock.NewMockTool(ctrl)
-	runner := func(args map[string]any) *core.Diagnostic { return nil }
+	runner := func(args map[string]any) (string, *core.Diagnostic) { return "", nil }
 
 	mockTool.EXPECT().GetRunner().Return(runner)
 
@@ -130,14 +130,17 @@ func TestCallTool_Success(t *testing.T) {
 
 	gomock.InOrder(
 		mockTool.EXPECT().Validate(args).Return(nil),
-		mockTool.EXPECT().GetRunner().Return(func(args map[string]any) *core.Diagnostic {
-			return nil
+		mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
+			return "Success", nil
 		}),
 	)
 
-	err := core.CallTool(mockTool, args)
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
+	result, diag := core.CallTool(mockTool, args)
+	if diag != nil {
+		t.Errorf("expected nil diagnostic, got %v", diag)
+	}
+	if result != "Success" {
+		t.Errorf("expected result 'Success', got '%s'", result)
 	}
 }
 
@@ -155,12 +158,15 @@ func TestCallTool_ValidateError(t *testing.T) {
 
 	mockTool.EXPECT().Validate(args).Return(expectedErr)
 
-	err := core.CallTool(mockTool, args)
-	if err == nil {
+	result, diag := core.CallTool(mockTool, args)
+	if diag == nil {
 		t.Error("expected error, got nil")
 	}
-	if err.Code != core.MessageCodeToolValidateError {
-		t.Errorf("expected code %d, got %d", core.MessageCodeToolValidateError, err.Code)
+	if diag.Code != core.MessageCodeToolValidateError {
+		t.Errorf("expected code %d, got %d", core.MessageCodeToolValidateError, diag.Code)
+	}
+	if result != "" {
+		t.Errorf("expected empty result, got '%s'", result)
 	}
 }
 
@@ -178,17 +184,20 @@ func TestCallTool_RunError(t *testing.T) {
 
 	gomock.InOrder(
 		mockTool.EXPECT().Validate(args).Return(nil),
-		mockTool.EXPECT().GetRunner().Return(func(args map[string]any) *core.Diagnostic {
-			return expectedErr
+		mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
+			return "", expectedErr
 		}),
 	)
 
-	err := core.CallTool(mockTool, args)
-	if err == nil {
+	result, diag := core.CallTool(mockTool, args)
+	if diag == nil {
 		t.Error("expected error, got nil")
 	}
-	if err.Code != core.MessageCodeToolRunError {
-		t.Errorf("expected code %d, got %d", core.MessageCodeToolRunError, err.Code)
+	if diag.Code != core.MessageCodeToolRunError {
+		t.Errorf("expected code %d, got %d", core.MessageCodeToolRunError, diag.Code)
+	}
+	if result != "" {
+		t.Errorf("expected empty result, got '%s'", result)
 	}
 }
 

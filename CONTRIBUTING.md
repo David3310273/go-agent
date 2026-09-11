@@ -30,11 +30,12 @@ go-agent is an interface-implemented, multi-layered agent framework written in G
 - **Interface composition** with single-responsibility interface units
 - **core/** must not import specific implementation packages, for example, from agent or app implementations
 
-## How to Contribute
+## Contributing Guidelines
 
 1. **Start from supporting other model providers if you're interested**, such as claude, openai, etc.
 2. **Providing more thoughts on architecture or design partterns**. Such as what do you think of sandbox, MCP server and how to insert these components into the framework.
 3. **Don't have to pay more attention on the simple app**, that is just an example of this framework. Of course, good advices and implementations are also welcome.
+4. **Don't print any logs in core directory**, just return the error and process it in agent or app layer.
 
 ### Pull Request Guidelines
 
@@ -51,9 +52,12 @@ go-agent is an interface-implemented, multi-layered agent framework written in G
 
 ### Running Tests
 
+1. unit test: 
 ```bash
 go test ./...
 ```
+
+2. integration test: using simple app to test the whole framework.
 
 ## Code Conventions
 
