@@ -78,4 +78,13 @@ const (
 	MessageCodeAgentCoreConfigError   MessageCode = 700
 	MessageCodeInvalidResponseFromLLM MessageCode = 701
 	MessageCodeErrorFromLLM           MessageCode = 702
+	// 8xx: kb error
+	MessageCodeDocNotFound MessageCode = 800
+	// 9xx: storage error
+	// auto-added: storage error codes.
+	MessageCodeStorageError     MessageCode = 900
+	MessageCodeDatabaseNotFound MessageCode = 901
+	// 10xx: embedder error
+	// auto-added: embedder error codes.
+	MessageCodeEmbedderConfigError MessageCode = 1000
 )

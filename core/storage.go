@@ -1,8 +1,17 @@
 package core
 
+/*
+simplified interface to avoid option bloat across different storage backends.
+*/
 type Storage interface {
-	Save(data any) *Diagnostic
-	Search(data any) (any, *Diagnostic)
-	Insert(data any) *Diagnostic
-	Delete(data any) *Diagnostic
+	SetConfig(path string)
+	Stop()
+}
+
+func InitStorageClient(storage Storage, configPath string) {
+	storage.SetConfig(configPath)
+}
+
+func StopStorageClient(storage Storage) {
+	storage.Stop()
 }

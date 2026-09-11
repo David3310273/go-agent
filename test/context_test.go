@@ -127,7 +127,7 @@ func TestMockContext_SetKnowledgeBase(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
-	kbConfig := core.KnowledgeBaseConfig{Paths: []string{"/path/to/kb"}}
+	kbConfig := core.KnowledgeBaseConfig{RootPath: "/path/to/kb"}
 
 	mockContext.EXPECT().SetKnowledgeBase(kbConfig).Return(nil)
 

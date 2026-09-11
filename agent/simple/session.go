@@ -255,17 +255,26 @@ func (s *SimpleAgentSession) SaveHistory(history core.ReActMessage) *core.Diagno
 
 // select tools given user question and tool config
 // return tools used this time
-// currently only support file writer. be simple.
+// auto-added: match tools by name instead of hardcoded index.
 func (s *SimpleAgentSession) SelectTools(query core.Question, message core.ReActMessage) []core.Tool {
-	toolConfigs := s.Tools
-	// TODO: support dynamicly loading tool
-	return []core.Tool{
-		tools.FileWriterCall{
-			Name:     toolConfigs[0].Name,
-			Schema:   toolConfigs[0].Schema,
-			RootPath: s.Config.RootPath,
-		},
+	var result []core.Tool
+	for _, cfg := range s.Tools {
+		switch cfg.Name {
+		case "filewriter":
+			result = append(result, tools.FileWriterCall{
+				Name:     cfg.Name,
+				Schema:   cfg.Schema,
+				RootPath: s.Config.RootPath,
+			})
+		case "getdate":
+			result = append(result, tools.GetDateCall{
+				Name:     cfg.Name,
+				Schema:   cfg.Schema,
+				RootPath: s.Config.RootPath,
+			})
+		}
 	}
+	return result
 }
 
 // select local kb given the question, merge into final context
