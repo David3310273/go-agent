@@ -52,7 +52,7 @@ func (f GetDateCall) Validate(args map[string]any) *core.Diagnostic {
 }
 
 // GetRunner returns the runner function for GetDateCall
-// auto-added: returns current system time to model.
+// returns current system time to model.
 func (f GetDateCall) GetRunner() func(args map[string]any) (string, *core.Diagnostic) {
 	return func(args map[string]any) (string, *core.Diagnostic) {
 		return GetDate(), &core.Diagnostic{

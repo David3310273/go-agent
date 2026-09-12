@@ -5,7 +5,7 @@ import (
 )
 
 // WordLoader loads Word documents (.docx) and extracts text.
-// auto-added: loader for .docx files, placeholder for future implementation.
+// loader for .docx files, placeholder for future implementation.
 type WordLoader struct{}
 
 func (l *WordLoader) Load(path string) (string, *core.Diagnostic) {
@@ -18,7 +18,7 @@ func (l *WordLoader) SupportedExtensions() []string {
 }
 
 // Chunk splits Word document content by paragraphs or sections.
-// auto-added: placeholder for format-aware chunking.
+// placeholder for format-aware chunking.
 func (l *WordLoader) Chunk(content string) []string {
 	return nil
 }

@@ -30,12 +30,12 @@ type Tool interface {
 	// validate
 	Validate(args map[string]any) *Diagnostic
 	// get runner function that accepts args map and returns result string + diagnostic
-	// auto-added: changed return type to support returning data to model.
+	// changed return type to support returning data to model.
 	GetRunner() func(args map[string]any) (string, *Diagnostic)
 }
 
 // CallTool validates and executes a tool with given args.
-// auto-added: changed to return result string + diagnostic.
+// changed to return result string + diagnostic.
 func CallTool(tool Tool, args map[string]any) (string, *Diagnostic) {
 	if diag := tool.Validate(args); diag != nil {
 		return "", diag

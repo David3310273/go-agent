@@ -71,7 +71,7 @@ type AgentConfig struct {
 	// skills
 	Skill SkillConfig `json:"skill"`
 	// knowledge base
-	KnowledgeBase KnowledgeBaseConfig `json:"knowledgeBase"`
+	KnowledgeBase []KnowledgeBaseConfig `json:"knowledgeBase"`
 	// history path
 	History HistoryConfig `json:"history"`
 	// tool config

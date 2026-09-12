@@ -1,4 +1,4 @@
-package knowledgebase
+package storage
 
 import (
 	"context"
@@ -6,65 +6,97 @@ import (
 	"log"
 
 	"github.com/David3310273/go-agent/core"
+	"github.com/David3310273/go-agent/knowledgebase/loader"
 	"github.com/David3310273/go-agent/storage/milvus"
 )
 
 // MilvusKnowledgebase contains many same format docs with the uniform domain
 // Use this struct directly in your app for agent-level knowledge management.
-// auto-added: generic knowledgebase that uses user-defined entity type.
+// generic knowledgebase that uses user-defined entity type.
 type MilvusKnowledgebase[T any] struct {
-	loader   core.DocLoader
 	embedder core.Embedder
 	Config   core.KnowledgeBaseConfig
 	Options  milvus.MilvusOptions
 }
 
-// MilvusEntity represents a single entity to be inserted into Milvus.
-// auto-added: default entity structure for Milvus RESTful API insert.
-type MilvusEntity struct {
-	ChunkID    int64     `json:"chunk_id"`
-	Privacy    string    `json:"privacy"`
-	Filename   string    `json:"filename"`
-	DocumentID string    `json:"document_id"`
-	CreateAt   int64     `json:"create_at"`
-	Domain     string    `json:"domain"`
-	Embedding  []float32 `json:"embedding"`
-	Content    string    `json:"content"`
-}
+var _ core.KnowledgeBase[any] = (*MilvusKnowledgebase[any])(nil)
 
-var _ core.KnowledgeBase[MilvusEntity] = (*MilvusKnowledgebase[MilvusEntity])(nil)
+const (
+	KnowledgeBaseStorageType = "milvus"
+)
 
 // NewMilvusKnowledgebase creates a MilvusKnowledgebase with the given configuration.
-// auto-added: constructor for generic MilvusKnowledgebase with entity type injection.
-func NewMilvusKnowledgebase[T any](loader core.DocLoader, embedder core.Embedder, config core.KnowledgeBaseConfig, options milvus.MilvusOptions) *MilvusKnowledgebase[T] {
+// constructor for generic MilvusKnowledgebase with entity type injection.
+func NewMilvusKnowledgebase[T any](embedder core.Embedder, config core.KnowledgeBaseConfig, options milvus.MilvusOptions) *MilvusKnowledgebase[T] {
+	milvus.Init(config.RootPath)
+
 	return &MilvusKnowledgebase[T]{
-		loader:   loader,
 		embedder: embedder,
 		Options:  options,
 		Config:   config,
 	}
 }
 
-// GetLoader returns the loader.
-// auto-added: implements core.KnowledgeBase interface.
-func (kb *MilvusKnowledgebase[T]) GetLoader(path string) core.DocLoader {
-	return kb.loader
-}
-
 // GetEmbedder returns the embedder instance.
-// auto-added: getter for embedder, implements core.KnowledgeBase interface.
+// getter for embedder, implements core.KnowledgeBase interface.
 func (kb *MilvusKnowledgebase[T]) GetEmedder() core.Embedder {
 	return kb.embedder
 }
 
+// Process loads a document, chunks it, and embeds each chunk.
+// implements core.KnowledgeBase interface, auto-selects loader by docPath.
+func (kb *MilvusKnowledgebase[T]) Process(docPath string) (*core.EmbeddingResult, *core.Diagnostic) {
+	docLoader := loader.GetLoaderByPath(docPath)
+	if docLoader == nil {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeDocNotFound,
+			Message: "no loader found for file: " + docPath,
+		}
+	}
+
+	doc, diag := docLoader.Load(docPath)
+	if diag != nil {
+		return nil, diag
+	}
+
+	chunks := docLoader.Chunk(doc)
+	embedder := kb.GetEmedder()
+
+	result := &core.EmbeddingResult{
+		Vectors: make([][]float64, 0, len(chunks)),
+		Chunks:  chunks,
+	}
+
+	for _, chunk := range chunks {
+		embedResult, diag := embedder.Embed(chunk)
+		if diag != nil {
+			return nil, diag
+		}
+
+		if embedResult != nil && len(embedResult.Vectors) > 0 {
+			result.Vectors = append(result.Vectors, embedResult.Vectors[0])
+			if embedResult.Usage != nil {
+				if result.Usage == nil {
+					result.Usage = &core.EmbeddingUsage{}
+				}
+				result.Usage.PromptTokens += embedResult.Usage.PromptTokens
+				result.Usage.TotalTokens += embedResult.Usage.TotalTokens
+			}
+		}
+	}
+
+	return result, nil
+}
+
 // GetDatabase returns the target Milvus database name.
-// auto-added: getter for database configuration.
+// getter for database configuration.
 func (kb *MilvusKnowledgebase[T]) GetOptions() milvus.MilvusOptions {
 	return kb.Options
 }
 
 // Save stores entities directly into Milvus.
-// auto-added: generic save that accepts user-built entities of type T.
+// generic save that accepts user-built entities of type T.
 func (kb *MilvusKnowledgebase[T]) Save(entities []T) *core.Diagnostic {
 	if len(entities) == 0 {
 		return nil
@@ -76,7 +108,7 @@ func (kb *MilvusKnowledgebase[T]) Save(entities []T) *core.Diagnostic {
 }
 
 // Search embeds keyword and searches for similar vectors in Milvus.
-// auto-added: implements core.KnowledgeBase interface, embeds keyword and searches.
+// implements core.KnowledgeBase interface, embeds keyword and searches.
 func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int) ([]T, *core.Diagnostic) {
 	// convert keyword to string
 	text, ok := keyword.(string)
@@ -90,7 +122,6 @@ func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int) ([]T, *core.Diag
 
 	// embed the keyword
 	result, diag := kb.embedder.Embed(text)
-	log.Printf("query %s emedding: %v", keyword, result)
 	if diag != nil {
 		return nil, diag
 	}

@@ -13,14 +13,14 @@ import (
 )
 
 // OpenAIEmbedder uses OpenAI's embedding API.
-// auto-added: placeholder for OpenAI embedding implementation.
+// placeholder for OpenAI embedding implementation.
 type OpenAIEmbedder struct {
 	RootPath string
 	Config   EmbedderConfig
 }
 
 // EmbedderConfig holds the configuration for the embedder.
-// auto-added: config structure for loading from config.json.
+// config structure for loading from config.json.
 type EmbedderConfig struct {
 	Name   string `json:"name"`
 	APIKey struct {
@@ -31,7 +31,7 @@ type EmbedderConfig struct {
 }
 
 // OpenAIEmbedderRequest holds the request body for embedding API.
-// auto-added: request structure for embedding API call.
+// request structure for embedding API call.
 type OpenAIEmbedderRequest struct {
 	Model          string `json:"model"`
 	Input          string `json:"input"`
@@ -40,7 +40,7 @@ type OpenAIEmbedderRequest struct {
 }
 
 // OpenAIEmbedderResponse holds the response from embedding API.
-// auto-added: response structure for embedding API call.
+// response structure for embedding API call.
 type OpenAIEmbedderResponse struct {
 	Data []struct {
 		Embedding []float64 `json:"embedding"`
@@ -89,7 +89,7 @@ func NewOpenAIEmbedder(rootPath string) (*OpenAIEmbedder, *core.Diagnostic) {
 }
 
 // Embed converts text into a vector representation using HTTP API call.
-// auto-added: implements embedding via HTTP POST to OpenAI-compatible API, returns EmbeddingResult with vector and usage.
+// implements embedding via HTTP POST to OpenAI-compatible API, returns EmbeddingResult with vector and usage.
 func (e *OpenAIEmbedder) Embed(data any) (*core.EmbeddingResult, *core.Diagnostic) {
 	// use default config if APIKey or Model is not set
 	apiKey := e.Config.APIKey.Key
@@ -175,7 +175,7 @@ func (e *OpenAIEmbedder) Embed(data any) (*core.EmbeddingResult, *core.Diagnosti
 		}
 	}
 
-	// auto-added: single string input returns single embedding at index 0.
+	// single string input returns single embedding at index 0.
 	return &core.EmbeddingResult{
 		Vectors: [][]float64{embeddingResp.Data[0].Embedding},
 		Usage: &core.EmbeddingUsage{

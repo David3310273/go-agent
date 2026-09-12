@@ -7,11 +7,13 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/David3310273/go-agent/agent/simple/tools"
 	"github.com/David3310273/go-agent/agent/simple/utils"
 	"github.com/David3310273/go-agent/core"
+	storage "github.com/David3310273/go-agent/knowledgebase/storage"
 	uuid "github.com/gofrs/uuid/v5"
 )
 
@@ -39,6 +41,8 @@ type SimpleAgentSession struct {
 	SubSessions   []*SimpleAgentSession
 	Status        core.SessionStatus
 	Providers     []core.Provider
+	// changed to []any to support multiple entity types via generics.
+	KnowledgeBases []core.KnowledgeBase[any]
 	// logger
 	Logger *log.Logger
 
@@ -76,6 +80,9 @@ type SimpleAgentSession struct {
 func NewAgentSession(agent core.AgentCore, streaming bool, enableThinking bool) *SimpleAgentSession {
 	providers := agent.GetModelProviders()
 	log.Printf("NewAgentSession: providers count = %d", len(providers))
+	// fixed method name from GetKnowledgeBases to GetKnowledgeBase.
+	knowledgeBases := agent.GetKnowledgeBase()
+	log.Printf("NewAgentSession: knowledgeBases count = %d", len(knowledgeBases))
 
 	sessionConfig := agent.GetSessionConfig()
 	//  propagate RootPath from agent to session config
@@ -84,12 +91,13 @@ func NewAgentSession(agent core.AgentCore, streaming bool, enableThinking bool) 
 	}
 
 	session := &SimpleAgentSession{
-		Providers:   providers,
-		Status:      core.SessionStatusRunning,
-		mu:          make(chan struct{}, 1),
-		lockTimeOut: LockTimeout,
-		Question:    make(chan core.Question),
-		Config:      sessionConfig,
+		Providers:      providers,
+		Status:         core.SessionStatusRunning,
+		KnowledgeBases: knowledgeBases,
+		mu:             make(chan struct{}, 1),
+		lockTimeOut:    LockTimeout,
+		Question:       make(chan core.Question),
+		Config:         sessionConfig,
 
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		eventChans:       make(map[string]chan core.Event[any]),
@@ -255,7 +263,7 @@ func (s *SimpleAgentSession) SaveHistory(history core.ReActMessage) *core.Diagno
 
 // select tools given user question and tool config
 // return tools used this time
-// auto-added: match tools by name instead of hardcoded index.
+// match tools by name instead of hardcoded index.
 func (s *SimpleAgentSession) SelectTools(query core.Question, message core.ReActMessage) []core.Tool {
 	var result []core.Tool
 	for _, cfg := range s.Tools {
@@ -278,9 +286,54 @@ func (s *SimpleAgentSession) SelectTools(query core.Question, message core.ReAct
 }
 
 // select local kb given the question, merge into final context
-// TODO: will search in local knowledge base, currently be simple here
+// searches KB and converts results to MarkdownCollection via JSON marshal/unmarshal.
 func (s *SimpleAgentSession) SelectLocalKB(query core.Question) string {
-	return string(s.KnowledgeBase)
+	// temporary local type, will be moved to a proper package later.
+	type MarkdownCollection struct {
+		ChunkID    int64     `json:"chunk_id"`
+		Privacy    string    `json:"privacy"`
+		Filename   string    `json:"filename"`
+		DocumentID string    `json:"document_id"`
+		CreateAt   int64     `json:"create_at"`
+		Domain     string    `json:"domain"`
+		Embedding  []float32 `json:"embedding"`
+		Content    string    `json:"content"`
+	}
+
+	var result strings.Builder
+
+	for _, kbAny := range s.GetKnowledgeBase() {
+		milvusKB, ok := kbAny.(*storage.MilvusKnowledgebase[any])
+		if !ok {
+			continue
+		}
+
+		searchResults, diag := milvusKB.Search(query.GetQuery(), 1)
+		if diag != nil {
+			continue
+		}
+
+		// convert []any to []MarkdownCollection via JSON marshal/unmarshal.
+		jsonBytes, err := json.Marshal(searchResults)
+		if err != nil {
+			log.Printf("[SelectLocalKB] failed to marshal search results: %v", err)
+			continue
+		}
+
+		var collections []MarkdownCollection
+		if err := json.Unmarshal(jsonBytes, &collections); err != nil {
+			log.Printf("[SelectLocalKB] failed to unmarshal to MarkdownCollection: %v", err)
+			continue
+		}
+
+		for _, c := range collections {
+			result.WriteString(c.Content)
+		}
+
+		result.WriteString(s.Config.MemoryFileSplitter)
+	}
+
+	return result.String()
 }
 
 // prepare for app layer

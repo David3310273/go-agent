@@ -7,7 +7,7 @@ import (
 )
 
 // TXTLoader loads plain text files.
-// auto-added: loader for .txt files.
+// loader for .txt files.
 type TXTLoader struct{}
 
 func (l *TXTLoader) Load(path string) (string, *core.Diagnostic) {
@@ -23,7 +23,7 @@ func (l *TXTLoader) SupportedExtensions() []string {
 }
 
 // Chunk splits text content by paragraphs.
-// auto-added: placeholder for format-aware chunking.
+// placeholder for format-aware chunking.
 func (l *TXTLoader) Chunk(content string) []string {
 	return nil
 }
