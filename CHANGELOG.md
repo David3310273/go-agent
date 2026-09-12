@@ -1,6 +1,6 @@
 # Changelog
 
-## V1.0.1: (will coming soon...)
+## V1.0.1: 2026-09-12
 
 fixs:
 
