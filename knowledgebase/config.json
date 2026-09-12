@@ -1,0 +1,7 @@
+{
+  "milvus": {
+    "embedder": {
+      "type": "openai-text"
+    }
+  }
+}

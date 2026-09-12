@@ -1,4 +1,4 @@
-// auto-added: Milvus RESTful API v2 client
+// Milvus RESTful API v2 client
 package milvus
 
 import (
@@ -9,12 +9,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/David3310273/go-agent/core"
-)
-
-const (
-	ConfigPath = "../storage/milvus/config.json"
 )
 
 // =============================================================================
@@ -29,20 +26,32 @@ type MilvusStorage struct {
 // MilvusClientInstance is the singleton instance.
 var MilvusClientInstance *MilvusStorage
 
-func init() {
-	fmt.Printf("[Milvus] init: ConfigPath=%s\n", ConfigPath)
+const (
+	MilvusStoragePath = "storage/milvus/config.json"
+)
+
+// Init initializes the Milvus singleton with the given rootPath.
+// lazy init to allow rootPath injection for config resolution.
+func Init(rootPath string) {
+	if MilvusClientInstance != nil {
+		return
+	}
+
 	MilvusClientInstance = &MilvusStorage{}
-	core.InitStorageClient(MilvusClientInstance, ConfigPath)
+	core.InitStorageClient(MilvusClientInstance, rootPath)
+
 	fmt.Printf("[Milvus] init done: Client=%v\n", MilvusClientInstance.Client)
 }
 
 // SetConfig implements core.Storage interface
-func (m *MilvusStorage) SetConfig(path string) {
-	data, err := os.ReadFile(path)
+func (m *MilvusStorage) SetConfig(rootPath string) {
+	configPath := path.Join(rootPath, MilvusStoragePath)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		fmt.Printf("[Milvus] failed to read config file %s: %v\n", path, err)
+		fmt.Printf("[Milvus] failed to read config file %s: %v\n", configPath, err)
 		return
 	}
+
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		fmt.Printf("[Milvus] failed to parse config file: %v\n", err)
@@ -60,6 +69,7 @@ func (m *MilvusStorage) Stop() {
 
 // MilvusOptions holds options for data targeting.
 type MilvusOptions struct {
+	Type          string
 	DBName        string
 	Collection    string
 	PartitionName string
@@ -106,7 +116,7 @@ type SearchRequest struct {
 }
 
 // Search searches for vectors in the specified collection.
-// auto-added: returns raw search results as []map[string]any.
+// returns raw search results as []map[string]any.
 func (m *MilvusStorage) Search(ctx context.Context, req SearchRequest) ([]map[string]any, *core.Diagnostic) {
 	if m.Client == nil {
 		return nil, &core.Diagnostic{
@@ -329,7 +339,7 @@ type SearchParams struct {
 }
 
 // Search searches for vectors in a collection.
-// auto-added: returns raw Milvus response, caller parses data with their entity type.
+// returns raw Milvus response, caller parses data with their entity type.
 func (c *MilvusClient) Search(ctx context.Context, req MilvusSearchRequest) (*MilvusResponse, error) {
 	if req.Limit <= 0 {
 		req.Limit = 10
@@ -345,16 +355,10 @@ func (c *MilvusClient) Search(ctx context.Context, req MilvusSearchRequest) (*Mi
 		return nil, err
 	}
 
-	// debug: print raw response
-	fmt.Printf("[Milvus Debug] Search raw response: %s\n", string(respBody))
-
 	var milvusResp MilvusResponse
 	if err := json.Unmarshal(respBody, &milvusResp); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
-
-	// debug: print parsed data
-	fmt.Printf("[Milvus Debug] Parsed code: %d, data: %s\n", milvusResp.Code, string(milvusResp.Data))
 
 	if milvusResp.Code != 0 {
 		return nil, fmt.Errorf("milvus error %d: %s", milvusResp.Code, milvusResp.Message)

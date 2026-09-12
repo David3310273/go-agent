@@ -9,7 +9,7 @@ import (
 )
 
 // MDLoader loads markdown files.
-// auto-added: loader for .md files.
+// loader for .md files.
 type MDLoader struct {
 	ChunkSize int // max chunk size in characters, 0 means no limit
 }
@@ -27,7 +27,7 @@ func (l *MDLoader) SupportedExtensions() []string {
 }
 
 // Chunk splits markdown content by headings first, then by punctuation for long sections.
-// auto-added: two-level chunking - by heading, then by sentence boundaries.
+// two-level chunking - by heading, then by sentence boundaries.
 func (l *MDLoader) Chunk(content string) []string {
 	if content == "" {
 		return nil
@@ -60,7 +60,7 @@ func (l *MDLoader) Chunk(content string) []string {
 }
 
 // splitByHeading splits content by markdown headings (# ## ### etc.).
-// auto-added: helper for first-level chunking.
+// helper for first-level chunking.
 func splitByHeading(content string) []string {
 	headingRegex := regexp.MustCompile(`(?m)^#{1,6}\s+.+$`)
 	locations := headingRegex.FindAllStringIndex(content, -1)
@@ -91,7 +91,7 @@ func splitByHeading(content string) []string {
 
 // splitByPunctuation splits content by sentence-ending punctuation with overlap.
 // Each chunk starts with the last sentence of the previous chunk.
-// auto-added: helper for second-level chunking with sentence overlap.
+// helper for second-level chunking with sentence overlap.
 func splitByPunctuation(content string, maxSize int) []string {
 	// split by sentence-ending punctuation: . ! ? 。！？
 	sentenceRegex := regexp.MustCompile(`([.!?。！？]\s*)`)

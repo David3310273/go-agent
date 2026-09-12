@@ -5,7 +5,7 @@ import (
 )
 
 // PDFLoader loads PDF files and extracts text.
-// auto-added: loader for .pdf files, placeholder for future implementation.
+// loader for .pdf files, placeholder for future implementation.
 type PDFLoader struct{}
 
 func (l *PDFLoader) Load(path string) (string, *core.Diagnostic) {
@@ -18,7 +18,7 @@ func (l *PDFLoader) SupportedExtensions() []string {
 }
 
 // Chunk splits PDF content by pages or sections.
-// auto-added: placeholder for format-aware chunking.
+// placeholder for format-aware chunking.
 func (l *PDFLoader) Chunk(content string) []string {
 	return nil
 }

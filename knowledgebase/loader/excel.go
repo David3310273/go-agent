@@ -5,7 +5,7 @@ import (
 )
 
 // ExcelLoader loads Excel spreadsheets (.xlsx) and extracts data.
-// auto-added: loader for .xlsx files, placeholder for future implementation.
+// loader for .xlsx files, placeholder for future implementation.
 type ExcelLoader struct{}
 
 func (l *ExcelLoader) Load(path string) (string, *core.Diagnostic) {
@@ -18,7 +18,7 @@ func (l *ExcelLoader) SupportedExtensions() []string {
 }
 
 // Chunk splits Excel content by sheets or rows.
-// auto-added: placeholder for format-aware chunking.
+// placeholder for format-aware chunking.
 func (l *ExcelLoader) Chunk(content string) []string {
 	return nil
 }

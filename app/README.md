@@ -105,3 +105,4 @@ curl -X POST http://localhost:8080/v1/ask \
 - The request timeout is configured in `config.json` (`maxWaitingSeconds`).
 - If the agent cannot respond within the timeout, a 408 status is returned.
 - **Also support streaming mode**, try with header `Accept: text/event-stream` and `stream: true` in request body
+- **Create schema first if you use milvus knowledge base in the app, please refer to [milvus official doc](https://milvus.io/api-reference/restful/v2.6.x/v2/Collection%20%28v2%29/Create.md]**

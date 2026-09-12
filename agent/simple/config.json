@@ -9,6 +9,18 @@
             ],
             "bufferSizeInKB": 10
         },
+        "knowledgeBase": [
+            {
+                "domain": "technology",
+                "description": "Knowledge about programming and algorithms",
+                "storageOptions": {
+                    "type": "milvus",
+                    "dbName": "db_d99fce94f3b47ab",
+                    "collection": "markdown_documents",
+                    "partitionName": ""
+                }
+            }
+        ],
         "tool": [
             {
                 "name": "filewriter",
@@ -26,6 +38,7 @@
         "logPath": "app/sessionLogs/session-%s.log",
         "reActMaxRounds": 10,
         "maxRetryOnLock": 3,
+        "memoryFileSplitter": "\n--------------\n",
         "memoryFilePathFormat": "app/sessionMemories/session-%s-memory.jsonl"
     }
 }

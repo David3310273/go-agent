@@ -16,3 +16,8 @@
 
 # configs
 /app/config.json
+/storage/milvus/config.json
+/embedders/**/config.json
+
+# local test
+**/real_test

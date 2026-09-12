@@ -20,10 +20,11 @@ type SimpleAgentContext struct {
 	// prompt
 	Prompt []byte
 	// knowledge base
-	KnowledgeBase []byte
+	// changed to []any to support multiple entity types via generics.
+	KnowledgeBase []core.KnowledgeBase[any]
 	// skills
 	Skills []byte
-	// history
+	// agent history
 	History []byte
 	// model providers, for simple agent, only one provider without model routing
 	ModelProviders []core.Provider
@@ -89,11 +90,21 @@ func (a *SimpleAgent) SetPrompt(prompt core.PromptConfig) *core.Diagnostic {
 	return nil
 }
 
-func (c *SimpleAgentContext) GetKnowledgeBase() []byte {
+// return type changed to []any to match KnowledgeBase field.
+func (c *SimpleAgentContext) GetKnowledgeBase() []core.KnowledgeBase[any] {
 	return c.KnowledgeBase
 }
 
-func (a *SimpleAgent) SetKnowledgeBase(knowledge core.KnowledgeBaseConfig) *core.Diagnostic {
+// complete SetKnowledgeBase to collect all KB instances via NewSimpleKnowledgeBase.
+func (a *SimpleAgent) SetKnowledgeBase(knowledgeConfigs []core.KnowledgeBaseConfig) *core.Diagnostic {
+	var kbs []core.KnowledgeBase[any]
+	for _, knowledgeConfig := range knowledgeConfigs {
+		kb := NewSimpleKnowledgeBase(a.RootPath, knowledgeConfig)
+		kbs = append(kbs, kb)
+	}
+
+	a.KnowledgeBase = kbs
+
 	return nil
 }
 

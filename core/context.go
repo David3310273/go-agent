@@ -1,6 +1,8 @@
 package core
 
-import "log"
+import (
+	"log"
+)
 
 type Context interface {
 	// set logger
@@ -17,8 +19,9 @@ type Context interface {
 	SetPrompt(PromptConfig) *Diagnostic
 	GetPrompt() []byte
 	// load knowledge base
-	SetKnowledgeBase(KnowledgeBaseConfig) *Diagnostic
-	GetKnowledgeBase() []byte
+	SetKnowledgeBase([]KnowledgeBaseConfig) *Diagnostic
+	// changed to []any to support multiple entity types via generics.
+	GetKnowledgeBase() []KnowledgeBase[any]
 	// load skills
 	SetSkills(SkillConfig) *Diagnostic
 	GetSkills() []byte

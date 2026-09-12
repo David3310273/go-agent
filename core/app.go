@@ -4,6 +4,17 @@ type ServiceProvider interface {
 	// rpc or http service collection...
 }
 
+type UI interface {
+	// show message
+	Render(string)
+	// show error message
+	RenderSystemMessage([]Diagnostic)
+	// display welcome message
+	Welcome()
+	// get user input
+	GetUserInput() string
+}
+
 type SingalManager interface {
 	// graceful quit
 	GracefulQuit()
