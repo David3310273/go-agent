@@ -10,7 +10,6 @@ const (
 )
 
 type Session interface {
-	SessionContext
 	WorkFlow
 	Observable
 	EventManager
@@ -24,6 +23,8 @@ type Session interface {
 	SetLogger(SessionConfig) *Diagnostic
 	// inherit from agent
 	GetConfigs() SessionConfig
+	// get session context
+	GetContext() Context
 	// get available providers
 	GetModelProviders() []Provider
 	// session support tree structure
@@ -36,10 +37,12 @@ type Session interface {
 	SelectTools(Question, ReActMessage) []Tool
 	// dynamically select local kb given question
 	SelectLocalKB(Question) string
-	// save history
-	SaveHistory(ReActMessage) *Diagnostic
+	// save reAct message to a storage, not harness
+	SaveMemory(ReActMessage) *Diagnostic
 	// return pointer so ProcessQuestion can modify session conversation in place
 	GetConversation() *Conversation
+	// TODO: load conversation from file/db
+	// RecoverConversation(path string) *Conversation
 }
 
 type SessionAnswer interface {

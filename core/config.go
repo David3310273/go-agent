@@ -62,6 +62,8 @@ type LoggerConfig struct {
 }
 
 type AgentConfig struct {
+	// root path: inject param
+	RootPath string
 	// version
 	Version string `json:"version"`
 	// Plan
@@ -85,6 +87,8 @@ type AgentConfig struct {
 }
 
 type PromptConfig struct {
+	// root path: inject param
+	RootPath string
 	// prompt file path
 	Paths []string `json:"paths"`
 	// buffer size
@@ -130,14 +134,17 @@ type HistoryConfig struct {
 }
 
 type SessionConfig struct {
-	//  project root path, propagated at runtime for resolving file paths
+	// project root path, propagated at runtime for resolving file paths
 	RootPath string
 	// reAct max rounds
 	ReActMaxRounds int `json:"reActMaxRounds"`
 	// memory file path for current session
 	MemoryFilePathFormat string `json:"memoryFilePathFormat"`
-	MemoryFileSplitter   string
-	MemoryFileSize       int64
+	MemoryFileSplitter   string `json:"memoryFileSplitter"`
+	MemoryWindowSize     int64  `json:"memoryWindowSize"`
+
+	// prompt file size
+	PromptFileMaxSize int64 `json:"promptFileMaxSize"`
 
 	// retry on lock
 	MaxRetryOnLock int `json:"maxRetryOnLock"`

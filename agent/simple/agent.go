@@ -43,8 +43,8 @@ func (c *SimpleAgentContext) GetHistory() []byte {
 	return c.History
 }
 
-func (a *SimpleAgent) SetHistory(history core.HistoryConfig) *core.Diagnostic {
-	a.History = make([]byte, a.Configs.Agent.History.BufferSize)
+func (a *SimpleAgentContext) SetHistory(history core.HistoryConfig) *core.Diagnostic {
+	a.History = make([]byte, history.BufferSize)
 	return nil
 }
 
@@ -60,30 +60,23 @@ func (c *SimpleAgentContext) GetPrompt() []byte {
 	return c.Prompt
 }
 
-func (a *SimpleAgent) SetPrompt(prompt core.PromptConfig) *core.Diagnostic {
+func (a *SimpleAgentContext) SetPrompt(prompt core.PromptConfig) *core.Diagnostic {
 	// use capacity instead of length, and convert KB to bytes
-	a.Prompt = make([]byte, 0, a.Configs.Agent.Prompt.BufferSizeInKB*1024)
-	// load prompt in memory per file as much as possible
-	contentSize := 0
+	a.Prompt = make([]byte, 0, prompt.BufferSizeInKB*1024)
 
 	for _, filename := range prompt.Paths {
 		// use RootPath instead of hardcoded relative path
-		realPath := path.Join(a.RootPath, SimpleAgentPath, filename)
+		realPath := path.Join(prompt.RootPath, SimpleAgentPath, filename)
 		log.Printf("real prompt path: %s", realPath)
 		tempPrompt, err := os.ReadFile(realPath)
 		if err != nil {
-			core.Emit(a, core.CommonEvent[AgentEventData]{
-				SourceType: core.AgentEventPromptLoadFailed,
-				Data: AgentEventData{
-					AgentID: a.ID,
-				},
-			})
-		} else if contentSize+len(tempPrompt) <= a.Configs.Agent.Prompt.BufferSizeInKB*1024 {
-			a.Prompt = append(a.Prompt, tempPrompt...)
-			contentSize += len(tempPrompt)
+			log.Printf("failed to load prompt: %s", realPath)
 		} else {
-			a.Logger.Printf("cannot load whole prompt %s because buffer is full, will truncate in here...", realPath)
-			break
+			hasAdded := SimpleHarnessInstance.AddPrompt(&a.Prompt, tempPrompt, prompt.BufferSizeInKB*1024)
+			if !hasAdded {
+				log.Printf("cannot load whole prompt %s because buffer is full, will truncate in here...", realPath)
+				break
+			}
 		}
 	}
 
@@ -96,10 +89,10 @@ func (c *SimpleAgentContext) GetKnowledgeBase() []core.KnowledgeBase[any] {
 }
 
 // complete SetKnowledgeBase to collect all KB instances via NewSimpleKnowledgeBase.
-func (a *SimpleAgent) SetKnowledgeBase(knowledgeConfigs []core.KnowledgeBaseConfig) *core.Diagnostic {
+func (a *SimpleAgentContext) SetKnowledgeBase(knowledgeConfigs []core.KnowledgeBaseConfig) *core.Diagnostic {
 	var kbs []core.KnowledgeBase[any]
 	for _, knowledgeConfig := range knowledgeConfigs {
-		kb := NewSimpleKnowledgeBase(a.RootPath, knowledgeConfig)
+		kb := NewSimpleKnowledgeBase(knowledgeConfig.RootPath, knowledgeConfig)
 		kbs = append(kbs, kb)
 	}
 
@@ -112,13 +105,13 @@ func (c *SimpleAgentContext) GetSkills() []byte {
 	return c.Skills
 }
 
-func (a *SimpleAgent) SetSkills(skill core.SkillConfig) *core.Diagnostic {
+func (a *SimpleAgentContext) SetSkills(skill core.SkillConfig) *core.Diagnostic {
 	return nil
 }
 
 // SetToolsConfig loads a list of ToolConfig into the agent's tool list,
 // skipping entries with an empty name.
-func (a *SimpleAgent) SetToolsConfig(tools []core.ToolConfig) *core.Diagnostic {
+func (a *SimpleAgentContext) SetToolsConfig(tools []core.ToolConfig) *core.Diagnostic {
 	for _, tool := range tools {
 		if tool.Name == "" {
 			continue
@@ -133,7 +126,7 @@ func (c *SimpleAgentContext) GetModelProviders() []core.Provider {
 }
 
 // SetProviders caches initialized providers on the agent context
-func (a *SimpleAgent) SetProviders(providers []core.Provider) *core.Diagnostic {
+func (a *SimpleAgentContext) SetProviders(providers []core.Provider) *core.Diagnostic {
 	a.ModelProviders = providers
 	return nil
 }
@@ -227,6 +220,15 @@ func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
 			Code:  core.MessageCodeConfigFileFormatError,
 		}
 	}
+
+	// register root path in all sub configs
+	allConfigs.Agent.RootPath = rootPath
+	allConfigs.Agent.Prompt.RootPath = rootPath
+	for i := range allConfigs.Agent.KnowledgeBase {
+		allConfigs.Agent.KnowledgeBase[i].RootPath = rootPath
+	}
+
+	allConfigs.Session.RootPath = rootPath
 
 	ctx, cancel := context.WithCancel(context.Background())
 

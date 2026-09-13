@@ -56,7 +56,9 @@ go-agent is an interface-implemented, multi-layered agent framework written in G
 go test ./...
 ```
 
-2. integration test: using simple app to test the whole framework.
+2. integration test: 
+
+using simple app server to test the whole framework.
 
 ## Code Conventions
 

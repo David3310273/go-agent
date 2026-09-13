@@ -72,7 +72,7 @@ type SimpleAgentSession struct {
 	// event chans
 	eventChans map[string]chan core.Event[any]
 	// session context
-	SimpleSessionContext
+	Context SimpleSessionContext
 }
 
 // NewAgentSession creates a new session from an AgentCore
@@ -116,12 +116,12 @@ func NewAgentSession(agent core.AgentCore, streaming bool, enableThinking bool) 
 	go session.OnEvent()
 
 	// llm context init
-	session.History = agent.GetHistory()
-	session.Prompt = agent.GetPrompt()
-	session.Skills = agent.GetSkills()
-	session.KnowledgeBase = agent.GetKnowledgeBase()
-	session.Tools = agent.GetToolsConfig()
-	session.Conversation = core.Conversation{}
+	session.Context.History = agent.GetHistory()
+	session.Context.Prompt = agent.GetPrompt()
+	session.Context.Skills = agent.GetSkills()
+	session.Context.KnowledgeBase = agent.GetKnowledgeBase()
+	session.Context.Tools = agent.GetToolsConfig()
+	session.Context.Conversation = core.Conversation{}
 
 	// use sessionConfig (with RootPath set) instead of original config
 	session.SetLogger(sessionConfig)
@@ -175,18 +175,12 @@ func (s *SimpleAgentSession) GetConfigs() core.SessionConfig {
 	return s.Config
 }
 
-func (s *SimpleAgentSession) SetSessionHistory() core.Diagnostic {
-	return core.Diagnostic{}
+func (s *SimpleAgentSession) GetContext() core.Context {
+	return &s.Context
 }
 
-func (s *SimpleAgentSession) GenerateFinalContext(query core.Question) string {
-	// simple harness: mergethe context from prompt, skills, history, and session history
-	result := []byte{}
-	result = append(result, s.Prompt...)
-	result = append(result, s.Skills...)
-	result = append(result, s.History...)
-
-	return string(result)
+func (s *SimpleAgentSession) SetSessionHistory() core.Diagnostic {
+	return core.Diagnostic{}
 }
 
 // =============================================================================
@@ -226,11 +220,14 @@ func (s *SimpleAgentSession) SetStatus(status core.SessionStatus) *core.Diagnost
 
 // return pointer so callers can modify the conversation in place
 func (s *SimpleAgentSession) GetConversation() *core.Conversation {
-	// TODO: sliding window for controlling history
-	return &s.Conversation
+	return &s.Context.Conversation
 }
 
-func (s *SimpleAgentSession) SaveHistory(history core.ReActMessage) *core.Diagnostic {
+func (s *SimpleAgentSession) RecoverConversation(path string) *core.Conversation {
+	return nil
+}
+
+func (s *SimpleAgentSession) SaveMemory(memory core.ReActMessage) *core.Diagnostic {
 	//  use RootPath instead of hardcoded relative path
 	filePath := path.Join(s.Config.RootPath, s.Config.MemoryFilePathFormat)
 	filename := fmt.Sprintf(filePath, s.GetID())
@@ -247,7 +244,7 @@ func (s *SimpleAgentSession) SaveHistory(history core.ReActMessage) *core.Diagno
 		}
 	}
 
-	content := []byte(history.ToString())
+	content := []byte(memory.ToString())
 	content = append(content, '\n')
 
 	if err := utils.RotateWrite(filename, s.Config.MemoryFileSplitter, 1024*1024*1024, content); err != nil {
@@ -266,7 +263,7 @@ func (s *SimpleAgentSession) SaveHistory(history core.ReActMessage) *core.Diagno
 // match tools by name instead of hardcoded index.
 func (s *SimpleAgentSession) SelectTools(query core.Question, message core.ReActMessage) []core.Tool {
 	var result []core.Tool
-	for _, cfg := range s.Tools {
+	for _, cfg := range s.Context.Tools {
 		switch cfg.Name {
 		case "filewriter":
 			result = append(result, tools.FileWriterCall{
@@ -302,7 +299,7 @@ func (s *SimpleAgentSession) SelectLocalKB(query core.Question) string {
 
 	var result strings.Builder
 
-	for _, kbAny := range s.GetKnowledgeBase() {
+	for _, kbAny := range s.Context.GetKnowledgeBase() {
 		milvusKB, ok := kbAny.(*storage.MilvusKnowledgebase[any])
 		if !ok {
 			continue
@@ -380,9 +377,9 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 		var diagnostics []core.Diagnostic
 
 		if s.streaming {
-			response, diagnostics = core.ProcessQuestionStream(s, query)
+			response, diagnostics = core.ProcessQuestionStream(s, query, SimpleHarnessInstance)
 		} else {
-			response, diagnostics = core.ProcessQuestion(s, query)
+			response, diagnostics = core.ProcessQuestion(s, query, SimpleHarnessInstance)
 		}
 
 		// use select to avoid goroutine leak when context is cancelled
@@ -461,7 +458,7 @@ func (s *SimpleAgentSession) OnEvent() {
 			if ok {
 				//  save the history to storage for future use
 				log.Printf("Session %s saving history: %s", s.GetID(), history.ToString())
-				if diag := s.SaveHistory(history); diag.Code != 0 {
+				if diag := s.SaveMemory(history); diag.Code != 0 {
 					log.Printf("Session %s: save history error: %s", s.GetID(), diag.Message)
 				}
 				if s.Logger != nil {
