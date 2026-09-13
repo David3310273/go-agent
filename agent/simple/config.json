@@ -38,7 +38,9 @@
         "logPath": "app/sessionLogs/session-%s.log",
         "reActMaxRounds": 10,
         "maxRetryOnLock": 3,
+        "memoryWindowSize": 10000,
         "memoryFileSplitter": "\n--------------\n",
-        "memoryFilePathFormat": "app/sessionMemories/session-%s-memory.jsonl"
+        "memoryFilePathFormat": "app/sessionMemories/session-%s-memory.jsonl",
+        "promptFileMaxSize": 10
     }
 }

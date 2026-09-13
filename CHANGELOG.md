@@ -1,5 +1,18 @@
 # Changelog
 
+## V1.0.2: (coming soon...)
+
+fixs:
+
+- schema injection from app, adding more CRUD methods, publish CRUD api of kb
+- add harness interface/component to organize the context
+
+feature:
+
+- publish tools as MCP service
+- support dynamic skills and tools
+
+
 ## V1.0.1: 2026-09-12
 
 fixs:

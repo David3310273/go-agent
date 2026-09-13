@@ -1,20 +1,9 @@
 package core
 
-import (
-	"log"
-)
-
 type Context interface {
-	// set logger
-	SetLogger(AgentConfig) *Diagnostic
-	GetLogger() *log.Logger
-	// set language type for answer
-	SetLanguage(LanguageType)
 	// load resources from history
 	SetHistory(HistoryConfig) *Diagnostic
 	GetHistory() []byte
-	// load config
-	LoadConfigs() AgentCoreConfig
 	// load prompt
 	SetPrompt(PromptConfig) *Diagnostic
 	GetPrompt() []byte
@@ -26,9 +15,6 @@ type Context interface {
 	SetSkills(SkillConfig) *Diagnostic
 	GetSkills() []byte
 
-	// get session config
-	GetSessionConfig() SessionConfig
-
 	// get model providers
 	GetModelProviders() []Provider
 	// set initialized model providers
@@ -38,9 +24,4 @@ type Context interface {
 	SetToolsConfig([]ToolConfig) *Diagnostic
 	// get available tools
 	GetToolsConfig() []ToolConfig
-}
-
-type SessionContext interface {
-	// generate final context given question
-	GenerateFinalContext(query Question) string
 }

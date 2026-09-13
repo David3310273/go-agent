@@ -2,7 +2,6 @@ package core
 
 import (
 	json "encoding/json"
-	"fmt"
 	"log"
 )
 
@@ -86,6 +85,15 @@ type AgentCore interface {
 	GetID() string
 	// set ID
 	SetID() *Diagnostic
+	// set logger
+	SetLogger(AgentConfig) *Diagnostic
+	GetLogger() *log.Logger
+	// set language type for answer
+	SetLanguage(LanguageType)
+	// get session config
+	GetSessionConfig() SessionConfig
+	// load config
+	LoadConfigs() AgentCoreConfig
 }
 
 type AgentStatus int
@@ -104,8 +112,6 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 	// load all configs
 	agentConfigs := agent.LoadConfigs()
 
-	// inject RootPath from AppConfig to all sub-configs
-	agentConfigs.Session.RootPath = appConfigs.RootPath
 	for i := range agentConfigs.Tool {
 		agentConfigs.Tool[i].RootPath = appConfigs.RootPath
 	}
@@ -192,30 +198,38 @@ func StopAgentCore(agent AgentCore) []Diagnostic {
 // =============================================================================
 
 // ProcessQuestion is the reAct loop of AskQuestion
-func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) {
+func ProcessQuestion(session Session, question Question, harness Harness) (Answer, []Diagnostic) {
 	config := session.GetConfigs()
+	contextMessages := session.GetContext()
 	maxReActRounds := config.ReActMaxRounds
 	diagnostics := []Diagnostic{}
 
 	// generate prompt context and build initial messages
-	contextContent := session.GenerateFinalContext(question)
-	prompt := contextContent + config.MemoryFileSplitter + "\n"
+	systemPrompt := string(contextMessages.GetPrompt()) + string(contextMessages.GetSkills())
+	agentHistory := string(contextMessages.GetHistory())
+	prompt := harness.GenerateFinalPrompt(systemPrompt, agentHistory, int(config.PromptFileMaxSize))
 
 	// use pointer to conversation so modifications are reflected in session
 	messages := session.GetConversation()
 	if len(*messages) == 0 {
 		contextMessage := ReActMessage{Role: RoleSystem, Content: prompt}
-		*messages = append(*messages, contextMessage)
-		// emit each message event before returning
+		harness.SetCurrRoundMessages(messages, contextMessage, int(config.MemoryWindowSize), 1)
 		Emit(session, CommonEvent[ReActMessage]{
 			SourceType: SessionHistory,
 			Data:       contextMessage,
 		})
 	}
 
+	knowledge := session.SelectLocalKB(question)
+	log.Printf("search from local kb: %s", knowledge)
+
+	// if has knowledge, init it with user message
+	if len(knowledge) > 0 {
+		harness.SetFinalQuery(&question, knowledge, config.MemoryFileSplitter)
+	}
+
 	userMessage := ReActMessage{Role: RoleUser, Content: question.GetQuery()}
-	*messages = append(*messages, userMessage)
-	// emit each message event before returning
+	harness.SetCurrRoundMessages(messages, userMessage, int(config.MemoryWindowSize), 1)
 	Emit(session, CommonEvent[ReActMessage]{
 		SourceType: SessionHistory,
 		Data:       userMessage,
@@ -232,15 +246,6 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 		tools := session.SelectTools(question, (*messages)[len(*messages)-1])
 		log.Printf("init messages: %v", messages.ToString())
 
-		// get local knowledge and inject into query
-		knowledge := session.SelectLocalKB(question)
-		log.Printf("search from local kb: %s", knowledge)
-
-		if len(knowledge) > 0 {
-			userQuery := question.GetQuery()
-			question.SetQuery(fmt.Sprintf("%s\n%s", userQuery, knowledge))
-		}
-
 		response, errs := AskQuestion(session, *messages, tools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
@@ -253,7 +258,7 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 			// retry with retry query when response format is invalid
 			question.SetQuery(question.GetRetryQuery())
 			retryMessage := ReActMessage{Role: RoleUser, Content: question.GetRetryQuery()}
-			(*messages)[len(*messages)-1] = retryMessage
+			harness.SetCurrRoundMessages(messages, retryMessage, int(config.MemoryWindowSize), 1)
 			// emit each message event before returning
 			Emit(session, CommonEvent[ReActMessage]{
 				SourceType: SessionHistory,
@@ -261,15 +266,14 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 			})
 			continue
 		} else {
+			// send thoughts to hint chan only when thinking is enabled
+			if question.GetEnableThinking() {
+				question.GetHintChan() <- answer
+			}
 			// for simplicity, only use the first choice
 			// TODO: support multiple choices
 			operation := answer.Choices[0]
-
 			if operation.Message.ToolCalls != nil && len(*operation.Message.ToolCalls) > 0 {
-				// send thoughts to hint chan only when thinking is enabled
-				if question.GetEnableThinking() {
-					question.GetHintChan() <- answer
-				}
 				// handle tool calls
 				// 1. append assistant message with tool_calls
 				toolMessage := ReActMessage{
@@ -277,8 +281,8 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 					Content:   operation.Message.Content,
 					ToolCalls: operation.Message.ToolCalls,
 				}
-				*messages = append(*messages, toolMessage)
 
+				harness.SetCurrRoundMessages(messages, toolMessage, int(config.MemoryWindowSize), 1)
 				Emit(session, CommonEvent[ReActMessage]{
 					SourceType: SessionHistory,
 					Data:       toolMessage,
@@ -320,7 +324,8 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 						Content:    toolResult,
 						ToolCallID: toolCall.ID,
 					}
-					*messages = append(*messages, toolResultMessage)
+
+					harness.SetCurrRoundMessages(messages, toolResultMessage, int(config.MemoryWindowSize), 1)
 					Emit(session, CommonEvent[ReActMessage]{
 						SourceType: SessionHistory,
 						Data:       toolResultMessage,
@@ -332,15 +337,13 @@ func ProcessQuestion(session Session, question Question) (Answer, []Diagnostic) 
 					Role:    RoleAssistant,
 					Content: operation.Message.Content,
 				}
-				*messages = append(*messages, finalMessage)
+
+				harness.SetCurrRoundMessages(messages, finalMessage, int(config.MemoryWindowSize), 1)
 				Emit(session, CommonEvent[ReActMessage]{
 					SourceType: SessionHistory,
 					Data:       finalMessage,
 				})
-				// send thoughts to hint chan
-				if question.GetEnableThinking() {
-					question.GetHintChan() <- answer
-				}
+
 				return answer, nil
 			}
 		}
@@ -434,27 +437,38 @@ func (acc *streamAccumulator) addChunk(answer Answer) {
 }
 
 // ProcessQuestionStream is the stream version of ProcessQuestion, sends partial answers via hintChan
-func ProcessQuestionStream(session Session, question Question) (Answer, []Diagnostic) {
+func ProcessQuestionStream(session Session, question Question, harness Harness) (Answer, []Diagnostic) {
 	config := session.GetConfigs()
+	contextMessages := session.GetContext()
 	maxReActRounds := config.ReActMaxRounds
 	diagnostics := []Diagnostic{}
 
-	contextContent := session.GenerateFinalContext(question)
-	prompt := contextContent + config.MemoryFileSplitter + "\n"
+	// generate prompt context and build initial messages
+	systemPrompt := string(contextMessages.GetPrompt()) + string(contextMessages.GetSkills())
+	agentHistory := string(contextMessages.GetHistory())
+	prompt := harness.GenerateFinalPrompt(systemPrompt, agentHistory, int(config.PromptFileMaxSize))
 
+	// use pointer to conversation so modifications are reflected in session
 	messages := session.GetConversation()
-
 	if len(*messages) == 0 {
 		contextMessage := ReActMessage{Role: RoleSystem, Content: prompt}
-		*messages = append(*messages, contextMessage)
+		harness.SetCurrRoundMessages(messages, contextMessage, int(config.MemoryWindowSize), 1)
 		Emit(session, CommonEvent[ReActMessage]{
 			SourceType: SessionHistory,
 			Data:       contextMessage,
 		})
 	}
 
+	knowledge := session.SelectLocalKB(question)
+	log.Printf("search from local kb: %s", knowledge)
+
+	// if has knowledge, init it with user message
+	if len(knowledge) > 0 {
+		harness.SetFinalQuery(&question, knowledge, config.MemoryFileSplitter)
+	}
+
 	userMessage := ReActMessage{Role: RoleUser, Content: question.GetQuery()}
-	*messages = append(*messages, userMessage)
+	harness.SetCurrRoundMessages(messages, userMessage, int(config.MemoryWindowSize), 1)
 	Emit(session, CommonEvent[ReActMessage]{
 		SourceType: SessionHistory,
 		Data:       userMessage,
@@ -506,7 +520,7 @@ func ProcessQuestionStream(session Session, question Question) (Answer, []Diagno
 				Content:   acc.content,
 				ToolCalls: &acc.toolCalls,
 			}
-			*messages = append(*messages, toolMessage)
+			harness.SetCurrRoundMessages(messages, toolMessage, int(config.MemoryWindowSize), 1)
 			Emit(session, CommonEvent[ReActMessage]{
 				SourceType: SessionHistory,
 				Data:       toolMessage,
@@ -544,7 +558,7 @@ func ProcessQuestionStream(session Session, question Question) (Answer, []Diagno
 					Content:    toolResult,
 					ToolCallID: toolCall.ID,
 				}
-				*messages = append(*messages, toolResultMessage)
+				harness.SetCurrRoundMessages(messages, toolResultMessage, int(config.MemoryWindowSize), 1)
 				Emit(session, CommonEvent[ReActMessage]{
 					SourceType: SessionHistory,
 					Data:       toolResultMessage,
@@ -555,7 +569,7 @@ func ProcessQuestionStream(session Session, question Question) (Answer, []Diagno
 				Role:    RoleAssistant,
 				Content: acc.content,
 			}
-			*messages = append(*messages, finalMessage)
+			harness.SetCurrRoundMessages(messages, finalMessage, int(config.MemoryWindowSize), 1)
 			Emit(session, CommonEvent[ReActMessage]{
 				SourceType: SessionHistory,
 				Data:       finalMessage,
