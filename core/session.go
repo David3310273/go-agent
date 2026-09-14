@@ -41,8 +41,6 @@ type Session interface {
 	SaveMemory(ReActMessage) *Diagnostic
 	// return pointer so ProcessQuestion can modify session conversation in place
 	GetConversation() *Conversation
-	// TODO: load conversation from file/db
-	// RecoverConversation(path string) *Conversation
 }
 
 type SessionAnswer interface {
