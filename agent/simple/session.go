@@ -77,7 +77,7 @@ type SimpleAgentSession struct {
 
 // NewAgentSession creates a new session from an AgentCore
 // log providers count when creating session
-func NewAgentSession(agent core.AgentCore, streaming bool, enableThinking bool) *SimpleAgentSession {
+func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, enableThinking bool, memory *core.Conversation) *SimpleAgentSession {
 	providers := agent.GetModelProviders()
 	log.Printf("NewAgentSession: providers count = %d", len(providers))
 	// fixed method name from GetKnowledgeBases to GetKnowledgeBase.
@@ -105,8 +105,13 @@ func NewAgentSession(agent core.AgentCore, streaming bool, enableThinking bool) 
 		enableThinking:   true,
 	}
 
-	id, _ := uuid.NewV4()
-	session.ID = id.String()
+	// use provided sessionID or generate new one
+	if sessionID != "" {
+		session.ID = sessionID
+	} else {
+		id, _ := uuid.NewV4()
+		session.ID = id.String()
+	}
 
 	// init context
 	session.ctx, session.cancel = context.WithCancel(context.Background())
@@ -121,7 +126,11 @@ func NewAgentSession(agent core.AgentCore, streaming bool, enableThinking bool) 
 	session.Context.Skills = agent.GetSkills()
 	session.Context.KnowledgeBase = agent.GetKnowledgeBase()
 	session.Context.Tools = agent.GetToolsConfig()
+
 	session.Context.Conversation = core.Conversation{}
+	if memory != nil {
+		session.Context.Conversation = *memory
+	}
 
 	// use sessionConfig (with RootPath set) instead of original config
 	session.SetLogger(sessionConfig)
@@ -221,10 +230,6 @@ func (s *SimpleAgentSession) SetStatus(status core.SessionStatus) *core.Diagnost
 // return pointer so callers can modify the conversation in place
 func (s *SimpleAgentSession) GetConversation() *core.Conversation {
 	return &s.Context.Conversation
-}
-
-func (s *SimpleAgentSession) RecoverConversation(path string) *core.Conversation {
-	return nil
 }
 
 func (s *SimpleAgentSession) SaveMemory(memory core.ReActMessage) *core.Diagnostic {

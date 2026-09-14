@@ -1,13 +1,16 @@
 package simple
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/David3310273/go-agent/core"
@@ -497,6 +500,36 @@ func (a *SimpleAgent) StopSession(sessionID string) *core.Diagnostic {
 	return nil
 }
 
+// for simplicity, loading all history, no size limit here.
+func (a *SimpleAgent) RecoverConversation(sessionID string) *core.Conversation {
+	memoryPath := path.Join(a.RootPath, fmt.Sprintf(a.GetSessionConfig().MemoryFilePathFormat, sessionID))
+
+	fp, err := os.Open(memoryPath)
+	if err != nil {
+		return nil
+	}
+
+	defer fp.Close()
+
+	memories := make(core.Conversation, 0)
+	reader := bufio.NewReader(fp)
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err == io.EOF {
+			break
+		}
+
+		line = strings.TrimSuffix(line, "\n")
+		message := core.ReActMessage{}
+		if err := json.Unmarshal([]byte(line), &message); err == nil {
+			memories = append(memories, message)
+		}
+	}
+
+	return &memories
+}
+
 // get session, if not exist and forceCreate is true, create a new one
 func (a *SimpleAgent) GetSessionOnCreate(sessionID string, streaming bool, enableThinking bool, forceCreate bool) (core.Session, *core.Diagnostic) {
 	if session, ok := a.sessions[sessionID]; ok {
@@ -505,7 +538,8 @@ func (a *SimpleAgent) GetSessionOnCreate(sessionID string, streaming bool, enabl
 	} else if forceCreate {
 		log.Printf("session %s not found, will create new one", sessionID)
 
-		session := NewAgentSession(a, streaming, enableThinking)
+		memories := a.RecoverConversation(sessionID)
+		session := NewAgentSession(a, sessionID, streaming, enableThinking, memories)
 
 		// acquire lock first
 		if err := a.Acquire(); err == nil {

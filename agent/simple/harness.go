@@ -50,7 +50,7 @@ func (h SimpleHarness) GenerateFinalPrompt(systemPrompt string, agentHistory str
 }
 
 func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message core.ReActMessage, windowSize int, skip int) {
-	if messages == nil {
+	if messages == nil || windowSize < 1 || skip < 0 {
 		return
 	}
 
@@ -59,7 +59,7 @@ func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message
 	start := max(skip, end-windowSize+1)
 
 	// invalid window size, do nothing but append
-	if start <= skip || windowSize < 1 {
+	if start <= skip {
 		*messages = append(*messages, message)
 		return
 	}

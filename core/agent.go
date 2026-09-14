@@ -71,6 +71,8 @@ type SessionManager interface {
 	StopSession(string) *Diagnostic
 	// get session, if not exist, create a new one with options
 	GetSessionOnCreate(id string, streaming bool, enableThinking bool, forceCreate bool) (Session, *Diagnostic)
+	// load conversation from file/db, take care of size
+	RecoverConversation(sessionID string) *Conversation
 }
 
 type AgentCore interface {
