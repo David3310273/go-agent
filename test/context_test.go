@@ -1,4 +1,4 @@
-// test cases for core.Context and core.SessionContext interfaces
+// test cases for core.Context interface
 package test
 
 import (
@@ -12,37 +12,9 @@ import (
 // compile-time check: MockContext satisfies core.Context
 var _ core.Context = (*testmock.MockContext)(nil)
 
-// compile-time check: MockSessionContext satisfies core.SessionContext
-var _ core.SessionContext = (*testmock.MockSessionContext)(nil)
-
 // =============================================================================
 // Context interface tests
 // =============================================================================
-
-func TestMockContext_SetLogger(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockContext := testmock.NewMockContext(ctrl)
-	agentConfig := core.AgentConfig{LogPath: "/var/log/agent.log"}
-
-	mockContext.EXPECT().SetLogger(agentConfig).Return(nil)
-
-	err := mockContext.SetLogger(agentConfig)
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
-	}
-}
-
-func TestMockContext_SetLanguage(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockContext := testmock.NewMockContext(ctrl)
-	mockContext.EXPECT().SetLanguage(gomock.Eq(core.LanguageType("Chinese")))
-
-	mockContext.SetLanguage(core.LanguageType("Chinese"))
-}
 
 func TestMockContext_SetHistory(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -71,24 +43,6 @@ func TestMockContext_GetHistory(t *testing.T) {
 	history := mockContext.GetHistory()
 	if string(history) != string(expectedHistory) {
 		t.Errorf("expected history %s, got %s", expectedHistory, history)
-	}
-}
-
-// updated LoadConfigs to new no-arg signature
-func TestMockContext_LoadConfigs(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockContext := testmock.NewMockContext(ctrl)
-	expectedConfig := core.AgentCoreConfig{
-		Agent: core.AgentConfig{Version: "1.0.0"},
-	}
-
-	mockContext.EXPECT().LoadConfigs().Return(expectedConfig)
-
-	config := mockContext.LoadConfigs()
-	if config.Agent.Version != "1.0.0" {
-		t.Errorf("expected version '1.0.0', got %s", config.Agent.Version)
 	}
 }
 
@@ -127,7 +81,7 @@ func TestMockContext_SetKnowledgeBase(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
-	kbConfig := core.KnowledgeBaseConfig{RootPath: "/path/to/kb"}
+	kbConfig := []core.KnowledgeBaseConfig{{RootPath: "/path/to/kb"}}
 
 	mockContext.EXPECT().SetKnowledgeBase(kbConfig).Return(nil)
 
@@ -142,13 +96,13 @@ func TestMockContext_GetKnowledgeBase(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
-	expectedKB := []byte(`{"knowledge": "base"}`)
+	expectedKB := []core.KnowledgeBase[any]{}
 
 	mockContext.EXPECT().GetKnowledgeBase().Return(expectedKB)
 
 	kb := mockContext.GetKnowledgeBase()
-	if string(kb) != string(expectedKB) {
-		t.Errorf("expected kb %s, got %s", expectedKB, kb)
+	if kb == nil {
+		t.Errorf("expected kb, got nil")
 	}
 }
 
@@ -182,21 +136,6 @@ func TestMockContext_GetSkills(t *testing.T) {
 	}
 }
 
-func TestMockContext_GetSessionConfig(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockContext := testmock.NewMockContext(ctrl)
-	expectedConfig := core.SessionConfig{ReActMaxRounds: 10}
-
-	mockContext.EXPECT().GetSessionConfig().Return(expectedConfig)
-
-	config := mockContext.GetSessionConfig()
-	if config.ReActMaxRounds != 10 {
-		t.Errorf("expected ReActMaxRounds 10, got %d", config.ReActMaxRounds)
-	}
-}
-
 func TestMockContext_GetModelProviders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -210,13 +149,41 @@ func TestMockContext_GetModelProviders(t *testing.T) {
 	}
 }
 
+func TestMockContext_SetProviders(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockContext := testmock.NewMockContext(ctrl)
+	mockContext.EXPECT().SetProviders(nil).Return(nil)
+
+	err := mockContext.SetProviders(nil)
+	if err != nil {
+		t.Errorf("expected nil error, got %v", err)
+	}
+}
+
+func TestMockContext_SetToolsConfig(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockContext := testmock.NewMockContext(ctrl)
+	toolsConfig := []core.ToolConfig{{Name: "test"}}
+
+	mockContext.EXPECT().SetToolsConfig(toolsConfig).Return(nil)
+
+	err := mockContext.SetToolsConfig(toolsConfig)
+	if err != nil {
+		t.Errorf("expected nil error, got %v", err)
+	}
+}
+
 func TestMockContext_GetToolsConfig(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
 	expectedTools := []core.ToolConfig{
-		{Name: "filewriter", Schema: "filewriter.schema.json"},
+		{Name: "filewriter"},
 	}
 
 	mockContext.EXPECT().GetToolsConfig().Return(expectedTools)
@@ -224,25 +191,5 @@ func TestMockContext_GetToolsConfig(t *testing.T) {
 	tools := mockContext.GetToolsConfig()
 	if len(tools) != 1 {
 		t.Errorf("expected 1 tool config, got %d", len(tools))
-	}
-}
-
-// =============================================================================
-// SessionContext interface tests
-// =============================================================================
-
-func TestMockSessionContext_GenerateFinalContext(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSessionCtx := testmock.NewMockSessionContext(ctrl)
-	mockQuestion := testmock.NewMockQuestion(ctrl)
-	expectedContext := "This is the final context."
-
-	mockSessionCtx.EXPECT().GenerateFinalContext(mockQuestion).Return(expectedContext)
-
-	context := mockSessionCtx.GenerateFinalContext(mockQuestion)
-	if context != expectedContext {
-		t.Errorf("expected context '%s', got %s", expectedContext, context)
 	}
 }

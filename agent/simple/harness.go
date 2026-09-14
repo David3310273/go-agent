@@ -50,8 +50,31 @@ func (h SimpleHarness) GenerateFinalPrompt(systemPrompt string, agentHistory str
 }
 
 func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message core.ReActMessage, windowSize int, skip int) {
-	// TODO: sliding window started from first user message
-	*messages = append(*messages, message)
+	if messages == nil {
+		return
+	}
+
+	msgs := *messages
+	end := len(msgs)
+	start := max(skip, end-windowSize+1)
+
+	// invalid window size, do nothing but append
+	if start <= skip || windowSize < 1 {
+		*messages = append(*messages, message)
+		return
+	}
+
+	// move to next complete user message
+	for start < end && msgs[start].Role != core.RoleUser {
+		start += 1
+	}
+
+	copy(msgs[skip:], msgs[start:end])
+
+	newLen := skip + (end - start) + 1
+	msgs[skip+(end-start)] = message
+
+	*messages = msgs[:newLen]
 }
 
 func (h SimpleHarness) GetNextRoundTools(skillName string) []core.Tool {

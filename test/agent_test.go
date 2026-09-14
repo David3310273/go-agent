@@ -94,14 +94,14 @@ func TestMockUI_GetUserInput(t *testing.T) {
 }
 
 // =============================================================================
-// Configure interface tests
+// Configurable interface tests
 // =============================================================================
 
-func TestMockConfigure_GetConfigPath(t *testing.T) {
+func TestMockConfigurable_GetConfigPath(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockConfig := testmock.NewMockConfigure(ctrl)
+	mockConfig := testmock.NewMockConfigurable(ctrl)
 	mockConfig.EXPECT().GetConfigPath().Return("/path/to/config.json")
 
 	path := mockConfig.GetConfigPath()
