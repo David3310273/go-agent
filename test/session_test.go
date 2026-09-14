@@ -165,21 +165,6 @@ func TestMockSession_NewSubSession(t *testing.T) {
 	}
 }
 
-func TestMockSession_SaveHistory(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSession := testmock.NewMockSession(ctrl)
-	message := core.ReActMessage{Role: core.RoleAssistant, Content: "final answer"}
-
-	mockSession.EXPECT().SaveHistory(message).Return(nil)
-
-	err := mockSession.SaveHistory(message)
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
-	}
-}
-
 // =============================================================================
 // StartSession function tests
 // =============================================================================

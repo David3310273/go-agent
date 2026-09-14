@@ -213,7 +213,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	messages := session.GetConversation()
 	if len(*messages) == 0 {
 		contextMessage := ReActMessage{Role: RoleSystem, Content: prompt}
-		harness.SetCurrRoundMessages(messages, contextMessage, int(config.MemoryWindowSize), 1)
+		*messages = append(*messages, contextMessage)
 		Emit(session, CommonEvent[ReActMessage]{
 			SourceType: SessionHistory,
 			Data:       contextMessage,
@@ -229,7 +229,12 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	}
 
 	userMessage := ReActMessage{Role: RoleUser, Content: question.GetQuery()}
+
+	log.Printf("current messages: %v", messages.ToString())
+
 	harness.SetCurrRoundMessages(messages, userMessage, int(config.MemoryWindowSize), 1)
+
+	log.Printf("messages after harness: %v", messages.ToString())
 	Emit(session, CommonEvent[ReActMessage]{
 		SourceType: SessionHistory,
 		Data:       userMessage,
@@ -258,7 +263,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 			// retry with retry query when response format is invalid
 			question.SetQuery(question.GetRetryQuery())
 			retryMessage := ReActMessage{Role: RoleUser, Content: question.GetRetryQuery()}
-			harness.SetCurrRoundMessages(messages, retryMessage, int(config.MemoryWindowSize), 1)
+			*messages = append(*messages, retryMessage)
 			// emit each message event before returning
 			Emit(session, CommonEvent[ReActMessage]{
 				SourceType: SessionHistory,
@@ -282,7 +287,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 					ToolCalls: operation.Message.ToolCalls,
 				}
 
-				harness.SetCurrRoundMessages(messages, toolMessage, int(config.MemoryWindowSize), 1)
+				*messages = append(*messages, toolMessage)
 				Emit(session, CommonEvent[ReActMessage]{
 					SourceType: SessionHistory,
 					Data:       toolMessage,
@@ -325,7 +330,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 						ToolCallID: toolCall.ID,
 					}
 
-					harness.SetCurrRoundMessages(messages, toolResultMessage, int(config.MemoryWindowSize), 1)
+					*messages = append(*messages, toolResultMessage)
 					Emit(session, CommonEvent[ReActMessage]{
 						SourceType: SessionHistory,
 						Data:       toolResultMessage,
@@ -338,7 +343,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 					Content: operation.Message.Content,
 				}
 
-				harness.SetCurrRoundMessages(messages, finalMessage, int(config.MemoryWindowSize), 1)
+				*messages = append(*messages, finalMessage)
 				Emit(session, CommonEvent[ReActMessage]{
 					SourceType: SessionHistory,
 					Data:       finalMessage,
@@ -452,7 +457,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 	messages := session.GetConversation()
 	if len(*messages) == 0 {
 		contextMessage := ReActMessage{Role: RoleSystem, Content: prompt}
-		harness.SetCurrRoundMessages(messages, contextMessage, int(config.MemoryWindowSize), 1)
+		*messages = append(*messages, contextMessage)
 		Emit(session, CommonEvent[ReActMessage]{
 			SourceType: SessionHistory,
 			Data:       contextMessage,
@@ -520,7 +525,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 				Content:   acc.content,
 				ToolCalls: &acc.toolCalls,
 			}
-			harness.SetCurrRoundMessages(messages, toolMessage, int(config.MemoryWindowSize), 1)
+			*messages = append(*messages, toolMessage)
 			Emit(session, CommonEvent[ReActMessage]{
 				SourceType: SessionHistory,
 				Data:       toolMessage,
@@ -558,7 +563,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 					Content:    toolResult,
 					ToolCallID: toolCall.ID,
 				}
-				harness.SetCurrRoundMessages(messages, toolResultMessage, int(config.MemoryWindowSize), 1)
+				*messages = append(*messages, toolResultMessage)
 				Emit(session, CommonEvent[ReActMessage]{
 					SourceType: SessionHistory,
 					Data:       toolResultMessage,
@@ -569,7 +574,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 				Role:    RoleAssistant,
 				Content: acc.content,
 			}
-			harness.SetCurrRoundMessages(messages, finalMessage, int(config.MemoryWindowSize), 1)
+			*messages = append(*messages, finalMessage)
 			Emit(session, CommonEvent[ReActMessage]{
 				SourceType: SessionHistory,
 				Data:       finalMessage,

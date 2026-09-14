@@ -80,20 +80,6 @@ func (mr *MockSessionMockRecorder) CloseBenchmarkListeningChannels() *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseBenchmarkListeningChannels", reflect.TypeOf((*MockSession)(nil).CloseBenchmarkListeningChannels))
 }
 
-// GenerateFinalContext mocks base method.
-func (m *MockSession) GenerateFinalContext(query core.Question) string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GenerateFinalContext", query)
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// GenerateFinalContext indicates an expected call of GenerateFinalContext.
-func (mr *MockSessionMockRecorder) GenerateFinalContext(query any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateFinalContext", reflect.TypeOf((*MockSession)(nil).GenerateFinalContext), query)
-}
-
 // GetBenchmarkListeningChannels mocks base method.
 func (m *MockSession) GetBenchmarkListeningChannels() map[string]chan core.StatEvent[any] {
 	m.ctrl.T.Helper()
@@ -120,6 +106,20 @@ func (m *MockSession) GetConfigs() core.SessionConfig {
 func (mr *MockSessionMockRecorder) GetConfigs() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigs", reflect.TypeOf((*MockSession)(nil).GetConfigs))
+}
+
+// GetContext mocks base method.
+func (m *MockSession) GetContext() core.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetContext")
+	ret0, _ := ret[0].(core.Context)
+	return ret0
+}
+
+// GetContext indicates an expected call of GetContext.
+func (mr *MockSessionMockRecorder) GetContext() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContext", reflect.TypeOf((*MockSession)(nil).GetContext))
 }
 
 // GetConversation mocks base method.
@@ -256,18 +256,18 @@ func (mr *MockSessionMockRecorder) RegisterEventChans() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterEventChans", reflect.TypeOf((*MockSession)(nil).RegisterEventChans))
 }
 
-// SaveHistory mocks base method.
-func (m *MockSession) SaveHistory(arg0 core.ReActMessage) *core.Diagnostic {
+// SaveMemory mocks base method.
+func (m *MockSession) SaveMemory(arg0 core.ReActMessage) *core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveHistory", arg0)
+	ret := m.ctrl.Call(m, "SaveMemory", arg0)
 	ret0, _ := ret[0].(*core.Diagnostic)
 	return ret0
 }
 
-// SaveHistory indicates an expected call of SaveHistory.
-func (mr *MockSessionMockRecorder) SaveHistory(arg0 any) *gomock.Call {
+// SaveMemory indicates an expected call of SaveMemory.
+func (mr *MockSessionMockRecorder) SaveMemory(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveHistory", reflect.TypeOf((*MockSession)(nil).SaveHistory), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMemory", reflect.TypeOf((*MockSession)(nil).SaveMemory), arg0)
 }
 
 // SelectLocalKB mocks base method.

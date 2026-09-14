@@ -51,13 +51,7 @@ func TestMockAgentServer(t *testing.T) {
 
 	// AgentServer embeds SingalManager, ServiceProvider
 	// Test a method from each embedded interface
-	mockServer.EXPECT().GetID().Return("server-123")
 	mockServer.EXPECT().GracefulQuit()
-
-	id := mockServer.GetID()
-	if id != "server-123" {
-		t.Errorf("expected id 'server-123', got %s", id)
-	}
 
 	mockServer.GracefulQuit()
 }
@@ -155,23 +149,5 @@ func TestMockAgentApp_Translate(t *testing.T) {
 	result := mockApp.Translate("hello", core.LanguageType("Chinese"))
 	if result != "你好" {
 		t.Errorf("expected '你好', got %s", result)
-	}
-}
-
-func TestMockAgentApp_LoadAppConfig(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockApp := testmock.NewMockAgentApp(ctrl)
-	expectedConfig := core.AppConfig{
-		TimeZone: "UTC+8",
-		Language: core.Language_ZH,
-	}
-
-	mockApp.EXPECT().LoadAppConfig("/path/to/app.json").Return(expectedConfig)
-
-	config := mockApp.LoadAppConfig("/path/to/app.json")
-	if config.TimeZone != "UTC+8" {
-		t.Errorf("expected timezone 'UTC+8', got %s", config.TimeZone)
 	}
 }
