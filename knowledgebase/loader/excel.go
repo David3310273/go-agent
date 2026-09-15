@@ -18,9 +18,3 @@ func (l *ExcelLoader) Load(data []byte, filename string) (string, *core.Diagnost
 func (l *ExcelLoader) SupportedExtensions() []string {
 	return []string{".xlsx", ".xls"}
 }
-
-// Chunk splits Excel content by sheets or rows.
-// placeholder for format-aware chunking.
-func (l *ExcelLoader) Chunk(content string) []string {
-	return nil
-}

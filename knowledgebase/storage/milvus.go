@@ -15,6 +15,7 @@ import (
 // generic knowledgebase that uses user-defined entity type.
 type MilvusKnowledgebase[T any] struct {
 	embedder core.Embedder
+	chunker  core.Chunker
 	Config   core.KnowledgeBaseConfig
 	Options  milvus.MilvusOptions
 }
@@ -26,12 +27,13 @@ const (
 )
 
 // NewMilvusKnowledgebase creates a MilvusKnowledgebase with the given configuration.
-// constructor for generic MilvusKnowledgebase with entity type injection.
-func NewMilvusKnowledgebase[T any](embedder core.Embedder, config core.KnowledgeBaseConfig, options milvus.MilvusOptions) *MilvusKnowledgebase[T] {
+// [auto-added] constructor now accepts chunker parameter for content chunking.
+func NewMilvusKnowledgebase[T any](embedder core.Embedder, chunker core.Chunker, config core.KnowledgeBaseConfig, options milvus.MilvusOptions) *MilvusKnowledgebase[T] {
 	milvus.Init(config.RootPath)
 
 	return &MilvusKnowledgebase[T]{
 		embedder: embedder,
+		chunker:  chunker,
 		Options:  options,
 		Config:   config,
 	}
@@ -61,7 +63,15 @@ func (kb *MilvusKnowledgebase[T]) Process(data []byte, filename string) (*core.E
 		return nil, diag
 	}
 
-	chunks := docLoader.Chunk(doc)
+	// use chunker to split content
+	if kb.chunker == nil {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "chunker not initialized",
+		}
+	}
+	chunks := kb.chunker.Chunk(doc)
 	embedder := kb.GetEmedder()
 
 	result := &core.EmbeddingResult{

@@ -222,7 +222,7 @@ func (s *MilvusKnowledgeService) DeleteMilvusKnowledge(req *MilvusKnowledgeDelet
 	}
 
 	// build filter string for milvus delete
-	filter := buildFilterString(req.Domain, req.ContentType, req.Filename)
+	filter := buildFilterString(req.ContentType, req.Filename)
 
 	// get options from kb
 	opts := s.kb.GetOptions()
@@ -261,7 +261,7 @@ func (s *MilvusKnowledgeService) GetMilvusKnowledge(req *MilvusKnowledgeGetReque
 	}
 
 	// build filter string for milvus query
-	filter := buildFilterString(req.Domain, req.ContentType, req.Filename)
+	filter := buildFilterString(req.ContentType, req.Filename)
 
 	// if keyword is provided, use semantic search with filter
 	if req.Keyword != "" {
@@ -279,12 +279,9 @@ func (s *MilvusKnowledgeService) GetMilvusKnowledge(req *MilvusKnowledgeGetReque
 
 // buildFilterString builds a milvus filter expression from domain, contentType, and filename
 // [auto-added] helper function to construct filter string for server-side filtering.
-func buildFilterString(domain, contentType, filename string) string {
+func buildFilterString(contentType, filename string) string {
 	var conditions []string
 
-	if domain != "" {
-		conditions = append(conditions, fmt.Sprintf(`domain == "%s"`, domain))
-	}
 	if contentType != "" {
 		conditions = append(conditions, fmt.Sprintf(`domain == "%s"`, contentType))
 	}

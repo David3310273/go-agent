@@ -162,7 +162,8 @@ func (m *MilvusStorage) Search(ctx context.Context, req SearchRequest) ([]map[st
 		}
 	}
 
-	fmt.Printf("[Milvus Debug] Parsed %d results\n", len(results))
+	fmt.Printf("[Milvus Debug] Parsed %d results with mertric type %s, filter: %s, collection: %s\n ",
+		len(results), req.MetricType, req.Filter, req.Collection)
 
 	return results, nil
 }

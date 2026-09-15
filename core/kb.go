@@ -5,8 +5,14 @@ package core
 // [auto-added] Load accepts binary data and filename instead of file path.
 type DocLoader interface {
 	Load(data []byte, filename string) (string, *Diagnostic)
-	Chunk(content string) []string
 	SupportedExtensions() []string
+}
+
+// Chunker defines the interface for chunking document content.
+// [auto-added] abstraction for content chunking strategies, separated from loader.
+type Chunker interface {
+	Chunk(content string) []string
+	SupportedTypes() []string
 }
 
 type KnowledgeBaseConfig struct {
