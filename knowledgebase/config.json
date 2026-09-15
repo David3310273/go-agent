@@ -1,7 +1,13 @@
-{
-  "milvus": {
+[
+  {
+    "domain": "technology",
+    "storageType": "milvus",
     "embedder": {
       "type": "openai-text"
+    },
+    "chunker": {
+      "type": "markdown",
+      "chunkSize": 1000
     }
   }
-}
+]

@@ -18,9 +18,3 @@ func (l *PDFLoader) Load(data []byte, filename string) (string, *core.Diagnostic
 func (l *PDFLoader) SupportedExtensions() []string {
 	return []string{".pdf"}
 }
-
-// Chunk splits PDF content by pages or sections.
-// placeholder for format-aware chunking.
-func (l *PDFLoader) Chunk(content string) []string {
-	return nil
-}

@@ -17,9 +17,3 @@ func (l *TXTLoader) Load(data []byte, filename string) (string, *core.Diagnostic
 func (l *TXTLoader) SupportedExtensions() []string {
 	return []string{".txt"}
 }
-
-// Chunk splits text content by paragraphs.
-// placeholder for format-aware chunking.
-func (l *TXTLoader) Chunk(content string) []string {
-	return nil
-}

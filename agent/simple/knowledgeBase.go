@@ -10,7 +10,7 @@ import (
 )
 
 // NewSimpleKnowledgeBase creates a MilvusKnowledgebase from config.
-// [auto-added] factory function that loads embedder from knowledgebase config file.
+// [auto-added] factory function that loads embedder and chunker from knowledgebase config file.
 // rootPath should be set in config.RootPath before calling this function.
 func NewSimpleKnowledgeBase(config core.KnowledgeBaseConfig) *storage.MilvusKnowledgebase[any] {
 	// inject root path from config
@@ -23,21 +23,31 @@ func NewSimpleKnowledgeBase(config core.KnowledgeBaseConfig) *storage.MilvusKnow
 
 	// factory logic to create kb using config
 	if config.StorageOptions["type"] == storage.MilvusKnowledgeBaseStorageType {
-		// load knowledgebase config and create embedder
+		// load knowledgebase config and create embedder and chunker
 		kbConfig, err := knowledgebase.LoadConfig(rootPath)
 		if err != nil {
-			log.Printf("[KnowledgeBase] failed to load config: %v, embedder will be nil", err)
+			log.Printf("[KnowledgeBase] failed to load config: %v, embedder and chunker will be nil", err)
 		}
 
 		var embedder core.Embedder
+		var chunker core.Chunker
 		if kbConfig != nil {
-			embedder, err = knowledgebase.CreateEmbedder(&kbConfig.Milvus.Embedder)
-			if err != nil {
-				log.Printf("[KnowledgeBase] failed to create embedder: %v", err)
+			// get storage config by domain
+			storageConfig := kbConfig.GetStorageConfigByDomain(config.Domain)
+			if storageConfig != nil {
+				embedder, err = knowledgebase.CreateEmbedder(&storageConfig.Embedder)
+				if err != nil {
+					log.Printf("[KnowledgeBase] failed to create embedder: %v", err)
+				}
+
+				chunker, err = knowledgebase.CreateChunker(&storageConfig.Chunker)
+				if err != nil {
+					log.Printf("[KnowledgeBase] failed to create chunker: %v", err)
+				}
 			}
 		}
 
-		return storage.NewMilvusKnowledgebase[any](embedder, config, opts)
+		return storage.NewMilvusKnowledgebase[any](embedder, chunker, config, opts)
 	}
 
 	return nil

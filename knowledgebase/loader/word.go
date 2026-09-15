@@ -18,9 +18,3 @@ func (l *WordLoader) Load(data []byte, filename string) (string, *core.Diagnosti
 func (l *WordLoader) SupportedExtensions() []string {
 	return []string{".docx", "doc"}
 }
-
-// Chunk splits Word document content by paragraphs or sections.
-// placeholder for format-aware chunking.
-func (l *WordLoader) Chunk(content string) []string {
-	return nil
-}
