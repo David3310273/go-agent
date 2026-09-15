@@ -92,10 +92,11 @@ func (c *SimpleAgentContext) GetKnowledgeBase() []core.KnowledgeBase[any] {
 }
 
 // complete SetKnowledgeBase to collect all KB instances via NewSimpleKnowledgeBase.
+// [auto-added] rootPath is now set in knowledgeConfig.RootPath before calling.
 func (a *SimpleAgentContext) SetKnowledgeBase(knowledgeConfigs []core.KnowledgeBaseConfig) *core.Diagnostic {
 	var kbs []core.KnowledgeBase[any]
 	for _, knowledgeConfig := range knowledgeConfigs {
-		kb := NewSimpleKnowledgeBase(knowledgeConfig.RootPath, knowledgeConfig)
+		kb := NewSimpleKnowledgeBase(knowledgeConfig)
 		kbs = append(kbs, kb)
 	}
 
@@ -285,6 +286,10 @@ func (a *SimpleAgent) GetConfigPath() string {
 	result := path.Join(a.RootPath, SimpleAgentPath, ConfigFileName)
 
 	return result
+}
+
+func (a *SimpleAgent) GetRootPath() string {
+	return a.RootPath
 }
 
 func (a *SimpleAgent) LoadConfigs() core.AgentCoreConfig {

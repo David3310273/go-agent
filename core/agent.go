@@ -96,6 +96,8 @@ type AgentCore interface {
 	GetSessionConfig() SessionConfig
 	// load config
 	LoadConfigs() AgentCoreConfig
+	// get root path
+	GetRootPath() string
 }
 
 type AgentStatus int

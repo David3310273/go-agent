@@ -455,17 +455,17 @@ func (mr *MockSessionManagerMockRecorder) GetSessionOnCreate(id, streaming, enab
 }
 
 // RecoverConversation mocks base method.
-func (m *MockSessionManager) RecoverConversation(path string) *core.Conversation {
+func (m *MockSessionManager) RecoverConversation(sessionID string) *core.Conversation {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RecoverConversation", path)
+	ret := m.ctrl.Call(m, "RecoverConversation", sessionID)
 	ret0, _ := ret[0].(*core.Conversation)
 	return ret0
 }
 
 // RecoverConversation indicates an expected call of RecoverConversation.
-func (mr *MockSessionManagerMockRecorder) RecoverConversation(path any) *gomock.Call {
+func (mr *MockSessionManagerMockRecorder) RecoverConversation(sessionID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecoverConversation", reflect.TypeOf((*MockSessionManager)(nil).RecoverConversation), path)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecoverConversation", reflect.TypeOf((*MockSessionManager)(nil).RecoverConversation), sessionID)
 }
 
 // StopSession mocks base method.
@@ -686,6 +686,20 @@ func (mr *MockAgentCoreMockRecorder) GetPrompt() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrompt", reflect.TypeOf((*MockAgentCore)(nil).GetPrompt))
 }
 
+// GetRootPath mocks base method.
+func (m *MockAgentCore) GetRootPath() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRootPath")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetRootPath indicates an expected call of GetRootPath.
+func (mr *MockAgentCoreMockRecorder) GetRootPath() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRootPath", reflect.TypeOf((*MockAgentCore)(nil).GetRootPath))
+}
+
 // GetSessionConfig mocks base method.
 func (m *MockAgentCore) GetSessionConfig() core.SessionConfig {
 	m.ctrl.T.Helper()
@@ -770,17 +784,17 @@ func (mr *MockAgentCoreMockRecorder) OnEvent() *gomock.Call {
 }
 
 // RecoverConversation mocks base method.
-func (m *MockAgentCore) RecoverConversation(path string) *core.Conversation {
+func (m *MockAgentCore) RecoverConversation(sessionID string) *core.Conversation {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RecoverConversation", path)
+	ret := m.ctrl.Call(m, "RecoverConversation", sessionID)
 	ret0, _ := ret[0].(*core.Conversation)
 	return ret0
 }
 
 // RecoverConversation indicates an expected call of RecoverConversation.
-func (mr *MockAgentCoreMockRecorder) RecoverConversation(path any) *gomock.Call {
+func (mr *MockAgentCoreMockRecorder) RecoverConversation(sessionID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecoverConversation", reflect.TypeOf((*MockAgentCore)(nil).RecoverConversation), path)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RecoverConversation", reflect.TypeOf((*MockAgentCore)(nil).RecoverConversation), sessionID)
 }
 
 // RegisterEventChans mocks base method.

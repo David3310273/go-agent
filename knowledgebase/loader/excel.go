@@ -8,7 +8,9 @@ import (
 // loader for .xlsx files, placeholder for future implementation.
 type ExcelLoader struct{}
 
-func (l *ExcelLoader) Load(path string) (string, *core.Diagnostic) {
+// Load processes binary Excel file data.
+// [auto-added] accepts binary data and filename instead of file path.
+func (l *ExcelLoader) Load(data []byte, filename string) (string, *core.Diagnostic) {
 	// TODO: implement Excel file parsing with a third-party library
 	return "", nil
 }

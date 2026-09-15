@@ -44,7 +44,6 @@ func (s *SimpleAgentServer) SetLogger(logger *log.Logger) {
 
 func (s SimpleAgentServer) GetLogger() *log.Logger {
 	return s.Logger
-
 }
 
 // SetRouter initializes the gin router

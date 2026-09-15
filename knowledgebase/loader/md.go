@@ -1,7 +1,6 @@
 package loader
 
 import (
-	"os"
 	"regexp"
 	"strings"
 
@@ -14,11 +13,9 @@ type MDLoader struct {
 	ChunkSize int // max chunk size in characters, 0 means no limit
 }
 
-func (l *MDLoader) Load(path string) (string, *core.Diagnostic) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", &core.Diagnostic{}
-	}
+// Load processes binary data as markdown content.
+// [auto-added] accepts binary data and filename instead of file path.
+func (l *MDLoader) Load(data []byte, filename string) (string, *core.Diagnostic) {
 	return string(data), nil
 }
 

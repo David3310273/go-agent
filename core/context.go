@@ -9,7 +9,7 @@ type Context interface {
 	GetPrompt() []byte
 	// load knowledge base
 	SetKnowledgeBase([]KnowledgeBaseConfig) *Diagnostic
-	// changed to []any to support multiple entity types via generics.
+	// returns knowledge bases
 	GetKnowledgeBase() []KnowledgeBase[any]
 	// load skills
 	SetSkills(SkillConfig) *Diagnostic

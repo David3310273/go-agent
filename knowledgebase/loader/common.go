@@ -7,10 +7,11 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
-// GetLoaderByPath returns the appropriate loader for the given file path.
+// GetLoaderByFilename returns the appropriate loader for the given filename.
+// [auto-added] renamed from GetLoaderByPath, selects loader by file extension.
 // returns nil if no loader supports the file extension.
-func GetLoaderByPath(path string) core.DocLoader {
-	ext := strings.ToLower(filepath.Ext(path))
+func GetLoaderByFilename(filename string) core.DocLoader {
+	ext := strings.ToLower(filepath.Ext(filename))
 	switch ext {
 	case ".txt":
 		return &TXTLoader{}
