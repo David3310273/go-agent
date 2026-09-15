@@ -67,17 +67,17 @@ func (mr *MockHarnessMockRecorder) AddPrompt(systemPrompt, document, maxSize any
 }
 
 // GenerateFinalPrompt mocks base method.
-func (m *MockHarness) GenerateFinalPrompt(systemPrompt, agentHistory string, maxSize int) string {
+func (m *MockHarness) GenerateFinalPrompt(context core.Context, maxSize int) string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GenerateFinalPrompt", systemPrompt, agentHistory, maxSize)
+	ret := m.ctrl.Call(m, "GenerateFinalPrompt", context, maxSize)
 	ret0, _ := ret[0].(string)
 	return ret0
 }
 
 // GenerateFinalPrompt indicates an expected call of GenerateFinalPrompt.
-func (mr *MockHarnessMockRecorder) GenerateFinalPrompt(systemPrompt, agentHistory, maxSize any) *gomock.Call {
+func (mr *MockHarnessMockRecorder) GenerateFinalPrompt(context, maxSize any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateFinalPrompt", reflect.TypeOf((*MockHarness)(nil).GenerateFinalPrompt), systemPrompt, agentHistory, maxSize)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateFinalPrompt", reflect.TypeOf((*MockHarness)(nil).GenerateFinalPrompt), context, maxSize)
 }
 
 // GetCurrRoundKnowledges mocks base method.
@@ -94,18 +94,18 @@ func (mr *MockHarnessMockRecorder) GetCurrRoundKnowledges(question any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrRoundKnowledges", reflect.TypeOf((*MockHarness)(nil).GetCurrRoundKnowledges), question)
 }
 
-// GetNextRoundTools mocks base method.
-func (m *MockHarness) GetNextRoundTools(skillName string) []core.Tool {
+// LoadTools mocks base method.
+func (m *MockHarness) LoadTools(skillName string, context core.Context, rootPath string) []core.Tool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetNextRoundTools", skillName)
+	ret := m.ctrl.Call(m, "LoadTools", skillName, context, rootPath)
 	ret0, _ := ret[0].([]core.Tool)
 	return ret0
 }
 
-// GetNextRoundTools indicates an expected call of GetNextRoundTools.
-func (mr *MockHarnessMockRecorder) GetNextRoundTools(skillName any) *gomock.Call {
+// LoadTools indicates an expected call of LoadTools.
+func (mr *MockHarnessMockRecorder) LoadTools(skillName, context, rootPath any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNextRoundTools", reflect.TypeOf((*MockHarness)(nil).GetNextRoundTools), skillName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadTools", reflect.TypeOf((*MockHarness)(nil).LoadTools), skillName, context, rootPath)
 }
 
 // SetCurrRoundMessages mocks base method.
@@ -133,7 +133,7 @@ func (mr *MockHarnessMockRecorder) SetFinalQuery(question, knowledge, splitter a
 }
 
 // SetNextRoundMessages mocks base method.
-func (m *MockHarness) SetNextRoundMessages(question core.Question, messages *core.Conversation) {
+func (m *MockHarness) SetNextRoundMessages(question *core.Question, messages *core.Conversation) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "SetNextRoundMessages", question, messages)
 }

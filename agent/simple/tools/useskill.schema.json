@@ -1,0 +1,19 @@
+{
+  "type": "function",
+  "function": {
+    "name": "UseSkill",
+    "description": "use skill in agent",
+    "parameters": {
+      "type": "string",
+      "properties": {
+        "name":{
+            "type": "string",
+            "description": "name of skill"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    }
+  }
+}

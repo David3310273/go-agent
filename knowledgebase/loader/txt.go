@@ -9,7 +9,7 @@ import (
 type TXTLoader struct{}
 
 // Load processes binary data as plain text.
-// [auto-added] accepts binary data and filename instead of file path.
+// accepts binary data and filename instead of file path.
 func (l *TXTLoader) Load(data []byte, filename string) (string, *core.Diagnostic) {
 	return string(data), nil
 }

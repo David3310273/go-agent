@@ -111,14 +111,13 @@ func TestMockContext_SetSkills(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
-	skillConfig := core.SkillConfig{Paths: []string{"/path/to/skills"}}
-
-	mockContext.EXPECT().SetSkills(skillConfig).Return(nil)
-
-	err := mockContext.SetSkills(skillConfig)
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
+	skillDefinitions := []core.SkillDefinition{
+		{Name: "test", Description: "test skill", Tools: []string{"tool1"}},
 	}
+
+	mockContext.EXPECT().SetSkills(skillDefinitions)
+
+	mockContext.SetSkills(skillDefinitions)
 }
 
 func TestMockContext_GetSkills(t *testing.T) {
@@ -126,13 +125,30 @@ func TestMockContext_GetSkills(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
-	expectedSkills := []byte(`{"skills": []}`)
+	expectedSkills := []core.SkillDefinition{
+		{Name: "test", Description: "test skill", Tools: []string{"tool1"}},
+	}
 
 	mockContext.EXPECT().GetSkills().Return(expectedSkills)
 
 	skills := mockContext.GetSkills()
-	if string(skills) != string(expectedSkills) {
-		t.Errorf("expected skills %s, got %s", expectedSkills, skills)
+	if len(skills) != len(expectedSkills) {
+		t.Errorf("expected %d skills, got %d", len(expectedSkills), len(skills))
+	}
+}
+
+func TestMockContext_GetSkill(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockContext := testmock.NewMockContext(ctrl)
+	expectedSkill := &core.SkillDefinition{Name: "test", Description: "test skill", Tools: []string{"tool1"}}
+
+	mockContext.EXPECT().GetSkill("test").Return(expectedSkill)
+
+	skill := mockContext.GetSkill("test")
+	if skill == nil || skill.Name != "test" {
+		t.Errorf("expected skill with name 'test', got %v", skill)
 	}
 }
 

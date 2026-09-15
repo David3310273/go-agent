@@ -16,6 +16,18 @@ const (
 	MaxBytesAllowed = 10 * 1024 * 1024 // 10K
 )
 
+func init() {
+	// register FileWriterCall tool factory
+	// updated to accept Context instead of skillDefinitions.
+	core.RegisterTool("WriteToFile", func(rootPath string, context core.Context) core.Tool {
+		return FileWriterCall{
+			Name:     "filewriter",
+			Schema:   "filewriter.schema.json",
+			RootPath: rootPath,
+		}
+	})
+}
+
 // FileWriterCall, file writer tool implementing core.Tool interface
 type FileWriterCall struct {
 	Name   string `json:"name"`

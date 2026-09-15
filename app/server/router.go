@@ -45,7 +45,7 @@ func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 	internalKnowledge := router.Group("/v1/internal/knowledgebase")
 	{
 		// middleware to check storageType and initialize milvus knowledge service
-		// [auto-added] validates storageType before entering handlers.
+		// validates storageType before entering handlers.
 		internalKnowledge.Use(func(c *gin.Context) {
 			// get storageType from form-data (POST/PUT) or query (GET/DELETE)
 			var storageType string

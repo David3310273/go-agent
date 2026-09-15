@@ -729,20 +729,6 @@ func (mr *MockAgentCoreMockRecorder) GetSessionOnCreate(id, streaming, enableThi
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockAgentCore)(nil).GetSessionOnCreate), id, streaming, enableThinking, forceCreate)
 }
 
-// GetSkills mocks base method.
-func (m *MockAgentCore) GetSkills() []byte {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSkills")
-	ret0, _ := ret[0].([]byte)
-	return ret0
-}
-
-// GetSkills indicates an expected call of GetSkills.
-func (mr *MockAgentCoreMockRecorder) GetSkills() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkills", reflect.TypeOf((*MockAgentCore)(nil).GetSkills))
-}
-
 // GetToolsConfig mocks base method.
 func (m *MockAgentCore) GetToolsConfig() []core.ToolConfig {
 	m.ctrl.T.Helper()
@@ -920,17 +906,43 @@ func (mr *MockAgentCoreMockRecorder) SetProviders(arg0 any) *gomock.Call {
 }
 
 // SetSkills mocks base method.
-func (m *MockAgentCore) SetSkills(arg0 core.SkillConfig) *core.Diagnostic {
+func (m *MockAgentCore) SetSkills(arg0 []core.SkillDefinition) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetSkills", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
+	m.ctrl.Call(m, "SetSkills", arg0)
 }
 
 // SetSkills indicates an expected call of SetSkills.
 func (mr *MockAgentCoreMockRecorder) SetSkills(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSkills", reflect.TypeOf((*MockAgentCore)(nil).SetSkills), arg0)
+}
+
+// GetSkill mocks base method.
+func (m *MockAgentCore) GetSkill(arg0 string) *core.SkillDefinition {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSkill", arg0)
+	ret0, _ := ret[0].(*core.SkillDefinition)
+	return ret0
+}
+
+// GetSkill indicates an expected call of GetSkill.
+func (mr *MockAgentCoreMockRecorder) GetSkill(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkill", reflect.TypeOf((*MockAgentCore)(nil).GetSkill), arg0)
+}
+
+// GetSkills mocks base method.
+func (m *MockAgentCore) GetSkills() []core.SkillDefinition {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSkills")
+	ret0, _ := ret[0].([]core.SkillDefinition)
+	return ret0
+}
+
+// GetSkills indicates an expected call of GetSkills.
+func (mr *MockAgentCoreMockRecorder) GetSkills() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkills", reflect.TypeOf((*MockAgentCore)(nil).GetSkills))
 }
 
 // SetToolsConfig mocks base method.

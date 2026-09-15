@@ -1,0 +1,23 @@
+{
+  "type": "function",
+  "function": {
+    "name": "SearchKnowledgeBase",
+    "description": "search knowledge base for the knowledge about technology or algorithms field, get rid of results whose confidence is lower than 0.5 before return to user",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "keyword": {
+          "type": "string",
+          "description": "search keyword"
+        },
+        "topK": {
+          "type": "integer",
+          "description": "number of top results you wantto return, default is 3"
+        }
+      },
+      "required": [
+        "keyword"
+      ]
+    }
+  }
+}

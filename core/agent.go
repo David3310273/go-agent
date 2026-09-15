@@ -138,11 +138,8 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 		diagnostics = append(diagnostics, *err)
 	}
 
-	// load skills
-	err = agent.SetSkills(agentConfigs.Agent.Skill)
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
-	}
+	// load skill definitions for dynamic tool loading
+	agent.SetSkills(agentConfigs.Agent.Skill)
 
 	// load prompt
 	err = agent.SetPrompt(agentConfigs.Agent.Prompt)
@@ -209,9 +206,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	diagnostics := []Diagnostic{}
 
 	// generate prompt context and build initial messages
-	systemPrompt := string(contextMessages.GetPrompt()) + string(contextMessages.GetSkills())
-	agentHistory := string(contextMessages.GetHistory())
-	prompt := harness.GenerateFinalPrompt(systemPrompt, agentHistory, int(config.PromptFileMaxSize))
+	prompt := harness.GenerateFinalPrompt(contextMessages, int(config.PromptFileMaxSize))
 
 	// use pointer to conversation so modifications are reflected in session
 	messages := session.GetConversation()
@@ -224,14 +219,6 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		})
 	}
 
-	knowledge := session.SelectLocalKB(question)
-	log.Printf("search from local kb: %s", knowledge)
-
-	// if has knowledge, init it with user message
-	if len(knowledge) > 0 {
-		harness.SetFinalQuery(&question, knowledge, config.MemoryFileSplitter)
-	}
-
 	userMessage := ReActMessage{Role: RoleUser, Content: question.GetQuery()}
 
 	log.Printf("current messages: %v", messages.ToString())
@@ -239,6 +226,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	harness.SetCurrRoundMessages(messages, userMessage, int(config.MemoryWindowSize), 1)
 
 	log.Printf("messages after harness: %v", messages.ToString())
+
 	Emit(session, CommonEvent[ReActMessage]{
 		SourceType: SessionHistory,
 		Data:       userMessage,
@@ -249,10 +237,18 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	}
 
 	// set max reAct rounds
+	// track current tools for dynamic loading based on skill
+	// initialize with default tools before entering the loop
+	tools := harness.LoadTools("", session.GetContext(), config.RootPath)
+	var currentSkillName string
+
 	for i := 0; i < maxReActRounds; i++ {
-		// TODO: using harness to uniform the context build
-		// dynamically load tools based on latest message and original question
-		tools := session.SelectTools(question, (*messages)[len(*messages)-1])
+		// dynamically load tools based on skill from previous round
+		if currentSkillName != "" {
+			tools = harness.LoadTools(currentSkillName, session.GetContext(), config.RootPath)
+			currentSkillName = "" // reset after loading
+		}
+
 		log.Printf("init messages: %v", messages.ToString())
 
 		response, errs := AskQuestion(session, *messages, tools, question)
@@ -315,6 +311,13 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 						if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 							toolResult = "Error: invalid arguments format - " + err.Error()
 						} else {
+							// detect UseSkill call and extract skill name for next round
+							if toolCall.Function.Name == "UseSkill" {
+								if name, ok := args["name"].(string); ok {
+									currentSkillName = name
+								}
+							}
+
 							// use result string from CallTool, check diagnostic level for error.
 							result, diag := CallTool(targetTool, args)
 							if diag != nil && diag.Level == SeverityError {
@@ -453,9 +456,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 	diagnostics := []Diagnostic{}
 
 	// generate prompt context and build initial messages
-	systemPrompt := string(contextMessages.GetPrompt()) + string(contextMessages.GetSkills())
-	agentHistory := string(contextMessages.GetHistory())
-	prompt := harness.GenerateFinalPrompt(systemPrompt, agentHistory, int(config.PromptFileMaxSize))
+	prompt := harness.GenerateFinalPrompt(contextMessages, int(config.PromptFileMaxSize))
 
 	// use pointer to conversation so modifications are reflected in session
 	messages := session.GetConversation()
@@ -466,14 +467,6 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 			SourceType: SessionHistory,
 			Data:       contextMessage,
 		})
-	}
-
-	knowledge := session.SelectLocalKB(question)
-	log.Printf("search from local kb: %s", knowledge)
-
-	// if has knowledge, init it with user message
-	if len(knowledge) > 0 {
-		harness.SetFinalQuery(&question, knowledge, config.MemoryFileSplitter)
 	}
 
 	userMessage := ReActMessage{Role: RoleUser, Content: question.GetQuery()}
@@ -487,8 +480,17 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		Response: question.GetDefaultAnswer().ToString(),
 	}
 
+	// track current tools for dynamic loading based on skill
+	// initialize with default tools before entering the loop
+	tools := harness.LoadTools("", session.GetContext(), config.RootPath)
+	var currentSkillName string
+
 	for i := 0; i < maxReActRounds; i++ {
-		tools := session.SelectTools(question, (*messages)[len(*messages)-1])
+		// dynamically load tools based on skill from previous round
+		if currentSkillName != "" {
+			tools = harness.LoadTools(currentSkillName, session.GetContext(), config.RootPath)
+			currentSkillName = "" // reset after loading
+		}
 		log.Printf("init messages (stream): %v", messages.ToString())
 
 		acc, errs := AskQuestionStream(session, *messages, tools, question)
@@ -550,6 +552,13 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 					if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &args); err != nil {
 						toolResult = "Error: invalid arguments format - " + err.Error()
 					} else {
+						// detect UseSkill call and extract skill name for next round
+						if toolCall.Function.Name == "UseSkill" {
+							if name, ok := args["name"].(string); ok {
+								currentSkillName = name
+							}
+						}
+
 						// use result string from CallTool, check diagnostic level for error.
 						result, diag := CallTool(targetTool, args)
 						if diag != nil && diag.Level == SeverityError {

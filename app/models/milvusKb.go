@@ -1,7 +1,7 @@
 package models
 
 // MarkdownCollection represents a chunk of markdown document stored in Milvus.
-// [auto-added] implements core.Readable interface for knowledge base search results.
+// implements core.Readable interface for knowledge base search results.
 type MarkdownCollection struct {
 	ChunkID    int64     `json:"chunk_id"`
 	Privacy    string    `json:"privacy"`
@@ -14,7 +14,7 @@ type MarkdownCollection struct {
 }
 
 // GetContent implements core.Readable interface.
-// [auto-added] returns the content field for Readable interface.
+// returns the content field for Readable interface.
 func (m MarkdownCollection) GetContent() string {
 	return m.Content
 }

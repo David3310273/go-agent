@@ -9,7 +9,7 @@ import (
 type ExcelLoader struct{}
 
 // Load processes binary Excel file data.
-// [auto-added] accepts binary data and filename instead of file path.
+// accepts binary data and filename instead of file path.
 func (l *ExcelLoader) Load(data []byte, filename string) (string, *core.Diagnostic) {
 	// TODO: implement Excel file parsing with a third-party library
 	return "", nil

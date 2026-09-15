@@ -2,6 +2,7 @@ package simple
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/David3310273/go-agent/core"
@@ -39,12 +40,27 @@ func (h SimpleHarness) SetFinalQuery(question *core.Question, knowledge string, 
 	(*question).SetQuery(finalQuery)
 }
 
-func (h SimpleHarness) GenerateFinalPrompt(systemPrompt string, agentHistory string, maxSize int) string {
+// GenerateFinalPrompt generates the final prompt from context.
+// simplified to only accept context and maxSize, extracts all data from context internally.
+func (h SimpleHarness) GenerateFinalPrompt(context core.Context, maxSize int) string {
 	var prompt strings.Builder
 
-	prompt.WriteString(systemPrompt)
+	// get system prompt from context
+	prompt.WriteString(string(context.GetPrompt()))
+
+	// append skill definitions to prompt
+	if skillDefs := context.GetSkills(); len(skillDefs) > 0 {
+		prompt.WriteString("\n\n# Available Skills\n")
+		for _, skill := range skillDefs {
+			log.Printf("Found skills name: %s, tools: %v", skill.Name, skill.Tools)
+			fmt.Fprintf(&prompt, "- name: **%s**\n", skill.Name)
+			fmt.Fprintf(&prompt, "- description: %s\n", skill.Description)
+		}
+	}
+
+	// get agent history from context
 	prompt.WriteString("\n")
-	prompt.WriteString(agentHistory)
+	prompt.WriteString(string(context.GetHistory()))
 
 	return prompt.String()
 }
@@ -58,7 +74,7 @@ func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message
 	end := len(msgs)
 	start := max(skip, end-windowSize+1)
 
-	// invalid window size, do nothing but append
+	// not full, keep appending
 	if start <= skip {
 		*messages = append(*messages, message)
 		return
@@ -77,13 +93,40 @@ func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message
 	*messages = msgs[:newLen]
 }
 
-func (h SimpleHarness) GetNextRoundTools(skillName string) []core.Tool {
-	return nil
+// LoadTools loads tools based on skill name. If skillName is empty, loads default tools.
+// unified method for loading initial tools and skill-based tools.
+// Uses tool registry to create tools dynamically, no switch needed.
+// updated to pass context to CreateTool for accessing skills and knowledge bases.
+func (h SimpleHarness) LoadTools(skillName string, context core.Context, rootPath string) []core.Tool {
+	// if skillName is empty, load default tools directly
+	if skillName == "" {
+		var result []core.Tool
+		for _, cfg := range context.GetToolsConfig() {
+			if tool := core.CreateTool(cfg.Name, rootPath, context); tool != nil {
+				result = append(result, tool)
+			}
+		}
+		return result
+	}
+
+	// load tools from skill definition
+	skillDef := context.GetSkill(skillName)
+	if skillDef == nil {
+		return nil
+	}
+
+	var result []core.Tool
+	for _, toolName := range skillDef.Tools {
+		if tool := core.CreateTool(toolName, rootPath, context); tool != nil {
+			result = append(result, tool)
+		}
+	}
+	return result
 }
 
 func (h SimpleHarness) GetCurrRoundKnowledges(question core.Question) string {
 	return ""
 }
 
-func (h SimpleHarness) SetNextRoundMessages(question core.Question, messages *core.Conversation) {
+func (h SimpleHarness) SetNextRoundMessages(question *core.Question, messages *core.Conversation) {
 }

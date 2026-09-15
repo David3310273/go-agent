@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/David3310273/go-agent/agent/simple/tools"
 	"github.com/David3310273/go-agent/agent/simple/utils"
 	"github.com/David3310273/go-agent/core"
 	storage "github.com/David3310273/go-agent/knowledgebase/storage"
@@ -261,30 +260,6 @@ func (s *SimpleAgentSession) SaveMemory(memory core.ReActMessage) *core.Diagnost
 	}
 
 	return &core.Diagnostic{}
-}
-
-// select tools given user question and tool config
-// return tools used this time
-// match tools by name instead of hardcoded index.
-func (s *SimpleAgentSession) SelectTools(query core.Question, message core.ReActMessage) []core.Tool {
-	var result []core.Tool
-	for _, cfg := range s.Context.Tools {
-		switch cfg.Name {
-		case "filewriter":
-			result = append(result, tools.FileWriterCall{
-				Name:     cfg.Name,
-				Schema:   cfg.Schema,
-				RootPath: s.Config.RootPath,
-			})
-		case "getdate":
-			result = append(result, tools.GetDateCall{
-				Name:     cfg.Name,
-				Schema:   cfg.Schema,
-				RootPath: s.Config.RootPath,
-			})
-		}
-	}
-	return result
 }
 
 // select local kb given the question, merge into final context

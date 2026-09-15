@@ -9,7 +9,7 @@ import (
 type MDLoader struct{}
 
 // Load processes binary data as markdown content.
-// [auto-added] accepts binary data and filename instead of file path.
+// accepts binary data and filename instead of file path.
 func (l *MDLoader) Load(data []byte, filename string) (string, *core.Diagnostic) {
 	return string(data), nil
 }
