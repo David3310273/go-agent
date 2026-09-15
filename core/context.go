@@ -11,9 +11,10 @@ type Context interface {
 	SetKnowledgeBase([]KnowledgeBaseConfig) *Diagnostic
 	// returns knowledge bases
 	GetKnowledgeBase() []KnowledgeBase[any]
-	// load skills
-	SetSkills(SkillConfig) *Diagnostic
-	GetSkills() []byte
+	// skill definitions for dynamic tool loading
+	SetSkills([]SkillDefinition)
+	GetSkill(name string) *SkillDefinition
+	GetSkills() []SkillDefinition
 
 	// get model providers
 	GetModelProviders() []Provider

@@ -20,6 +20,15 @@ type MCPAvailable[T any] interface {
 	Transform(result any) T
 }
 
+type Skill interface {
+	// get skill schema in provider-agnostic format
+	GetName() string
+	// get skill description
+	GetDescription() string
+	// get tools
+	GetTools() []Tool
+}
+
 type Tool interface {
 	// get tool schema in provider-agnostic format
 	GetSchema() ToolSchema
@@ -42,4 +51,39 @@ func CallTool(tool Tool, args map[string]any) (string, *Diagnostic) {
 	}
 	runner := tool.GetRunner()
 	return runner(args)
+}
+
+// ToolFactory is a function that creates a Tool instance.
+// factory function type for tool registration.
+// accepts Context for accessing skills and knowledge bases at runtime.
+type ToolFactory func(rootPath string, context Context) Tool
+
+// toolRegistry stores registered tool factories.
+// populated during init() which is single-threaded.
+var toolRegistry = make(map[string]ToolFactory)
+
+// RegisterTool registers a tool factory with the given name.
+// No lock needed - init() is single-threaded.
+func RegisterTool(name string, factory ToolFactory) {
+	toolRegistry[name] = factory
+}
+
+// CreateTool creates a tool instance by name.
+// used by harness to dynamically create tools with context.
+func CreateTool(name string, rootPath string, context Context) Tool {
+	if factory, ok := toolRegistry[name]; ok {
+		return factory(rootPath, context)
+	}
+	return nil
+}
+
+// GetToolDescription returns the tool description by name.
+// used to get tool description for skill info.
+// updated to accept Context instead of skillDefinitions.
+func GetToolDescription(name string, rootPath string, context Context) string {
+	tool := CreateTool(name, rootPath, context)
+	if tool == nil {
+		return ""
+	}
+	return tool.GetDescription()
 }

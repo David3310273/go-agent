@@ -10,6 +10,18 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
+func init() {
+	// register GetDateCall tool factory
+	// updated to accept Context instead of skillDefinitions.
+	core.RegisterTool("GetDate", func(rootPath string, context core.Context) core.Tool {
+		return GetDateCall{
+			Name:     "getdate",
+			Schema:   "getdate.schema.json",
+			RootPath: rootPath,
+		}
+	})
+}
+
 // FileWriterCall, file writer tool implementing core.Tool interface
 type GetDateCall struct {
 	Name   string `json:"name"`

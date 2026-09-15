@@ -71,7 +71,7 @@ type AgentConfig struct {
 	// Prompt
 	Prompt PromptConfig `json:"prompt"`
 	// skills
-	Skill SkillConfig `json:"skill"`
+	Skill []SkillDefinition `json:"skill"`
 	// knowledge base
 	KnowledgeBase []KnowledgeBaseConfig `json:"knowledgeBase"`
 	// history path
@@ -115,13 +115,12 @@ type BenchmarkerConfig struct {
 	FilenameFormat string `json:"filenameFormat"`
 }
 
-type SkillConfig struct {
-	// skill file path
-	Paths []string `json:"paths"`
-	// buffer size
-	BufferSize int `json:"bufferSize"`
-	// output root
-	OutputPathFormat string `json:"outputPathFormat"`
+// SkillDefinition defines a skill with its name, description and tools.
+// represents a single skill configuration from config.json.
+type SkillDefinition struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Tools       []string `json:"tools"`
 }
 
 type HistoryConfig struct {

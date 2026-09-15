@@ -9,7 +9,7 @@ import (
 type WordLoader struct{}
 
 // Load processes binary Word document data.
-// [auto-added] accepts binary data and filename instead of file path.
+// accepts binary data and filename instead of file path.
 func (l *WordLoader) Load(data []byte, filename string) (string, *core.Diagnostic) {
 	// TODO: implement Word document parsing with a third-party library
 	return "", nil

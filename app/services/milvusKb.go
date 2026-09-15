@@ -21,20 +21,20 @@ const (
 )
 
 // MilvusKnowledgeService handles milvus knowledge base operations
-// [auto-added] uses KnowledgeBase[any] for document processing and storage.
+// uses KnowledgeBase[any] for document processing and storage.
 type MilvusKnowledgeService struct {
 	kb *storage.MilvusKnowledgebase[any]
 }
 
 // NewMilvusKnowledgeService creates a new MilvusKnowledgeService instance
-// [auto-added] creates KnowledgeBase using NewSimpleKnowledgeBase factory.
+// creates KnowledgeBase using NewSimpleKnowledgeBase factory.
 func NewMilvusKnowledgeService(config core.KnowledgeBaseConfig) *MilvusKnowledgeService {
 	kb := simple.NewSimpleKnowledgeBase(config)
 	return &MilvusKnowledgeService{kb: kb}
 }
 
 // MilvusKnowledgeCreateRequest represents the request for creating a knowledge base entry
-// [auto-added] accepts binary file data and filename for document processing.
+// accepts binary file data and filename for document processing.
 type MilvusKnowledgeCreateRequest struct {
 	StorageType StorageType `json:"storageType"`
 	ContentType string      `json:"contentType"`
@@ -67,7 +67,7 @@ type MilvusKnowledgeSearchResponse struct {
 }
 
 // MilvusKnowledgeDeleteRequest represents the request for deleting milvus knowledge base entries
-// [auto-added] supports delete by filename and contentType with domain filter.
+// supports delete by filename and contentType with domain filter.
 type MilvusKnowledgeDeleteRequest struct {
 	StorageType StorageType `json:"storageType"`
 	Domain      string      `json:"domain"`
@@ -81,7 +81,7 @@ type MilvusKnowledgeDeleteResponse struct {
 }
 
 // MilvusKnowledgeGetRequest represents the request for searching milvus knowledge base entries
-// [auto-added] supports search by keyword, filename, contentType with domain filter.
+// supports search by keyword, filename, contentType with domain filter.
 type MilvusKnowledgeGetRequest struct {
 	StorageType StorageType `json:"storageType"`
 	Domain      string      `json:"domain"`
@@ -97,7 +97,7 @@ type MilvusKnowledgeGetResponse struct {
 }
 
 // CreateMilvusKnowledge processes document and stores chunks into milvus knowledge base
-// [auto-added] calls KnowledgeBase.Process to handle document, then Save to store entities.
+// calls KnowledgeBase.Process to handle document, then Save to store entities.
 func (s *MilvusKnowledgeService) CreateMilvusKnowledge(req *MilvusKnowledgeCreateRequest) (*MilvusKnowledgeCreateResponse, *core.Diagnostic) {
 	if s.kb == nil {
 		return nil, &core.Diagnostic{
@@ -107,7 +107,8 @@ func (s *MilvusKnowledgeService) CreateMilvusKnowledge(req *MilvusKnowledgeCreat
 		}
 	}
 
-	// [auto-added] check if domain is supported, only "technology" is supported for now.
+	// hardcode for simplicity, check if domain is supported, only "technology" is supported for now.
+	// given domain, should know the collection name
 	if req.Domain != "technology" {
 		return nil, &core.Diagnostic{
 			Level:   core.SeverityError,
@@ -193,7 +194,7 @@ func (s *MilvusKnowledgeService) SearchMilvusKnowledge(req *MilvusKnowledgeSearc
 }
 
 // DeleteMilvusKnowledge deletes milvus knowledge base entries by filename and contentType
-// [auto-added] supports delete by filename and contentType with domain filter.
+// supports delete by filename and contentType with domain filter.
 func (s *MilvusKnowledgeService) DeleteMilvusKnowledge(req *MilvusKnowledgeDeleteRequest) (*MilvusKnowledgeDeleteResponse, *core.Diagnostic) {
 	if s.kb == nil {
 		return nil, &core.Diagnostic{
@@ -203,7 +204,7 @@ func (s *MilvusKnowledgeService) DeleteMilvusKnowledge(req *MilvusKnowledgeDelet
 		}
 	}
 
-	// [auto-added] check if domain is supported, only "technology" is supported for now.
+	// check if domain is supported, only "technology" is supported for now.
 	if req.Domain != "technology" {
 		return nil, &core.Diagnostic{
 			Level:   core.SeverityError,
@@ -236,7 +237,7 @@ func (s *MilvusKnowledgeService) DeleteMilvusKnowledge(req *MilvusKnowledgeDelet
 }
 
 // GetMilvusKnowledge searches milvus knowledge base entries by keyword, filename, or contentType
-// [auto-added] supports semantic search by keyword with server-side filtering by domain/contentType/filename.
+// supports semantic search by keyword with server-side filtering by domain/contentType/filename.
 func (s *MilvusKnowledgeService) GetMilvusKnowledge(req *MilvusKnowledgeGetRequest) (*MilvusKnowledgeGetResponse, *core.Diagnostic) {
 	if s.kb == nil {
 		return nil, &core.Diagnostic{
@@ -246,7 +247,7 @@ func (s *MilvusKnowledgeService) GetMilvusKnowledge(req *MilvusKnowledgeGetReque
 		}
 	}
 
-	// [auto-added] check if domain is supported, only "technology" is supported for now.
+	// check if domain is supported, only "technology" is supported for now.
 	if req.Domain != "technology" {
 		return nil, &core.Diagnostic{
 			Level:   core.SeverityError,
@@ -278,7 +279,7 @@ func (s *MilvusKnowledgeService) GetMilvusKnowledge(req *MilvusKnowledgeGetReque
 }
 
 // buildFilterString builds a milvus filter expression from domain, contentType, and filename
-// [auto-added] helper function to construct filter string for server-side filtering.
+// helper function to construct filter string for server-side filtering.
 func buildFilterString(contentType, filename string) string {
 	var conditions []string
 

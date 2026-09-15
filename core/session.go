@@ -33,8 +33,6 @@ type Session interface {
 	GetQuestionChan() chan Question
 	// process query
 	ProcessQuery(query Question)
-	// dynamically select tools given question and latest message response from llm
-	SelectTools(Question, ReActMessage) []Tool
 	// dynamically select local kb given question
 	SelectLocalKB(Question) string
 	// save reAct message to a storage, not harness

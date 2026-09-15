@@ -12,7 +12,7 @@ import (
 )
 
 // StorageConfig holds configuration for a single storage backend.
-// [auto-added] each element in config.json array represents one storage config.
+// each element in config.json array represents one storage config.
 type StorageConfig struct {
 	Domain      string         `json:"domain"`
 	StorageType string         `json:"storageType"`
@@ -21,7 +21,7 @@ type StorageConfig struct {
 }
 
 // Config holds the configuration for the knowledgebase package.
-// [auto-added] config is now an array of storage configs.
+// config is now an array of storage configs.
 type Config []StorageConfig
 
 // EmbedderConfig specifies which embedder to use and its settings.
@@ -32,7 +32,7 @@ type EmbedderConfig struct {
 }
 
 // ChunkerConfig specifies which chunker to use and its settings.
-// [auto-added] chunker configuration within knowledgebase config.
+// chunker configuration within knowledgebase config.
 type ChunkerConfig struct {
 	Type      string `json:"type"`                // e.g., "markdown", "text"
 	ChunkSize int    `json:"chunkSize,omitempty"` // max chunk size in characters
@@ -45,7 +45,7 @@ const (
 )
 
 // LoadConfig reads and parses the knowledgebase config file.
-// [auto-added] loads config as array of storage configs from rootPath/knowledgebase/config.json.
+// loads config as array of storage configs from rootPath/knowledgebase/config.json.
 func LoadConfig(rootPath string) (Config, error) {
 	configPath := path.Join(rootPath, ConfigPath)
 	data, err := os.ReadFile(configPath)
@@ -67,7 +67,7 @@ func LoadConfig(rootPath string) (Config, error) {
 }
 
 // GetStorageConfig returns the config for a specific storage type.
-// [auto-added] helper to find storage config by type.
+// helper to find storage config by type.
 func (c Config) GetStorageConfig(storageType string) *StorageConfig {
 	for i := range c {
 		if c[i].StorageType == storageType {
@@ -78,7 +78,7 @@ func (c Config) GetStorageConfig(storageType string) *StorageConfig {
 }
 
 // GetStorageConfigByDomain returns the config for a specific domain.
-// [auto-added] helper to find storage config by domain.
+// helper to find storage config by domain.
 func (c Config) GetStorageConfigByDomain(domain string) *StorageConfig {
 	for i := range c {
 		if c[i].Domain == domain {
@@ -104,7 +104,7 @@ func CreateEmbedder(cfg *EmbedderConfig) (core.Embedder, error) {
 }
 
 // CreateChunker creates a chunker based on the config type.
-// [auto-added] factory function that creates the appropriate chunker from config.
+// factory function that creates the appropriate chunker from config.
 func CreateChunker(cfg *ChunkerConfig) (core.Chunker, error) {
 	c := chunker.GetChunkerByType(cfg.Type)
 	if c == nil {

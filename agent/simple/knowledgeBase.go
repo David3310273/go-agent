@@ -10,7 +10,7 @@ import (
 )
 
 // NewSimpleKnowledgeBase creates a MilvusKnowledgebase from config.
-// [auto-added] factory function that loads embedder and chunker from knowledgebase config file.
+// factory function that loads embedder and chunker from knowledgebase config file.
 // rootPath should be set in config.RootPath before calling this function.
 func NewSimpleKnowledgeBase(config core.KnowledgeBaseConfig) *storage.MilvusKnowledgebase[any] {
 	// inject root path from config

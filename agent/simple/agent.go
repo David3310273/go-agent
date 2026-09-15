@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	_ "github.com/David3310273/go-agent/agent/simple/tools"
 	"github.com/David3310273/go-agent/core"
 	uuid "github.com/gofrs/uuid/v5"
 )
@@ -25,8 +26,8 @@ type SimpleAgentContext struct {
 	// knowledge base
 	// changed to []any to support multiple entity types via generics.
 	KnowledgeBase []core.KnowledgeBase[any]
-	// skills
-	Skills []byte
+	// skill definitions loaded from config
+	Skills []core.SkillDefinition
 	// agent history
 	History []byte
 	// model providers, for simple agent, only one provider without model routing
@@ -92,7 +93,7 @@ func (c *SimpleAgentContext) GetKnowledgeBase() []core.KnowledgeBase[any] {
 }
 
 // complete SetKnowledgeBase to collect all KB instances via NewSimpleKnowledgeBase.
-// [auto-added] rootPath is now set in knowledgeConfig.RootPath before calling.
+// rootPath is now set in knowledgeConfig.RootPath before calling.
 func (a *SimpleAgentContext) SetKnowledgeBase(knowledgeConfigs []core.KnowledgeBaseConfig) *core.Diagnostic {
 	var kbs []core.KnowledgeBase[any]
 	for _, knowledgeConfig := range knowledgeConfigs {
@@ -105,12 +106,27 @@ func (a *SimpleAgentContext) SetKnowledgeBase(knowledgeConfigs []core.KnowledgeB
 	return nil
 }
 
-func (c *SimpleAgentContext) GetSkills() []byte {
-	return c.Skills
+// SetSkills stores skill definitions from config.
+// loads skill definitions for dynamic tool loading by UseSkill.
+func (a *SimpleAgentContext) SetSkills(skills []core.SkillDefinition) {
+	a.Skills = skills
 }
 
-func (a *SimpleAgentContext) SetSkills(skill core.SkillConfig) *core.Diagnostic {
+// GetSkill returns the skill definition by name.
+// retrieves skill definition for dynamic tool loading.
+func (a *SimpleAgentContext) GetSkill(name string) *core.SkillDefinition {
+	for i := range a.Skills {
+		if a.Skills[i].Name == name {
+			return &a.Skills[i]
+		}
+	}
 	return nil
+}
+
+// GetSkills returns all skill definitions.
+// retrieves all skill definitions for tool loading.
+func (a *SimpleAgentContext) GetSkills() []core.SkillDefinition {
+	return a.Skills
 }
 
 // SetToolsConfig loads a list of ToolConfig into the agent's tool list,

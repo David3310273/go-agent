@@ -96,20 +96,6 @@ func (mr *MockContextMockRecorder) GetPrompt() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrompt", reflect.TypeOf((*MockContext)(nil).GetPrompt))
 }
 
-// GetSkills mocks base method.
-func (m *MockContext) GetSkills() []byte {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSkills")
-	ret0, _ := ret[0].([]byte)
-	return ret0
-}
-
-// GetSkills indicates an expected call of GetSkills.
-func (mr *MockContextMockRecorder) GetSkills() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkills", reflect.TypeOf((*MockContext)(nil).GetSkills))
-}
-
 // GetToolsConfig mocks base method.
 func (m *MockContext) GetToolsConfig() []core.ToolConfig {
 	m.ctrl.T.Helper()
@@ -181,17 +167,43 @@ func (mr *MockContextMockRecorder) SetProviders(arg0 any) *gomock.Call {
 }
 
 // SetSkills mocks base method.
-func (m *MockContext) SetSkills(arg0 core.SkillConfig) *core.Diagnostic {
+func (m *MockContext) SetSkills(arg0 []core.SkillDefinition) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetSkills", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
+	m.ctrl.Call(m, "SetSkills", arg0)
 }
 
 // SetSkills indicates an expected call of SetSkills.
 func (mr *MockContextMockRecorder) SetSkills(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSkills", reflect.TypeOf((*MockContext)(nil).SetSkills), arg0)
+}
+
+// GetSkill mocks base method.
+func (m *MockContext) GetSkill(arg0 string) *core.SkillDefinition {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSkill", arg0)
+	ret0, _ := ret[0].(*core.SkillDefinition)
+	return ret0
+}
+
+// GetSkill indicates an expected call of GetSkill.
+func (mr *MockContextMockRecorder) GetSkill(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkill", reflect.TypeOf((*MockContext)(nil).GetSkill), arg0)
+}
+
+// GetSkills mocks base method.
+func (m *MockContext) GetSkills() []core.SkillDefinition {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSkills")
+	ret0, _ := ret[0].([]core.SkillDefinition)
+	return ret0
+}
+
+// GetSkills indicates an expected call of GetSkills.
+func (mr *MockContextMockRecorder) GetSkills() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkills", reflect.TypeOf((*MockContext)(nil).GetSkills))
 }
 
 // SetToolsConfig mocks base method.

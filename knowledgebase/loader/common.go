@@ -8,7 +8,7 @@ import (
 )
 
 // GetLoaderByFilename returns the appropriate loader for the given filename.
-// [auto-added] renamed from GetLoaderByPath, selects loader by file extension.
+// renamed from GetLoaderByPath, selects loader by file extension.
 // returns nil if no loader supports the file extension.
 func GetLoaderByFilename(filename string) core.DocLoader {
 	ext := strings.ToLower(filepath.Ext(filename))

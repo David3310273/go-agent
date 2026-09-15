@@ -13,7 +13,7 @@ import (
 const knowledgeServiceKey = "knowledgeService"
 
 // HandleCreateKnowledge handles POST /internal/v1/knowledgebase
-// [auto-added] accepts multipart/form-data with file upload, contentType and domain fields.
+// accepts multipart/form-data with file upload, contentType and domain fields.
 // storageType is validated in middleware.
 func HandleCreateKnowledge(c *gin.Context) {
 	ks := c.MustGet(knowledgeServiceKey).(*services.MilvusKnowledgeService)
@@ -94,7 +94,7 @@ func HandleCreateKnowledge(c *gin.Context) {
 }
 
 // HandleGetKnowledge handles GET /internal/v1/knowledgebase
-// [auto-added] searches by keyword, filename, contentType with domain.
+// searches by keyword, filename, contentType with domain.
 // storageType is validated in middleware.
 func HandleGetKnowledge(c *gin.Context) {
 	ks := c.MustGet(knowledgeServiceKey).(*services.MilvusKnowledgeService)
@@ -155,7 +155,7 @@ func HandleGetKnowledge(c *gin.Context) {
 
 // HandleUpdateKnowledge handles PUT /internal/v1/knowledgebase
 // Update is implemented as delete + create: delete existing entries by filename/contentType, then create new one.
-// [auto-added] accepts multipart/form-data with file upload, contentType and domain fields.
+// accepts multipart/form-data with file upload, contentType and domain fields.
 // storageType is validated in middleware.
 func HandleUpdateKnowledge(c *gin.Context) {
 	ks := c.MustGet(knowledgeServiceKey).(*services.MilvusKnowledgeService)
@@ -218,7 +218,7 @@ func HandleUpdateKnowledge(c *gin.Context) {
 		return
 	}
 
-	// [auto-added] delete existing entries by filename and contentType before creating new one
+	// delete existing entries by filename and contentType before creating new one
 	deleteReq := &services.MilvusKnowledgeDeleteRequest{
 		StorageType: services.StorageTypeMilvus,
 		Domain:      domain,
@@ -250,7 +250,7 @@ func HandleUpdateKnowledge(c *gin.Context) {
 }
 
 // HandleDeleteKnowledge handles DELETE /internal/v1/knowledgebase
-// [auto-added] deletes by filename and contentType with domain filter.
+// deletes by filename and contentType with domain filter.
 // storageType is validated in middleware.
 func HandleDeleteKnowledge(c *gin.Context) {
 	ks := c.MustGet(knowledgeServiceKey).(*services.MilvusKnowledgeService)

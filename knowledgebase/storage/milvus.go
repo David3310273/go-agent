@@ -27,7 +27,7 @@ const (
 )
 
 // NewMilvusKnowledgebase creates a MilvusKnowledgebase with the given configuration.
-// [auto-added] constructor now accepts chunker parameter for content chunking.
+// constructor now accepts chunker parameter for content chunking.
 func NewMilvusKnowledgebase[T any](embedder core.Embedder, chunker core.Chunker, config core.KnowledgeBaseConfig, options milvus.MilvusOptions) *MilvusKnowledgebase[T] {
 	milvus.Init(config.RootPath)
 
@@ -46,7 +46,7 @@ func (kb *MilvusKnowledgebase[T]) GetEmedder() core.Embedder {
 }
 
 // Process loads a document from binary data, chunks it, and embeds each chunk.
-// [auto-added] accepts binary data and filename instead of file path.
+// accepts binary data and filename instead of file path.
 // implements core.KnowledgeBase interface, auto-selects loader by filename.
 func (kb *MilvusKnowledgebase[T]) Process(data []byte, filename string) (*core.EmbeddingResult, *core.Diagnostic) {
 	docLoader := loader.GetLoaderByFilename(filename)
@@ -119,7 +119,7 @@ func (kb *MilvusKnowledgebase[T]) Save(entities []T) *core.Diagnostic {
 }
 
 // Search embeds keyword and searches for similar vectors in Milvus.
-// [auto-added] filter parameter for server-side filtering in vector db.
+// filter parameter for server-side filtering in vector db.
 // implements core.KnowledgeBase interface, embeds keyword and searches.
 func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int, filter string) ([]core.Readable, *core.Diagnostic) {
 	// convert keyword to string

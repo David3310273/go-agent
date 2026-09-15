@@ -3,6 +3,18 @@
         "version": "1.0.1",
         "questionBufferSize": 10,
         "logPath": "app/agentLogs/agent-%s.log",
+        "skill": [
+            {
+                "name": "helloworld",
+                "description": "Get current time, and write content with that to a specified file path. Creates the file if it does not exist",
+                "tools": ["WriteToFile", "GetDate"]
+            },
+            {
+                "name": "searchkb",
+                "description": "search knowledge base for the knowledge about technology or algorithms field",
+                "tools": ["SearchKnowledgeBase"]
+            }
+        ],
         "prompt": {
             "paths": [
                 "prompt.md"
@@ -23,14 +35,9 @@
         ],
         "tool": [
             {
-                "name": "filewriter",
-                "schema": "filewriter.schema.json",
-                "decription": "Write content to a specified file path. Creates the file if it does not exist, or overwrites it if it does."
-            },
-            {
-                "name": "getdate",
-                "schema": "getdate.schema.json",
-                "decription": "Get system current date and time."
+                "name": "UseSkill",
+                "schema": "useskill.schema.json",
+                "decription": "load skill in agent when you want to do something"
             }
         ]
     },

@@ -1,7 +1,7 @@
 package chunker
 
 // TextChunker chunks plain text content by paragraphs.
-// [auto-added] implements core.Chunker interface for plain text content.
+// implements core.Chunker interface for plain text content.
 type TextChunker struct {
 	ChunkSize int // max chunk size in characters, 0 means no limit
 }

@@ -2,14 +2,14 @@ package core
 
 // DocLoader defines the interface for loading different document formats.
 // abstraction for multi-format document loading, includes format-aware chunking.
-// [auto-added] Load accepts binary data and filename instead of file path.
+// Load accepts binary data and filename instead of file path.
 type DocLoader interface {
 	Load(data []byte, filename string) (string, *Diagnostic)
 	SupportedExtensions() []string
 }
 
 // Chunker defines the interface for chunking document content.
-// [auto-added] abstraction for content chunking strategies, separated from loader.
+// abstraction for content chunking strategies, separated from loader.
 type Chunker interface {
 	Chunk(content string) []string
 	SupportedTypes() []string
@@ -60,17 +60,18 @@ type KnowledgeBase[T any] interface {
 	// embedder is optional, return nil if not using vector db
 	GetEmedder() Embedder
 	// Process loads a document from binary data, and process it.
-	// [auto-added] accepts binary data and filename instead of file path.
+	// accepts binary data and filename instead of file path.
 	Process(data []byte, filename string) (*EmbeddingResult, *Diagnostic)
 	// Save stores entities of type T directly.
 	Save(entities []T) *Diagnostic
 	// Search returns results with entity type T.
-	// [auto-added] filter parameter for server-side filtering in vector db.
+	// filter parameter for server-side filtering in vector db.
 	Search(keyword any, topK int, filter string) ([]Readable, *Diagnostic)
 }
 
 type Readable interface {
 	GetContent() string
+	GetConfidence() float64
 }
 
 // MapReadable wraps map[string]any to implement core.Readable
@@ -83,4 +84,12 @@ func (m MapReadable) GetContent() string {
 	}
 
 	return ""
+}
+
+func (m MapReadable) GetConfidence() float64 {
+	if distance, ok := m["distance"].(float64); ok {
+		return distance
+	}
+
+	return 0
 }

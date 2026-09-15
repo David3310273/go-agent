@@ -6,7 +6,7 @@ import (
 )
 
 // MarkdownChunker chunks markdown content by headings and punctuation.
-// [auto-added] implements core.Chunker interface for markdown content.
+// implements core.Chunker interface for markdown content.
 type MarkdownChunker struct {
 	ChunkSize int // max chunk size in characters, 0 means no limit
 }
