@@ -22,7 +22,7 @@ type MilvusKnowledgebase[T any] struct {
 var _ core.KnowledgeBase[any] = (*MilvusKnowledgebase[any])(nil)
 
 const (
-	KnowledgeBaseStorageType = "milvus"
+	MilvusKnowledgeBaseStorageType = "milvus"
 )
 
 // NewMilvusKnowledgebase creates a MilvusKnowledgebase with the given configuration.
@@ -43,19 +43,20 @@ func (kb *MilvusKnowledgebase[T]) GetEmedder() core.Embedder {
 	return kb.embedder
 }
 
-// Process loads a document, chunks it, and embeds each chunk.
-// implements core.KnowledgeBase interface, auto-selects loader by docPath.
-func (kb *MilvusKnowledgebase[T]) Process(docPath string) (*core.EmbeddingResult, *core.Diagnostic) {
-	docLoader := loader.GetLoaderByPath(docPath)
+// Process loads a document from binary data, chunks it, and embeds each chunk.
+// [auto-added] accepts binary data and filename instead of file path.
+// implements core.KnowledgeBase interface, auto-selects loader by filename.
+func (kb *MilvusKnowledgebase[T]) Process(data []byte, filename string) (*core.EmbeddingResult, *core.Diagnostic) {
+	docLoader := loader.GetLoaderByFilename(filename)
 	if docLoader == nil {
 		return nil, &core.Diagnostic{
 			Level:   core.SeverityError,
 			Code:    core.MessageCodeDocNotFound,
-			Message: "no loader found for file: " + docPath,
+			Message: "no loader found for file: " + filename,
 		}
 	}
 
-	doc, diag := docLoader.Load(docPath)
+	doc, diag := docLoader.Load(data, filename)
 	if diag != nil {
 		return nil, diag
 	}
@@ -108,8 +109,9 @@ func (kb *MilvusKnowledgebase[T]) Save(entities []T) *core.Diagnostic {
 }
 
 // Search embeds keyword and searches for similar vectors in Milvus.
+// [auto-added] filter parameter for server-side filtering in vector db.
 // implements core.KnowledgeBase interface, embeds keyword and searches.
-func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int) ([]T, *core.Diagnostic) {
+func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int, filter string) ([]core.Readable, *core.Diagnostic) {
 	// convert keyword to string
 	text, ok := keyword.(string)
 	if !ok {
@@ -139,7 +141,7 @@ func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int) ([]T, *core.Diag
 		vec32[i] = float32(v)
 	}
 
-	// create search request
+	// create search request with filter
 	req := milvus.SearchRequest{
 		MilvusOptions: kb.Options,
 		VectorField:   "embedding",
@@ -147,6 +149,7 @@ func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int) ([]T, *core.Diag
 		TopK:          topK,
 		MetricType:    "COSINE",
 		OutputFields:  []string{"*"},
+		Filter:        filter,
 	}
 
 	results, diag := milvus.MilvusClientInstance.Search(context.Background(), req)
@@ -154,9 +157,10 @@ func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int) ([]T, *core.Diag
 		return nil, diag
 	}
 
-	// convert []map[string]any to []T via JSON
-	entities := make([]T, 0, len(results))
+	// convert []map[string]any to []core.Readable
+	readables := make([]core.Readable, 0, len(results))
 	for _, r := range results {
+		// try to convert to T first
 		entityJSON, _ := json.Marshal(r)
 		var entity T
 		if err := json.Unmarshal(entityJSON, &entity); err != nil {
@@ -166,8 +170,15 @@ func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int) ([]T, *core.Diag
 				Message: "failed to convert search result to entity: " + err.Error(),
 			}
 		}
-		entities = append(entities, entity)
+
+		// check if T implements Readable
+		if readable, ok := any(entity).(core.Readable); ok {
+			readables = append(readables, readable)
+		} else {
+			// T is any or doesn't implement Readable, wrap map[string]any as MapReadable
+			readables = append(readables, core.MapReadable(r))
+		}
 	}
 
-	return entities, nil
+	return readables, nil
 }

@@ -8,7 +8,9 @@ import (
 // loader for .docx files, placeholder for future implementation.
 type WordLoader struct{}
 
-func (l *WordLoader) Load(path string) (string, *core.Diagnostic) {
+// Load processes binary Word document data.
+// [auto-added] accepts binary data and filename instead of file path.
+func (l *WordLoader) Load(data []byte, filename string) (string, *core.Diagnostic) {
 	// TODO: implement Word document parsing with a third-party library
 	return "", nil
 }

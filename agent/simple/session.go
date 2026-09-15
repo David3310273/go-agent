@@ -290,18 +290,6 @@ func (s *SimpleAgentSession) SelectTools(query core.Question, message core.ReAct
 // select local kb given the question, merge into final context
 // searches KB and converts results to MarkdownCollection via JSON marshal/unmarshal.
 func (s *SimpleAgentSession) SelectLocalKB(query core.Question) string {
-	// temporary local type, will be moved to a proper package later.
-	type MarkdownCollection struct {
-		ChunkID    int64     `json:"chunk_id"`
-		Privacy    string    `json:"privacy"`
-		Filename   string    `json:"filename"`
-		DocumentID string    `json:"document_id"`
-		CreateAt   int64     `json:"create_at"`
-		Domain     string    `json:"domain"`
-		Embedding  []float32 `json:"embedding"`
-		Content    string    `json:"content"`
-	}
-
 	var result strings.Builder
 
 	for _, kbAny := range s.Context.GetKnowledgeBase() {
@@ -310,26 +298,13 @@ func (s *SimpleAgentSession) SelectLocalKB(query core.Question) string {
 			continue
 		}
 
-		searchResults, diag := milvusKB.Search(query.GetQuery(), 1)
+		searchResults, diag := milvusKB.Search(query.GetQuery(), 1, "")
 		if diag != nil {
 			continue
 		}
 
-		// convert []any to []MarkdownCollection via JSON marshal/unmarshal.
-		jsonBytes, err := json.Marshal(searchResults)
-		if err != nil {
-			log.Printf("[SelectLocalKB] failed to marshal search results: %v", err)
-			continue
-		}
-
-		var collections []MarkdownCollection
-		if err := json.Unmarshal(jsonBytes, &collections); err != nil {
-			log.Printf("[SelectLocalKB] failed to unmarshal to MarkdownCollection: %v", err)
-			continue
-		}
-
-		for _, c := range collections {
-			result.WriteString(c.Content)
+		for _, res := range searchResults {
+			result.WriteString(res.GetContent())
 		}
 
 		result.WriteString(s.Config.MemoryFileSplitter)

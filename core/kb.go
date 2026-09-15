@@ -2,8 +2,9 @@ package core
 
 // DocLoader defines the interface for loading different document formats.
 // abstraction for multi-format document loading, includes format-aware chunking.
+// [auto-added] Load accepts binary data and filename instead of file path.
 type DocLoader interface {
-	Load(path string) (string, *Diagnostic)
+	Load(data []byte, filename string) (string, *Diagnostic)
 	Chunk(content string) []string
 	SupportedExtensions() []string
 }
@@ -52,10 +53,28 @@ type Embedder interface {
 type KnowledgeBase[T any] interface {
 	// embedder is optional, return nil if not using vector db
 	GetEmedder() Embedder
-	// Process loads a document, and process it.
-	Process(docPath string) (*EmbeddingResult, *Diagnostic)
+	// Process loads a document from binary data, and process it.
+	// [auto-added] accepts binary data and filename instead of file path.
+	Process(data []byte, filename string) (*EmbeddingResult, *Diagnostic)
 	// Save stores entities of type T directly.
 	Save(entities []T) *Diagnostic
 	// Search returns results with entity type T.
-	Search(keyword any, topK int) ([]T, *Diagnostic)
+	// [auto-added] filter parameter for server-side filtering in vector db.
+	Search(keyword any, topK int, filter string) ([]Readable, *Diagnostic)
+}
+
+type Readable interface {
+	GetContent() string
+}
+
+// MapReadable wraps map[string]any to implement core.Readable
+type MapReadable map[string]any
+
+// GetContent implements core.Readable interface
+func (m MapReadable) GetContent() string {
+	if content, ok := m["content"].(string); ok {
+		return content
+	}
+
+	return ""
 }

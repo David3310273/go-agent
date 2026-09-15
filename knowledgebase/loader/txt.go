@@ -1,8 +1,6 @@
 package loader
 
 import (
-	"os"
-
 	"github.com/David3310273/go-agent/core"
 )
 
@@ -10,11 +8,9 @@ import (
 // loader for .txt files.
 type TXTLoader struct{}
 
-func (l *TXTLoader) Load(path string) (string, *core.Diagnostic) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", &core.Diagnostic{}
-	}
+// Load processes binary data as plain text.
+// [auto-added] accepts binary data and filename instead of file path.
+func (l *TXTLoader) Load(data []byte, filename string) (string, *core.Diagnostic) {
 	return string(data), nil
 }
 
