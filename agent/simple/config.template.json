@@ -26,9 +26,9 @@
                 "domain": "technology",
                 "description": "Knowledge about programming and algorithms",
                 "storageOptions": {
-                    "type": "milvus",
-                    "dbName": "db_d99fce94f3b47ab",
-                    "collection": "markdown_documents",
+                    "type": "[Your storage type]",
+                    "dbName": "[Your db name]",
+                    "collection": "[Your collection name]",
                     "partitionName": ""
                 }
             }
