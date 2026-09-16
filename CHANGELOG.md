@@ -6,6 +6,7 @@ fixs:
 
 - schema injection from app, adding more CRUD methods, publish CRUD api of kb
 - add harness interface/component to organize the context
+- move searching kb to the tool
 
 feature:
 

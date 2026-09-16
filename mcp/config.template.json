@@ -1,0 +1,13 @@
+{
+    "rootPath": "[Your root path of the project]",
+    "port": "8080",
+    "tools": [
+        "[Your tool name]"
+    ],
+    "prompts": [
+        "[Your prompt file path]"
+    ],
+    "resources": [
+        "[Your resource file path]"
+    ]
+}

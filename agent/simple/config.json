@@ -37,7 +37,7 @@
             {
                 "name": "UseSkill",
                 "schema": "useskill.schema.json",
-                "decription": "load skill in agent when you want to do something"
+                "description": "load skill in agent when you want to do something"
             }
         ]
     },

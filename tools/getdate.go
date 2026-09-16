@@ -18,16 +18,19 @@ func init() {
 			Name:     "getdate",
 			Schema:   "getdate.schema.json",
 			RootPath: rootPath,
+			Context:  context,
 		}
 	})
 }
 
-// FileWriterCall, file writer tool implementing core.Tool interface
+// GetDateCall, date tool implementing core.Tool interface
 type GetDateCall struct {
 	Name   string `json:"name"`
 	Schema string `json:"schema"`
 	//  project root path for resolving schema file path
 	RootPath string
+	// context for accessing runtime resources.
+	Context core.Context
 }
 
 // GetName returns the function name from schema for matching with LLM tool calls
@@ -56,6 +59,12 @@ func (f GetDateCall) GetSchema() core.ToolSchema {
 // GetDescription returns the tool description from schema
 func (f GetDateCall) GetDescription() string {
 	return f.GetSchema().Function.Description
+}
+
+// GetContext returns the agent session runtime context.
+// implements core.Tool interface.
+func (f GetDateCall) GetContext() core.Context {
+	return f.Context
 }
 
 // Validate validates the tool configuration

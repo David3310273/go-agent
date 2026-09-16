@@ -11,6 +11,10 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
+const (
+	SchemaPath = "agent/simple/tools"
+)
+
 func init() {
 	// register UseSkillCall tool factory
 	// updated to accept Context instead of skillDefinitions.
@@ -62,6 +66,12 @@ func (f UseSkillCall) GetSchema() core.ToolSchema {
 // GetDescription returns the tool description from schema
 func (f UseSkillCall) GetDescription() string {
 	return f.GetSchema().Function.Description
+}
+
+// GetContext returns the agent session runtime context.
+// implements core.Tool interface.
+func (f UseSkillCall) GetContext() core.Context {
+	return f.Context
 }
 
 // Validate validates the tool configuration
@@ -120,8 +130,11 @@ func (f UseSkillCall) GetRunner() func(args map[string]any) (string, *core.Diagn
 		fmt.Fprintf(&response, "Description: %s\n", skillDef.Description)
 		fmt.Fprintf(&response, "\nTools to execute (with descriptions):\n")
 		for _, toolName := range skillDef.Tools {
-			desc := core.GetToolDescription(toolName, f.RootPath, f.Context)
-			fmt.Fprintf(&response, "- **%s**: %s\n", toolName, desc)
+			// use GetTool to get tool instance, then call GetDescription.
+			tool := core.GetTool(toolName, f.RootPath, f.Context)
+			if tool != nil {
+				fmt.Fprintf(&response, "- **%s**: %s\n", toolName, tool.GetDescription())
+			}
 		}
 		fmt.Fprintf(&response, "\nPlease call these tools with appropriate parameters.")
 

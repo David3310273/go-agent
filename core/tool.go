@@ -13,13 +13,6 @@ type FunctionSchema struct {
 	Parameters  map[string]any `json:"parameters,omitempty"`
 }
 
-// TODO: publish tool calls as mcp service
-// tool should implement this if needed
-type MCPAvailable[T any] interface {
-	// transform data into mcp format
-	Transform(result any) T
-}
-
 type Skill interface {
 	// get skill schema in provider-agnostic format
 	GetName() string
@@ -41,6 +34,8 @@ type Tool interface {
 	// get runner function that accepts args map and returns result string + diagnostic
 	// changed return type to support returning data to model.
 	GetRunner() func(args map[string]any) (string, *Diagnostic)
+	// get agent session runtime context
+	GetContext() Context
 }
 
 // CallTool validates and executes a tool with given args.
@@ -77,13 +72,8 @@ func CreateTool(name string, rootPath string, context Context) Tool {
 	return nil
 }
 
-// GetToolDescription returns the tool description by name.
-// used to get tool description for skill info.
-// updated to accept Context instead of skillDefinitions.
-func GetToolDescription(name string, rootPath string, context Context) string {
-	tool := CreateTool(name, rootPath, context)
-	if tool == nil {
-		return ""
-	}
-	return tool.GetDescription()
+// GetTool returns the tool instance by name.
+// changed from GetToolDescription to return Tool instead of string.
+func GetTool(name string, rootPath string, context Context) Tool {
+	return CreateTool(name, rootPath, context)
 }

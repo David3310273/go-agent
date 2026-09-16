@@ -62,6 +62,12 @@ func (f SearchKnowledgebaseCall) GetDescription() string {
 	return f.GetSchema().Function.Description
 }
 
+// GetContext returns the agent session runtime context.
+// implements core.Tool interface.
+func (f SearchKnowledgebaseCall) GetContext() core.Context {
+	return f.Context
+}
+
 // Validate validates the tool configuration
 // validates keyword is provided.
 func (f SearchKnowledgebaseCall) Validate(args map[string]any) *core.Diagnostic {
