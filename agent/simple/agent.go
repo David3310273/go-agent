@@ -13,8 +13,9 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/David3310273/go-agent/agent/simple/tools"
+	_ "github.com/David3310273/go-agent/agent/simple/tools" // import to register UseSkill, SearchKnowledgeBase
 	"github.com/David3310273/go-agent/core"
+	_ "github.com/David3310273/go-agent/tools" // import to register tools (GetDate, WriteToFile)
 	uuid "github.com/gofrs/uuid/v5"
 )
 
