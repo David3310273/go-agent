@@ -108,6 +108,46 @@ const (
 	AgentStatusExpired // plan expired such as doesn't renew
 )
 
+// auto-add: InitContext initializes the agent context with configs
+// loads history, skills, prompt, knowledge base, and tools
+func InitContext(agent AgentCore, agentConfigs AgentCoreConfig) []Diagnostic {
+	diagnostics := []Diagnostic{}
+
+	// load history
+	err := agent.SetHistory(agentConfigs.Agent.History)
+	if err != nil {
+		diagnostics = append(diagnostics, *err)
+	}
+
+	// load skill definitions for dynamic tool loading
+	agent.SetSkills(agentConfigs.Agent.Skill)
+
+	// load prompt
+	err = agent.SetPrompt(agentConfigs.Agent.Prompt)
+	if err != nil {
+		diagnostics = append(diagnostics, *err)
+	}
+
+	// load knowledge base
+	err = agent.SetKnowledgeBase(agentConfigs.Agent.KnowledgeBase)
+	if err != nil {
+		diagnostics = append(diagnostics, *err)
+	}
+
+	// load tool config
+	err = agent.SetToolsConfig(agentConfigs.Agent.Tool)
+	if err != nil {
+		diagnostics = append(diagnostics, *err)
+	}
+
+	err = agent.SetMCPClient(agentConfigs.Agent.MCPServer)
+	if err != nil {
+		diagnostics = append(diagnostics, *err)
+	}
+
+	return diagnostics
+}
+
 func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 	diagnostics := []Diagnostic{}
 
@@ -132,31 +172,10 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 		diagnostics = append(diagnostics, *err)
 	}
 
-	// load history
-	err = agent.SetHistory(agentConfigs.Agent.History)
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
-	}
-
-	// load skill definitions for dynamic tool loading
-	agent.SetSkills(agentConfigs.Agent.Skill)
-
-	// load prompt
-	err = agent.SetPrompt(agentConfigs.Agent.Prompt)
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
-	}
-
-	// load knowledge base
-	err = agent.SetKnowledgeBase(agentConfigs.Agent.KnowledgeBase)
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
-	}
-
-	// load tool config
-	err = agent.SetToolsConfig(agentConfigs.Agent.Tool)
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
+	// auto-add: initialize context (history, skills, prompt, kb, tools, mcp clients)
+	contextDiagnostics := InitContext(agent, agentConfigs)
+	if len(contextDiagnostics) > 0 {
+		diagnostics = append(diagnostics, contextDiagnostics...)
 	}
 
 	beforeStartDiagnostics := agent.BeforeStart(agentConfigs)

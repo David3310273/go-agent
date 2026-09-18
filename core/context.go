@@ -25,4 +25,10 @@ type Context interface {
 	SetToolsConfig([]ToolConfig) *Diagnostic
 	// get available tools
 	GetToolsConfig() []ToolConfig
+	// get mcp config
+	GetMCPServerConfigs() []MCPConfig
+	// get mcp server tools
+	SetMCPClient([]MCPConfig) *Diagnostic
+	// get mcp client
+	GetMCPClients() map[string]MCPAccessible
 }

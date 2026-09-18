@@ -32,6 +32,7 @@ func RegisterToolsToServer(server *mcp.Server, config *MCPConfig) {
 		mcpTool := &mcp.Tool{
 			Name:        mcpToolName,
 			Description: toolDesc,
+			InputSchema: schema.Function.Parameters,
 		}
 
 		// register tool with adapter

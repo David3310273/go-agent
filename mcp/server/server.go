@@ -27,7 +27,9 @@ func Start(config *mcp.MCPConfig) {
 		func(req *http.Request) *mcpsdk.Server {
 			return server
 		},
-		nil,
+		&mcpsdk.StreamableHTTPOptions{
+			Stateless: true,
+		},
 	)
 
 	// setup HTTP routes
@@ -36,7 +38,7 @@ func Start(config *mcp.MCPConfig) {
 
 	addr := ":" + config.Port
 	log.Printf("[MCP Server] starting on %s", addr)
-	log.Printf("[MCP Server] endpoint: http://localhost%s/mcp", addr)
+	log.Printf("[MCP Server] endpoint: http://%s/mcp", addr)
 
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatalf("[MCP Server] failed: %v", err)

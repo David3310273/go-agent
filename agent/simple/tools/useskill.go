@@ -138,6 +138,8 @@ func (f UseSkillCall) GetRunner() func(args map[string]any) (string, *core.Diagn
 		}
 		fmt.Fprintf(&response, "\nPlease call these tools with appropriate parameters.")
 
+		log.Printf("\n\n[Skill use]: the specification of skill %s is: %s\n", skillDef.Name, response.String())
+
 		return response.String(), &core.Diagnostic{
 			Level:   core.SeverityInfo,
 			Code:    core.MessageCodeSuccess,

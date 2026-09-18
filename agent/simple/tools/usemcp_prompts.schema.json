@@ -1,0 +1,21 @@
+{
+  "type": "function",
+  "function": {
+    "name": "SearchMCPPrompts",
+    "description": "Get a specific prompt from an MCP server by its name. Returns the prompt content.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "serverName": {
+          "type": "string",
+          "description": "The MCP server name where the prompt is located."
+        },
+        "promptName": {
+          "type": "string",
+          "description": "The name of the prompt to get."
+        }
+      },
+      "required": ["serverName", "promptName"]
+    }
+  }
+}
