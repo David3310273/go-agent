@@ -64,6 +64,8 @@ type LoggerConfig struct {
 type AgentConfig struct {
 	// root path: inject param
 	RootPath string
+	// name
+	Name string `json:"name"`
 	// version
 	Version string `json:"version"`
 	// Plan
@@ -78,6 +80,8 @@ type AgentConfig struct {
 	History HistoryConfig `json:"history"`
 	// tool config
 	Tool []ToolConfig `json:"tool"`
+	// mcp server
+	MCPServer []MCPConfig `json:"mcpServer"`
 	// log path
 	LogPath string `json:"logPath"`
 	// streaming
@@ -95,6 +99,19 @@ type PromptConfig struct {
 	BufferSizeInKB int `json:"bufferSizeInKB"`
 	// output root
 	OutputPathFormat string `json:"outputPathFormat"`
+}
+
+// MCPConfig represents the configuration for an MCP server
+type MCPConfig struct {
+	ClientName      string
+	ClientVersion   string
+	Host            string `json:"host"`
+	Port            int    `json:"port"`
+	BaseUrl         string `json:"baseUrl"`
+	ProtocolVersion string `json:"protocolVersion"`
+	JSONRPCVersion  string `json:"jsonrpcVersion"`
+	Name            string `json:"name"`
+	Description     string `json:"description"`
 }
 
 type ToolConfig struct {

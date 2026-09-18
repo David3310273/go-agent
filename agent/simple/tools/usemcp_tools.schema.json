@@ -1,0 +1,25 @@
+{
+  "type": "function",
+  "function": {
+    "name": "UseMCPServerTools",
+    "description": "Execute a specific tool on an MCP server. Calls the remote tool with the given arguments and returns the result. Must conform to the inputSchema returned by DiscoverMCPServer.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "serverName": {
+          "type": "string",
+          "description": "The MCP server name where the tool is located."
+        },
+        "toolName": {
+          "type": "string",
+          "description": "The name of the tool to execute."
+        },
+        "arguments": {
+          "type": "object",
+          "description": "The arguments to pass to the tool."
+        }
+      },
+      "required": ["serverName", "toolName"]
+    }
+  }
+}

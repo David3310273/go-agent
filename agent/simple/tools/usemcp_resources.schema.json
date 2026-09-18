@@ -1,0 +1,21 @@
+{
+  "type": "function",
+  "function": {
+    "name": "SearchMCPResources",
+    "description": "Read a specific resource from an MCP server by its URI. Returns the resource content.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "serverName": {
+          "type": "string",
+          "description": "The MCP server name where the resource is located."
+        },
+        "uri": {
+          "type": "string",
+          "description": "The URI of the resource to read."
+        }
+      },
+      "required": ["serverName", "uri"]
+    }
+  }
+}

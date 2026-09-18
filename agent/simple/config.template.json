@@ -1,8 +1,19 @@
 {
     "agent": {
         "version": "1.0.1",
+        "name": "go-agent",
         "questionBufferSize": 10,
         "logPath": "app/agentLogs/agent-%s.log",
+        "mcpServer": [
+            {
+                "host": "http://localhost",
+                "port": 8080,
+                "protocolVersion": "2026-07-28",
+                "jsonrpcVersion": "2.0",
+                "name": "mcp-server-1",
+                "description": "Connect this server if you want to know current time."
+            }   
+        ],
         "skill": [
             {
                 "name": "helloworld",

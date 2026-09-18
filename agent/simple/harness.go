@@ -58,6 +58,15 @@ func (h SimpleHarness) GenerateFinalPrompt(context core.Context, maxSize int) st
 		}
 	}
 
+	// auto-add: append MCP server definitions to prompt
+	if mcpConfigs := context.GetMCPServerConfigs(); len(mcpConfigs) > 0 {
+		prompt.WriteString("\n\n# Available MCP Servers\n")
+		for _, config := range mcpConfigs {
+			fmt.Fprintf(&prompt, "- serverName: **%s**\n", config.Name)
+			fmt.Fprintf(&prompt, "- description: %s\n", config.Description)
+		}
+	}
+
 	// get agent history from context
 	prompt.WriteString("\n")
 	prompt.WriteString(string(context.GetHistory()))

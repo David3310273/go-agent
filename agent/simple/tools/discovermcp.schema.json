@@ -1,0 +1,17 @@
+{
+  "type": "function",
+  "function": {
+    "name": "DiscoverMCPServer",
+    "description": "Discover all capabilities (tools, prompts, resources) from a specific MCP server. Returns their names, descriptions and inputSchema especially for tools. Use this tool first if you want to use MCP servers.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "serverName": {
+          "type": "string",
+          "description": "The name of the MCP server to discover capabilities from"
+        }
+      },
+      "required": ["serverName"]
+    }
+  }
+}

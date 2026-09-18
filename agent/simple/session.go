@@ -125,6 +125,8 @@ func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, ena
 	session.Context.Skills = agent.GetSkills()
 	session.Context.KnowledgeBase = agent.GetKnowledgeBase()
 	session.Context.Tools = agent.GetToolsConfig()
+	session.Context.MCPServers = agent.GetMCPServerConfigs()
+	session.Context.MCPClients = agent.GetMCPClients()
 
 	session.Context.Conversation = core.Conversation{}
 	if memory != nil {
