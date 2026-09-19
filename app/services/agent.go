@@ -46,8 +46,12 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params *AskParams
 		case agent.Question <- question:
 		case <-time.After(requestWaitingTimeout):
 			// non-blocking send, abandon if handler already exited
+			// auto-add: use harness default answer for timeout fallback, wrapped in SimpleSessionResponse
 			select {
-			case responseChan <- question.GetDefaultAnswer():
+			case responseChan <- simple.SimpleSessionResponse{
+				SessionID: question.GetSessionID(),
+				Response:  core.AgentResponse{Response: simple.SimpleHarnessInstance.GetDefaultAnswer().ToString()},
+			}:
 			default:
 			}
 		}
@@ -83,9 +87,8 @@ func (q *SimpleQuestion) GetRetryQuery() string             { return q.query }
 func (q *SimpleQuestion) GetSessionID() string              { return q.sessionID }
 func (q *SimpleQuestion) GetResponseChan() chan core.Answer { return q.responseChan }
 func (q *SimpleQuestion) GetHintChan() chan core.Answer     { return q.hintChan }
-func (q *SimpleQuestion) GetDefaultAnswer() core.Answer {
-	return &SimpleAnswer{Content: "I don't know how to do next, please try again later.", SessionID: q.sessionID}
-}
+
+// auto-add: removed GetDefaultAnswer, default answer is now managed by harness
 func (q *SimpleQuestion) ToString() string { return q.query }
 
 // SimpleAnswer implements core.Answer interface

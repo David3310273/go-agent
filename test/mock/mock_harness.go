@@ -143,3 +143,17 @@ func (mr *MockHarnessMockRecorder) SetNextRoundMessages(question, messages any) 
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetNextRoundMessages", reflect.TypeOf((*MockHarness)(nil).SetNextRoundMessages), question, messages)
 }
+
+// auto-add: GetDefaultAnswer mocks base method.
+func (m *MockHarness) GetDefaultAnswer() core.Answer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDefaultAnswer")
+	ret0, _ := ret[0].(core.Answer)
+	return ret0
+}
+
+// auto-add: GetDefaultAnswer indicates an expected call of GetDefaultAnswer.
+func (mr *MockHarnessMockRecorder) GetDefaultAnswer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultAnswer", reflect.TypeOf((*MockHarness)(nil).GetDefaultAnswer))
+}

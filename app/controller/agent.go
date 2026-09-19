@@ -93,6 +93,7 @@ func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *ser
 				return false
 			}
 			switch resp := chunk.(type) {
+			// event stream chunk, original response
 			case core.AgentResponse:
 				if len(resp.Choices) > 0 && resp.Choices[0].Message != nil && resp.Choices[0].Message.Content != "" {
 					log.Printf("[handleAsk][stream][chunk] %s", resp.Choices[0].Message.Content)
@@ -137,19 +138,17 @@ func handleNonStreamResponse(c *gin.Context, result *services.AskResult, timeout
 				})
 				return
 			}
+			// auto-add: all answers are SimpleSessionResponse, directly assert
+			sessionResponse := answer.(simple.SimpleSessionResponse)
+			agentResponse := sessionResponse.Response
 			response := AskResponse{
-				Answer: result.Question.GetDefaultAnswer().ToString(),
+				Answer:    agentResponse.Response,
+				SessionID: sessionResponse.SessionID,
+				Thought:   agentResponse.Thought,
+				Usage:     agentResponse.Usage,
 			}
-			if sessionResponse, ok := answer.(simple.SimpleSessionResponse); ok {
-				agentResponse := sessionResponse.Response
-				if len(agentResponse.Choices) > 0 && agentResponse.Choices[0].Message != nil {
-					response.Answer = agentResponse.Choices[0].Message.Content
-				} else {
-					response.Answer = agentResponse.Response
-				}
-				response.SessionID = sessionResponse.SessionID
-				response.Thought = agentResponse.Thought
-				response.Usage = agentResponse.Usage
+			if len(agentResponse.Choices) > 0 && agentResponse.Choices[0].Message != nil {
+				response.Answer = agentResponse.Choices[0].Message.Content
 			}
 			c.JSON(http.StatusOK, response)
 			return
