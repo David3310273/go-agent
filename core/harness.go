@@ -12,4 +12,6 @@ type Harness interface {
 	LoadTools(skillName string, context Context, rootPath string) []Tool
 	GetCurrRoundKnowledges(question Question) string
 	SetNextRoundMessages(question *Question, messages *Conversation)
+	// auto-add: GetDefaultAnswer returns the default answer when agent fails to produce a valid response
+	GetDefaultAnswer() Answer
 }

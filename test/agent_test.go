@@ -265,6 +265,7 @@ func TestStartAgentCore_Success(t *testing.T) {
 		mockAgent.EXPECT().SetPrompt(agentConfig.Agent.Prompt).Return(nil),
 		mockAgent.EXPECT().SetKnowledgeBase(agentConfig.Agent.KnowledgeBase).Return(nil),
 		mockAgent.EXPECT().SetToolsConfig(agentConfig.Agent.Tool).Return(nil),
+		mockAgent.EXPECT().SetMCPClient(agentConfig.Agent.MCPServer).Return(nil),
 		mockAgent.EXPECT().BeforeStart(agentConfig).Return(nil),
 		mockAgent.EXPECT().Start(agentConfig).Return(nil),
 	)
@@ -301,6 +302,7 @@ func TestStartAgentCore_SetIDError(t *testing.T) {
 	mockAgent.EXPECT().SetPrompt(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetKnowledgeBase(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetToolsConfig(gomock.Any()).Return(expectedErr).AnyTimes()
+	mockAgent.EXPECT().SetMCPClient(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().BeforeStart(gomock.Any()).Return(nil).AnyTimes()
 	mockAgent.EXPECT().Start(gomock.Any()).Return(nil).AnyTimes()
 

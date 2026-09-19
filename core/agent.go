@@ -28,8 +28,6 @@ type Question interface {
 	GetResponseChan() chan Answer
 	// get hint channel for returning intermediate status (e.g. thinking...)
 	GetHintChan() chan Answer
-	// get default answer
-	GetDefaultAnswer() Answer
 }
 
 type AnswerType int
@@ -251,8 +249,9 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		Data:       userMessage,
 	})
 
+	// auto-add: use harness to get default answer for fallback
 	defaultAnswer := AgentResponse{
-		Response: question.GetDefaultAnswer().ToString(),
+		Response: harness.GetDefaultAnswer().ToString(),
 	}
 
 	// set max reAct rounds
@@ -495,8 +494,9 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		Data:       userMessage,
 	})
 
+	// auto-add: use harness to get default answer for fallback
 	defaultAnswer := AgentResponse{
-		Response: question.GetDefaultAnswer().ToString(),
+		Response: harness.GetDefaultAnswer().ToString(),
 	}
 
 	// track current tools for dynamic loading based on skill

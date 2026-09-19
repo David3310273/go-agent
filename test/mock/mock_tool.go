@@ -148,3 +148,17 @@ func (mr *MockToolMockRecorder) Validate(args any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Validate", reflect.TypeOf((*MockTool)(nil).Validate), args)
 }
+
+// auto-add: GetContext mocks base method.
+func (m *MockTool) GetContext() core.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetContext")
+	ret0, _ := ret[0].(core.Context)
+	return ret0
+}
+
+// auto-add: GetContext indicates an expected call of GetContext.
+func (mr *MockToolMockRecorder) GetContext() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContext", reflect.TypeOf((*MockTool)(nil).GetContext))
+}

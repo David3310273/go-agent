@@ -350,10 +350,11 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	select {
 	case result := <-resultChan:
 		// default answer if failed
+		// auto-add: use harness default answer for fallback
 		finalAnswer := SimpleSessionResponse{
 			SessionID: s.GetID(),
 			Response: core.AgentResponse{
-				Response: query.GetDefaultAnswer().ToString(),
+				Response: SimpleHarnessInstance.GetDefaultAnswer().ToString(),
 			},
 		}
 

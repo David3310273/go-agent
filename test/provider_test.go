@@ -429,12 +429,12 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
 	mockQuestion.EXPECT().SetQuery(gomock.Any()).AnyTimes()
-	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
@@ -488,12 +488,12 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
-	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(expectedAnswer, nil)
 
@@ -572,13 +572,13 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
-	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
 	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).Return([]core.Tool{mockTool}).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool")
@@ -660,13 +660,13 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
-	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
 	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(finalResponse, nil)
@@ -743,13 +743,13 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
-	mockQuestion.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
 	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).Return([]core.Tool{mockTool}).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool")

@@ -41,20 +41,6 @@ func (m *MockQuestion) EXPECT() *MockQuestionMockRecorder {
 	return m.recorder
 }
 
-// GetDefaultAnswer mocks base method.
-func (m *MockQuestion) GetDefaultAnswer() core.Answer {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDefaultAnswer")
-	ret0, _ := ret[0].(core.Answer)
-	return ret0
-}
-
-// GetDefaultAnswer indicates an expected call of GetDefaultAnswer.
-func (mr *MockQuestionMockRecorder) GetDefaultAnswer() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultAnswer", reflect.TypeOf((*MockQuestion)(nil).GetDefaultAnswer))
-}
-
 // GetEnableThinking mocks base method.
 func (m *MockQuestion) GetEnableThinking() bool {
 	m.ctrl.T.Helper()
@@ -999,4 +985,46 @@ func (m *MockAgentCore) StopSession(arg0 string) *core.Diagnostic {
 func (mr *MockAgentCoreMockRecorder) StopSession(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopSession", reflect.TypeOf((*MockAgentCore)(nil).StopSession), arg0)
+}
+
+// auto-add: GetMCPServerConfigs mocks base method.
+func (m *MockAgentCore) GetMCPServerConfigs() []core.MCPConfig {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMCPServerConfigs")
+	ret0, _ := ret[0].([]core.MCPConfig)
+	return ret0
+}
+
+// auto-add: GetMCPServerConfigs indicates an expected call of GetMCPServerConfigs.
+func (mr *MockAgentCoreMockRecorder) GetMCPServerConfigs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPServerConfigs", reflect.TypeOf((*MockAgentCore)(nil).GetMCPServerConfigs))
+}
+
+// auto-add: SetMCPClient mocks base method.
+func (m *MockAgentCore) SetMCPClient(arg0 []core.MCPConfig) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetMCPClient", arg0)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// auto-add: SetMCPClient indicates an expected call of SetMCPClient.
+func (mr *MockAgentCoreMockRecorder) SetMCPClient(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMCPClient", reflect.TypeOf((*MockAgentCore)(nil).SetMCPClient), arg0)
+}
+
+// auto-add: GetMCPClients mocks base method.
+func (m *MockAgentCore) GetMCPClients() map[string]core.MCPAccessible {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMCPClients")
+	ret0, _ := ret[0].(map[string]core.MCPAccessible)
+	return ret0
+}
+
+// auto-add: GetMCPClients indicates an expected call of GetMCPClients.
+func (mr *MockAgentCoreMockRecorder) GetMCPClients() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPClients", reflect.TypeOf((*MockAgentCore)(nil).GetMCPClients))
 }

@@ -219,3 +219,45 @@ func (mr *MockContextMockRecorder) SetToolsConfig(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetToolsConfig", reflect.TypeOf((*MockContext)(nil).SetToolsConfig), arg0)
 }
+
+// auto-add: GetMCPServerConfigs mocks base method.
+func (m *MockContext) GetMCPServerConfigs() []core.MCPConfig {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMCPServerConfigs")
+	ret0, _ := ret[0].([]core.MCPConfig)
+	return ret0
+}
+
+// auto-add: GetMCPServerConfigs indicates an expected call of GetMCPServerConfigs.
+func (mr *MockContextMockRecorder) GetMCPServerConfigs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPServerConfigs", reflect.TypeOf((*MockContext)(nil).GetMCPServerConfigs))
+}
+
+// auto-add: SetMCPClient mocks base method.
+func (m *MockContext) SetMCPClient(arg0 []core.MCPConfig) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetMCPClient", arg0)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// auto-add: SetMCPClient indicates an expected call of SetMCPClient.
+func (mr *MockContextMockRecorder) SetMCPClient(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMCPClient", reflect.TypeOf((*MockContext)(nil).SetMCPClient), arg0)
+}
+
+// auto-add: GetMCPClients mocks base method.
+func (m *MockContext) GetMCPClients() map[string]core.MCPAccessible {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMCPClients")
+	ret0, _ := ret[0].(map[string]core.MCPAccessible)
+	return ret0
+}
+
+// auto-add: GetMCPClients indicates an expected call of GetMCPClients.
+func (mr *MockContextMockRecorder) GetMCPClients() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPClients", reflect.TypeOf((*MockContext)(nil).GetMCPClients))
+}

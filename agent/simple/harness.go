@@ -139,3 +139,10 @@ func (h SimpleHarness) GetCurrRoundKnowledges(question core.Question) string {
 
 func (h SimpleHarness) SetNextRoundMessages(question *core.Question, messages *core.Conversation) {
 }
+
+// auto-add: GetDefaultAnswer returns the default answer when agent fails to produce a valid response
+func (h SimpleHarness) GetDefaultAnswer() core.Answer {
+	return core.AgentResponse{
+		Response: "I don't know how to do next, please try again later.",
+	}
+}
