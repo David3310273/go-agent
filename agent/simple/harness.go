@@ -102,35 +102,33 @@ func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message
 	*messages = msgs[:newLen]
 }
 
-// LoadTools loads tools based on skill name. If skillName is empty, loads default tools.
-// unified method for loading initial tools and skill-based tools.
+// LoadTools loads tools based on skill name and registers them into session's loaded tools.
+// If skillName is empty, loads default tools.
 // Uses tool registry to create tools dynamically, no switch needed.
-// updated to pass context to CreateTool for accessing skills and knowledge bases.
-func (h SimpleHarness) LoadTools(skillName string, context core.Context, rootPath string) []core.Tool {
+// Deduplication is handled by session.SetLoadTools internally.
+func (h SimpleHarness) LoadTools(skillName string, session core.Session, rootPath string) {
+	context := session.GetContext()
 	// if skillName is empty, load default tools directly
 	if skillName == "" {
-		var result []core.Tool
 		for _, cfg := range context.GetToolsConfig() {
 			if tool := core.CreateTool(cfg.Name, rootPath, context); tool != nil {
-				result = append(result, tool)
+				session.SetLoadTools(tool)
 			}
 		}
-		return result
+		return
 	}
 
 	// load tools from skill definition
 	skillDef := context.GetSkill(skillName)
 	if skillDef == nil {
-		return nil
+		return
 	}
 
-	var result []core.Tool
 	for _, toolName := range skillDef.Tools {
 		if tool := core.CreateTool(toolName, rootPath, context); tool != nil {
-			result = append(result, tool)
+			session.SetLoadTools(tool)
 		}
 	}
-	return result
 }
 
 func (h SimpleHarness) GetCurrRoundKnowledges(question core.Question) string {
@@ -140,9 +138,116 @@ func (h SimpleHarness) GetCurrRoundKnowledges(question core.Question) string {
 func (h SimpleHarness) SetNextRoundMessages(question *core.Question, messages *core.Conversation) {
 }
 
-// auto-add: GetDefaultAnswer returns the default answer when agent fails to produce a valid response
+// special message management
 func (h SimpleHarness) GetDefaultAnswer() core.Answer {
 	return core.AgentResponse{
-		Response: "I don't know how to do next, please try again later.",
+		Response: "Sorry I don't understand your question, and I don't know how to do next, please ask me something else.",
 	}
+}
+
+func (h SimpleHarness) GetUserToolConfirmMessage(toolName string) string {
+	return fmt.Sprintf("The tool %s may be destructive, are you sure you want to proceed?", toolName)
+}
+
+func (h SimpleHarness) GetConfirmDestructiveToolResult(toolName string) string {
+	return fmt.Sprintf("The tool %s is destructive, should make sure if user want to use. Keep running if user responses yes.", toolName)
+}
+
+// auto-add: GenerateToolConfirmResponse generates the confirmation response for destructive tools
+// saves pending MCP tool call info to session and returns confirmation response with usage info
+func (h SimpleHarness) GenerateToolConfirmResponse(
+	session core.Session,
+	toolName string,
+	tool core.Tool,
+	args map[string]any,
+	usage core.Usage,
+) core.Answer {
+	// extract serverName and inner tool info from args
+	serverName, _ := args["serverName"].(string)
+	innerToolName, _ := args["toolName"].(string)
+	innerArgs, _ := args["arguments"].(map[string]any)
+
+	// save pending MCP tool call info to session for later reference
+	session.SetPendingMCPToolCall(serverName, innerToolName, &core.PendingMCPToolCall{
+		Args: innerArgs,
+		Tool: tool,
+	})
+	// return confirmation response
+	return SimpleToolConfirmResponse{
+		Response: core.AgentResponse{
+			Response: h.GetUserToolConfirmMessage(fmt.Sprintf("%s:%s", serverName, innerToolName)),
+			Usage:    usage,
+		},
+		ToolName:   toolName,
+		ServerName: serverName,
+		MCPTool:    innerToolName,
+		SessionID:  session.GetID(),
+	}
+}
+
+// auto-add: HandleUserQuestion handles question types and returns the user message to append
+// for normal questions: constructs message from query
+// for confirm questions: records answer and constructs simple confirmation message
+func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Question) *core.ReActMessage {
+	if question.GetType() == core.QuestionTypeToolConfirm {
+		confirmQuestion, ok := question.(core.ToolConfirmable)
+		// not a tool confirm question, treat it as normal question
+		if !ok || !confirmQuestion.ValiateConfirmAnswer() {
+			return nil
+		}
+
+		toolName := confirmQuestion.GetConfirmToolName()
+		serverName := confirmQuestion.GetConfirmMCPServerName()
+		confirmAnswer := confirmQuestion.GetConfirmAnswer()
+
+		// record user's answer (Yes or No) - either way counts as confirmed
+		session.SetToolConfirmed(serverName, toolName, confirmAnswer)
+
+		// simple confirmation message - tool will be executed directly by ProcessQuestion
+		confirmMessage := fmt.Sprintf("The user's answer about using tool %s from mcp server %s is: %s", toolName, serverName, confirmAnswer)
+		return &core.ReActMessage{Role: core.RoleUser, Content: confirmMessage}
+	}
+
+	// normal question: construct message from query
+	return &core.ReActMessage{Role: core.RoleUser, Content: question.GetQuery()}
+}
+
+func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core.Question) *core.ReActMessage {
+	if confirmQuestion, ok := question.(core.ToolConfirmable); ok {
+		serverName := confirmQuestion.GetConfirmMCPServerName()
+		toolName := confirmQuestion.GetConfirmToolName()
+
+		if question.GetQuery() == "No" {
+			session.DeletePendingMCPToolCall(serverName, toolName)
+			session.ClearToolConfirmed(serverName, toolName)
+			return nil
+		}
+
+		toolCall := session.GetPendingMCPToolCall(serverName, toolName)
+		if toolCall != nil {
+			tool := toolCall.Tool
+			args := toolCall.Args
+			result, diag := core.CallTool(tool, args)
+
+			// clear pending info in session
+			session.DeletePendingMCPToolCall(serverName, toolName)
+			session.ClearToolConfirmed(serverName, toolName)
+
+			if diag != nil && diag.Level == core.SeverityError {
+				return &core.ReActMessage{
+					Role:       core.RoleTool,
+					Content:    diag.Message,
+					ToolCallID: toolCall.ToolCallID,
+				}
+			} else {
+				return &core.ReActMessage{
+					Role:       core.RoleTool,
+					Content:    result,
+					ToolCallID: toolCall.ToolCallID,
+				}
+			}
+		}
+	}
+
+	return nil
 }

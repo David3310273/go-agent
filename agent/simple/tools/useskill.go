@@ -63,6 +63,10 @@ func (f UseSkillCall) GetSchema() core.ToolSchema {
 	return schema
 }
 
+func (f UseSkillCall) IsDestructive() bool {
+	return false
+}
+
 // GetDescription returns the tool description from schema
 func (f UseSkillCall) GetDescription() string {
 	return f.GetSchema().Function.Description

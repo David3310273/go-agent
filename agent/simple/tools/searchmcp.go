@@ -81,6 +81,10 @@ type UseMCPServerToolsCall struct {
 	Context  core.Context
 }
 
+func (f UseMCPServerToolsCall) IsDestructive() bool {
+	return false
+}
+
 func (f UseMCPServerToolsCall) GetName() string {
 	return f.GetSchema().Function.Name
 }
@@ -223,6 +227,10 @@ func (f SearchMCPResourcesCall) GetContext() core.Context {
 	return f.Context
 }
 
+func (f SearchMCPResourcesCall) IsDestructive() bool {
+	return false
+}
+
 func (f SearchMCPResourcesCall) Validate(args map[string]any) *core.Diagnostic {
 	// auto-add: validate serverName and uri are present
 	if serverName, ok := args["serverName"].(string); !ok || serverName == "" {
@@ -339,6 +347,10 @@ func (f SearchMCPPromptsCall) GetContext() core.Context {
 	return f.Context
 }
 
+func (f SearchMCPPromptsCall) IsDestructive() bool {
+	return false
+}
+
 func (f SearchMCPPromptsCall) Validate(args map[string]any) *core.Diagnostic {
 	// auto-add: validate serverName and promptName are present
 	if serverName, ok := args["serverName"].(string); !ok || serverName == "" {
@@ -434,6 +446,10 @@ func (f DiscoverMCPServerCall) GetName() string {
 	return f.GetSchema().Function.Name
 }
 
+func (f DiscoverMCPServerCall) IsDestructive() bool {
+	return false
+}
+
 func (f DiscoverMCPServerCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
@@ -512,11 +528,15 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 		tools := client.BuildTools(f.Context)
 		log.Printf("[DiscoverMCPServer] Built %d tools", len(tools))
 		for name, tool := range tools {
-			log.Printf("[DiscoverMCPServer] Adding tool: %s, description: %s, input schema: %v", name, tool.GetDescription(), tool.GetSchema().Function.Parameters)
+			log.Printf("[DiscoverMCPServer] Adding tool: %s, description: %s, input schema: %v, isDestructive: %v", name, tool.GetDescription(), tool.GetSchema().Function.Parameters, tool.IsDestructive())
+			isDestructive := tool.IsDestructive()
 			definition.Tools = append(definition.Tools, core.MCPListToolResult{
 				Name:        name,
 				Description: tool.GetDescription(),
 				InputSchema: tool.GetSchema().Function.Parameters,
+				Annotations: &core.MCPToolAnnotations{
+					DestructiveHint: &isDestructive,
+				},
 			})
 		}
 

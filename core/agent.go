@@ -5,6 +5,14 @@ import (
 	"log"
 )
 
+// auto-add: QuestionType distinguishes between normal questions and tool confirmation questions
+type QuestionType string
+
+const (
+	QuestionTypeNormal      = "normal"
+	QuestionTypeToolConfirm = "tool_confirm"
+)
+
 // question to agent
 type Question interface {
 	Serializable
@@ -28,6 +36,15 @@ type Question interface {
 	GetResponseChan() chan Answer
 	// get hint channel for returning intermediate status (e.g. thinking...)
 	GetHintChan() chan Answer
+	// auto-add: get question type (normal or tool confirm)
+	GetType() QuestionType
+}
+
+type ToolConfirmable interface {
+	GetConfirmToolName() string
+	GetConfirmAnswer() string
+	GetConfirmMCPServerName() string
+	ValiateConfirmAnswer() bool
 }
 
 type AnswerType int
@@ -236,19 +253,6 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		})
 	}
 
-	userMessage := ReActMessage{Role: RoleUser, Content: question.GetQuery()}
-
-	log.Printf("current messages: %v", messages.ToString())
-
-	harness.SetCurrRoundMessages(messages, userMessage, int(config.MemoryWindowSize), 1)
-
-	log.Printf("messages after harness: %v", messages.ToString())
-
-	Emit(session, CommonEvent[ReActMessage]{
-		SourceType: SessionHistory,
-		Data:       userMessage,
-	})
-
 	// auto-add: use harness to get default answer for fallback
 	defaultAnswer := AgentResponse{
 		Response: harness.GetDefaultAnswer().ToString(),
@@ -256,20 +260,54 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 
 	// set max reAct rounds
 	// track current tools for dynamic loading based on skill
-	// initialize with default tools before entering the loop
-	tools := harness.LoadTools("", session.GetContext(), config.RootPath)
-	var currentSkillName string
+	// auto-add: let harness get skill name from session
 
+	// auto-add: harness constructs user message from question (handles both normal and confirm types)
+	userMessage := harness.HandleUserQuestion(session, question)
+	// append user message to conversation
+	if userMessage == nil {
+		return defaultAnswer, diagnostics
+	}
+
+	log.Printf("current message: %v", userMessage.ToString())
+	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
+
+	Emit(session, CommonEvent[ReActMessage]{
+		SourceType: SessionHistory,
+		Data:       *userMessage,
+	})
+
+	// auto-add: for ToolConfirm questions with UseMCPServerTools, execute the pending tool directly
+	if question.GetType() == QuestionTypeToolConfirm {
+		toolResultMessage := harness.HandleUserToolConfirm(session, question)
+		if toolResultMessage != nil {
+			log.Printf("toolResultMessage message: %v", toolResultMessage.ToString())
+			*messages = append(*messages, *toolResultMessage)
+			Emit(session, CommonEvent[ReActMessage]{
+				SourceType: SessionHistory,
+				Data:       *toolResultMessage,
+			})
+		}
+	}
+
+	log.Printf("messages after harness: %v", messages.ToString())
+
+	loadedTools := session.GetLoadTools()
+	if len(*loadedTools) == 0 {
+		harness.LoadTools("", session, config.RootPath)
+	}
+
+	var currentSkillName string
 	for i := 0; i < maxReActRounds; i++ {
 		// dynamically load tools based on skill from previous round
 		if currentSkillName != "" {
-			tools = harness.LoadTools(currentSkillName, session.GetContext(), config.RootPath)
+			harness.LoadTools(currentSkillName, session, config.RootPath)
 			currentSkillName = "" // reset after loading
 		}
 
 		log.Printf("init messages: %v", messages.ToString())
 
-		response, errs := AskQuestion(session, *messages, tools, question)
+		response, errs := AskQuestion(session, *messages, *loadedTools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
 			return defaultAnswer, diagnostics
@@ -315,7 +353,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 				for _, toolCall := range *operation.Message.ToolCalls {
 					// find the tool from loaded tools by name
 					var targetTool Tool
-					for _, tool := range tools {
+					for _, tool := range *loadedTools {
 						if tool.GetName() == toolCall.Function.Name {
 							targetTool = tool
 							break
@@ -333,6 +371,55 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 							if toolCall.Function.Name == "UseSkill" {
 								if name, ok := args["name"].(string); ok {
 									currentSkillName = name
+								}
+							}
+
+							// check if tool is destructive and needs user confirmation
+							isDestructive := targetTool.IsDestructive()
+							toolName := targetTool.GetName()
+							serverName := ""
+							// for remote mcp call, the isDestructive should be determined by inner tool
+							if toolCall.Function.Name == "UseMCPServerTools" {
+								innerDestructive, ok := args["isDestructive"].(bool)
+								isDestructive = ok && innerDestructive
+								serverName = args["serverName"].(string)
+							}
+
+							if isDestructive {
+								if !session.IsToolConfirmed(serverName, toolName) {
+									// delegate to harness to generate confirmation response
+									confirmResponse := harness.GenerateToolConfirmResponse(
+										session,
+										toolCall.Function.Name,
+										targetTool,
+										args,
+										answer.Usage,
+									)
+
+									// set tool result to indicate confirmation is needed, for keeping context
+									toolResult = harness.GetConfirmDestructiveToolResult(toolCall.Function.Name)
+									// append tool response to keep context complete
+									toolResultMessage := ReActMessage{
+										Role:       RoleTool,
+										Content:    toolResult,
+										ToolCallID: toolCall.ID,
+									}
+
+									*messages = append(*messages, toolResultMessage)
+									Emit(session, CommonEvent[ReActMessage]{
+										SourceType: SessionHistory,
+										Data:       toolResultMessage,
+									})
+
+									session.SetPendingMCPToolCall(serverName, toolName, &PendingMCPToolCall{
+										Args:       args,
+										Tool:       targetTool,
+										ToolCallID: toolCall.ID,
+									})
+
+									question.GetResponseChan() <- confirmResponse
+									// return to terminate reAct loop
+									return confirmResponse, diagnostics
 								}
 							}
 
@@ -487,32 +574,58 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		})
 	}
 
-	userMessage := ReActMessage{Role: RoleUser, Content: question.GetQuery()}
-	harness.SetCurrRoundMessages(messages, userMessage, int(config.MemoryWindowSize), 1)
-	Emit(session, CommonEvent[ReActMessage]{
-		SourceType: SessionHistory,
-		Data:       userMessage,
-	})
-
 	// auto-add: use harness to get default answer for fallback
 	defaultAnswer := AgentResponse{
 		Response: harness.GetDefaultAnswer().ToString(),
 	}
 
-	// track current tools for dynamic loading based on skill
-	// initialize with default tools before entering the loop
-	tools := harness.LoadTools("", session.GetContext(), config.RootPath)
-	var currentSkillName string
+	// auto-add: harness constructs user message from question (handles both normal and confirm types)
+	userMessage := harness.HandleUserQuestion(session, question)
+	// append user message to conversation
+	log.Printf("current message: %v", userMessage.ToString())
+	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
 
+	Emit(session, CommonEvent[ReActMessage]{
+		SourceType: SessionHistory,
+		Data:       *userMessage,
+	})
+
+	// auto-add: for ToolConfirm questions with UseMCPServerTools, execute the pending tool directly
+	if question.GetType() == QuestionTypeToolConfirm {
+		if question.GetQuery() == "Yes" {
+			toolResultMessage := harness.HandleUserToolConfirm(session, question)
+			*messages = append(*messages, *toolResultMessage)
+			Emit(session, CommonEvent[ReActMessage]{
+				SourceType: SessionHistory,
+				Data:       *toolResultMessage,
+			})
+		}
+	}
+
+	// append user message to conversation
+	*messages = append(*messages, *userMessage)
+	Emit(session, CommonEvent[ReActMessage]{
+		SourceType: SessionHistory,
+		Data:       *userMessage,
+	})
+
+	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
+
+	loadedTools := session.GetLoadTools()
+	if len(*loadedTools) == 0 {
+		harness.LoadTools("", session, config.RootPath)
+	}
+
+	var currentSkillName string
 	for i := 0; i < maxReActRounds; i++ {
 		// dynamically load tools based on skill from previous round
 		if currentSkillName != "" {
-			tools = harness.LoadTools(currentSkillName, session.GetContext(), config.RootPath)
+			harness.LoadTools(currentSkillName, session, config.RootPath)
 			currentSkillName = "" // reset after loading
 		}
 		log.Printf("init messages (stream): %v", messages.ToString())
 
-		acc, errs := AskQuestionStream(session, *messages, tools, question)
+		acc, errs := AskQuestionStream(session, *messages, *loadedTools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
 			return defaultAnswer, diagnostics
@@ -558,7 +671,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 
 			for _, toolCall := range acc.toolCalls {
 				var targetTool Tool
-				for _, tool := range tools {
+				for _, tool := range *loadedTools {
 					if tool.GetName() == toolCall.Function.Name {
 						targetTool = tool
 						break
@@ -575,6 +688,52 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 						if toolCall.Function.Name == "UseSkill" {
 							if name, ok := args["name"].(string); ok {
 								currentSkillName = name
+							}
+						}
+
+						isDestructive := targetTool.IsDestructive()
+						toolName := targetTool.GetName()
+						serverName := ""
+						if toolCall.Function.Name == "UseMCPServerTools" {
+							innerDestructive, ok := args["isDestructive"].(bool)
+							isDestructive = ok && innerDestructive
+							serverName = args["serverName"].(string)
+						}
+
+						// auto-add: check if tool is destructive and needs user confirmation (only for UseMCPServerTools)
+						if isDestructive {
+							if !session.IsToolConfirmed(serverName, toolName) {
+								// delegate to harness to generate confirmation response
+								confirmResponse := harness.GenerateToolConfirmResponse(
+									session,
+									toolCall.Function.Name,
+									targetTool,
+									args,
+									acc.usage,
+								)
+								// set tool result to indicate confirmation is needed
+								toolResult = harness.GetConfirmDestructiveToolResult(toolCall.Function.Name)
+								// append tool response to keep context complete
+								toolResultMessage := ReActMessage{
+									Role:       RoleTool,
+									Content:    toolResult,
+									ToolCallID: toolCall.ID,
+								}
+								*messages = append(*messages, toolResultMessage)
+								Emit(session, CommonEvent[ReActMessage]{
+									SourceType: SessionHistory,
+									Data:       toolResultMessage,
+								})
+
+								session.SetPendingMCPToolCall(serverName, toolName, &PendingMCPToolCall{
+									Args:       args,
+									Tool:       targetTool,
+									ToolCallID: toolCall.ID,
+								})
+
+								question.GetResponseChan() <- confirmResponse
+								// return to terminate reAct loop
+								return confirmResponse, diagnostics
 							}
 						}
 

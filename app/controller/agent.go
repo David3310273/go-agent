@@ -12,22 +12,38 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// auto-add: ResponseType constants for different interaction types
+const (
+	ResponseTypeNormal      = "normal"       // normal response with answer
+	ResponseTypeToolConfirm = "tool_confirm" // destructive tool needs user confirmation
+	// future types can be added here, e.g.:
+	// ResponseTypePermission = "permission"    // permission request
+	// ResponseTypeInput      = "input"         // request for user input
+)
+
 // AskRequest represents the request body for /v1/ask endpoint
 type AskRequest struct {
-	SessionID *string `json:"sessionID,omitempty"` // optional
-	Question  string  `json:"question" binding:"required"`
-	Model     *string `json:"model,omitempty"`
+	SessionID *string           `json:"sessionID,omitempty"` // optional
+	Question  string            `json:"question" binding:"required"`
+	Type      core.QuestionType `json:"type" binding:"required"`
+	Model     *string           `json:"model,omitempty"`
 	// option from request
 	Stream         bool `json:"stream,omitempty"`
 	EnableThinking bool `json:"enableThinking,omitempty"`
+	// option for tool_confirm type
+	ToolName   string `json:"toolName,omitempty"`
+	ServerName string `json:"serverName,omitempty"`
 }
 
 // AskResponse represents the response body for /v1/ask endpoint
 type AskResponse struct {
-	SessionID string     `json:"sessionID"`
-	Answer    string     `json:"answer"`
-	Thought   string     `json:"thought"`
-	Usage     core.Usage `json:"usage"`
+	Type       string     `json:"type"` // response type: normal, tool_confirm, etc.
+	SessionID  string     `json:"sessionID"`
+	Answer     string     `json:"answer"`
+	Thought    string     `json:"thought"`
+	Usage      core.Usage `json:"usage"`
+	ToolName   string     `json:"toolName,omitempty"`   // only for tool_confirm type
+	ServerName string     `json:"serverName,omitempty"` // only for tool_confirm type
 }
 
 // HandleAsk handles POST /v1/ask requests
@@ -40,9 +56,24 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 		return
 	}
 
+	// auto-add: validate tool_confirm question must be "Yes" or "No"
+	if req.Type == core.QuestionTypeToolConfirm {
+		if req.Question != "Yes" && req.Question != "No" {
+			diag := core.Diagnostic{
+				Code:    core.MessageCodeSystemError,
+				Level:   core.SeverityError,
+				Message: "tool_confirm question must be 'Yes' or 'No'",
+				Data:    req.Question,
+			}
+			c.JSON(http.StatusBadRequest, diag)
+			return
+		}
+	}
+
 	// build params
 	params := &services.AskParams{
 		Question:       req.Question,
+		Type:           req.Type,
 		Stream:         req.Stream,
 		EnableThinking: req.EnableThinking,
 	}
@@ -53,8 +84,17 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 		params.Model = *req.Model
 	}
 
+	var finalParams any = params
+	if params.Type == core.QuestionTypeToolConfirm {
+		finalParams = &services.ToolConfirmAskParams{
+			AskParams:  *params,
+			ToolName:   req.ToolName,
+			ServerName: req.ServerName,
+		}
+	}
+
 	// call service
-	result := services.Ask(agent, appConfig, params)
+	result := services.Ask(agent, appConfig, finalParams)
 
 	responseWaitingTimeout := time.Duration(appConfig.MaxWaitingSeconds) * time.Second
 	if req.Stream {
@@ -99,11 +139,24 @@ func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *ser
 					log.Printf("[handleAsk][stream][chunk] %s", resp.Choices[0].Message.Content)
 					c.SSEvent("message", resp.Choices[0].Message.Content)
 				}
-			case simple.SimpleSessionResponse:
+			case simple.SimpleNormalResponse:
 				log.Printf("[handleAsk][stream] finished, sessionID=%s, usage=%+v", resp.SessionID, resp.Response.Usage)
 				c.SSEvent("done", gin.H{
+					"type":      ResponseTypeNormal,
 					"sessionID": resp.SessionID,
 					"usage":     resp.Response.Usage,
+				})
+				return false
+			case simple.SimpleToolConfirmResponse:
+				// auto-add: send tool confirmation event for destructive tool
+				log.Printf("[handleAsk][stream] tool confirm needed, toolName=%s, sessionID=%s", resp.ToolName, resp.SessionID)
+				c.SSEvent("tool_confirm", gin.H{
+					"type":       ResponseTypeToolConfirm,
+					"toolName":   resp.ToolName,
+					"serverName": resp.ServerName,
+					"message":    resp.Response.Response,
+					"sessionID":  resp.SessionID,
+					"usage":      resp.Response.Usage,
 				})
 				return false
 			}
@@ -138,19 +191,39 @@ func handleNonStreamResponse(c *gin.Context, result *services.AskResult, timeout
 				})
 				return
 			}
-			// auto-add: all answers are SimpleSessionResponse, directly assert
-			sessionResponse := answer.(simple.SimpleSessionResponse)
-			agentResponse := sessionResponse.Response
-			response := AskResponse{
-				Answer:    agentResponse.Response,
-				SessionID: sessionResponse.SessionID,
-				Thought:   agentResponse.Thought,
-				Usage:     agentResponse.Usage,
+			// auto-add: handle different response types
+			switch resp := answer.(type) {
+			case simple.SimpleNormalResponse:
+				agentResponse := resp.Response
+				response := AskResponse{
+					Type:      ResponseTypeNormal,
+					SessionID: resp.SessionID,
+					Answer:    agentResponse.Response,
+					Thought:   agentResponse.Thought,
+					Usage:     agentResponse.Usage,
+				}
+				if len(agentResponse.Choices) > 0 && agentResponse.Choices[0].Message != nil {
+					response.Answer = agentResponse.Choices[0].Message.Content
+				}
+				c.JSON(http.StatusOK, response)
+			case simple.SimpleToolConfirmResponse:
+				// auto-add: return confirmation response for destructive tool
+				response := AskResponse{
+					Type:       ResponseTypeToolConfirm,
+					SessionID:  resp.SessionID,
+					Answer:     resp.Response.Response,
+					Usage:      resp.Response.Usage,
+					ToolName:   resp.ToolName,
+					ServerName: resp.ServerName,
+				}
+				c.JSON(http.StatusOK, response)
+			default:
+				// fallback for other response types
+				c.JSON(http.StatusOK, AskResponse{
+					Type:   ResponseTypeNormal,
+					Answer: answer.ToString(),
+				})
 			}
-			if len(agentResponse.Choices) > 0 && agentResponse.Choices[0].Message != nil {
-				response.Answer = agentResponse.Choices[0].Message.Content
-			}
-			c.JSON(http.StatusOK, response)
 			return
 		case <-time.After(timeout):
 			c.JSON(http.StatusRequestTimeout, gin.H{

@@ -33,9 +33,23 @@ type MCPError struct {
 
 // auto-add: MCPToolWrapperInfo represents a tool from MCP server
 type MCPListToolResult struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	InputSchema map[string]any `json:"inputSchema,omitempty"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	InputSchema map[string]any      `json:"inputSchema,omitempty"`
+	Annotations *MCPToolAnnotations `json:"annotations,omitempty"`
+}
+
+// auto-add: MCPToolAnnotations represents tool annotations from MCP server
+type MCPToolAnnotations struct {
+	DestructiveHint *bool `json:"destructiveHint,omitempty"`
+}
+
+// auto-add: IsDestructive returns the destructive hint from annotations
+func (t MCPListToolResult) IsDestructive() bool {
+	if t.Annotations != nil && t.Annotations.DestructiveHint != nil {
+		return *t.Annotations.DestructiveHint
+	}
+	return false
 }
 
 // auto-add: MCPListDocInfo represents a prompt or resource from MCP server

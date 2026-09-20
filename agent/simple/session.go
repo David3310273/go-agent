@@ -28,6 +28,10 @@ type SimpleSessionContext struct {
 	SimpleAgentContext
 
 	Conversation core.Conversation
+
+	// loaded tool management
+	LoadedToolsMap map[string]core.Tool
+	LoadedTools    []core.Tool
 }
 
 // SimpleAgentSession represents a single agent session
@@ -72,6 +76,10 @@ type SimpleAgentSession struct {
 	eventChans map[string]chan core.Event[any]
 	// session context
 	Context SimpleSessionContext
+	// auto-add: track confirmed destructive tools, value is user's answer (Yes/No)
+	confirmedTools map[string]string
+	// auto-add: store pending MCP tool calls waiting for user confirmation, key: "serverName:toolName"
+	pendingMCPCalls map[string]*core.PendingMCPToolCall
 }
 
 // NewAgentSession creates a new session from an AgentCore
@@ -102,6 +110,9 @@ func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, ena
 		eventChans:       make(map[string]chan core.Event[any]),
 		streaming:        streaming,
 		enableThinking:   true,
+		// auto-add: initialize confirmation tracking maps
+		confirmedTools:  make(map[string]string),
+		pendingMCPCalls: make(map[string]*core.PendingMCPToolCall),
 	}
 
 	// use provided sessionID or generate new one
@@ -132,6 +143,9 @@ func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, ena
 	if memory != nil {
 		session.Context.Conversation = *memory
 	}
+
+	session.Context.LoadedTools = []core.Tool{}
+	session.Context.LoadedToolsMap = make(map[string]core.Tool)
 
 	// use sessionConfig (with RootPath set) instead of original config
 	session.SetLogger(sessionConfig)
@@ -212,6 +226,43 @@ func (s *SimpleAgentSession) GetQuestionChan() chan core.Question {
 	return s.Question
 }
 
+// auto-add: IsToolConfirmed checks if user has answered for a destructive tool (Yes or No)
+func (s *SimpleAgentSession) IsToolConfirmed(serverName, toolName string) bool {
+	key := serverName + ":" + toolName
+	_, exists := s.confirmedTools[key]
+	return exists
+}
+
+// auto-add: SetToolConfirmed records user's answer for a destructive tool
+func (s *SimpleAgentSession) SetToolConfirmed(serverName, toolName string, answer string) {
+	key := serverName + ":" + toolName
+	s.confirmedTools[key] = answer
+}
+
+func (s *SimpleAgentSession) ClearToolConfirmed(serverName, toolName string) {
+	// TODO: rethink the key format here. should make sure it's unique.
+	key := serverName + ":" + toolName
+	delete(s.confirmedTools, key)
+}
+
+// auto-add: GetPendingMCPToolCall retrieves pending MCP tool call info
+func (s *SimpleAgentSession) GetPendingMCPToolCall(serverName, toolName string) *core.PendingMCPToolCall {
+	key := serverName + ":" + toolName
+	return s.pendingMCPCalls[key]
+}
+
+// auto-add: SetPendingMCPToolCall saves pending MCP tool call info
+func (s *SimpleAgentSession) SetPendingMCPToolCall(serverName, toolName string, pending *core.PendingMCPToolCall) {
+	key := serverName + ":" + toolName
+	s.pendingMCPCalls[key] = pending
+}
+
+// auto-add: DeletePendingMCPToolCall deletes pending MCP tool call info after tool execution
+func (s *SimpleAgentSession) DeletePendingMCPToolCall(serverName, toolName string) {
+	key := serverName + ":" + toolName
+	delete(s.pendingMCPCalls, key)
+}
+
 func (s *SimpleAgentSession) GetModelProviders() []core.Provider {
 	return s.Providers
 }
@@ -231,6 +282,18 @@ func (s *SimpleAgentSession) SetStatus(status core.SessionStatus) *core.Diagnost
 // return pointer so callers can modify the conversation in place
 func (s *SimpleAgentSession) GetConversation() *core.Conversation {
 	return &s.Context.Conversation
+}
+
+// return pointer so callers can modify the conversation in place
+func (s *SimpleAgentSession) GetLoadTools() *[]core.Tool {
+	return &s.Context.LoadedTools
+}
+
+func (s *SimpleAgentSession) SetLoadTools(tool core.Tool) {
+	if _, ok := s.Context.LoadedToolsMap[tool.GetName()]; !ok {
+		s.Context.LoadedToolsMap[tool.GetName()] = tool
+		s.Context.LoadedTools = append(s.Context.LoadedTools, tool)
+	}
 }
 
 func (s *SimpleAgentSession) SaveMemory(memory core.ReActMessage) *core.Diagnostic {
@@ -290,13 +353,13 @@ func (s *SimpleAgentSession) SelectLocalKB(query core.Question) string {
 	return result.String()
 }
 
-// prepare for app layer
-type SimpleSessionResponse struct {
+// auto-add: SimpleNormalResponse is the standard response type for normal questions
+type SimpleNormalResponse struct {
 	Response  core.AgentResponse `json:"response"`
 	SessionID string             `json:"sessionID"`
 }
 
-func (s SimpleSessionResponse) ToString() string {
+func (s SimpleNormalResponse) ToString() string {
 	response, err := json.Marshal(s)
 	if err != nil {
 		return ""
@@ -305,8 +368,30 @@ func (s SimpleSessionResponse) ToString() string {
 }
 
 // GetSessionID returns the session ID for SessionAnswer interface
-func (s SimpleSessionResponse) GetSessionID() string {
+func (s SimpleNormalResponse) GetSessionID() string {
 	return s.SessionID
+}
+
+// auto-add: SimpleToolConfirmResponse is sent to the user when a destructive tool needs confirmation
+type SimpleToolConfirmResponse struct {
+	Response   core.AgentResponse `json:"response"`   // confirmation message from harness
+	ToolName   string             `json:"toolName"`   // outer tool name (e.g., "UseMCPServerTools")
+	ServerName string             `json:"serverName"` // MCP server name
+	MCPTool    string             `json:"mcpTool"`    // inner MCP tool name
+	SessionID  string             `json:"sessionID"`  // session ID
+}
+
+func (r SimpleToolConfirmResponse) ToString() string {
+	response, err := json.Marshal(r)
+	if err != nil {
+		return ""
+	}
+	return string(response)
+}
+
+// GetSessionID returns the session ID for SessionAnswer interface
+func (r SimpleToolConfirmResponse) GetSessionID() string {
+	return r.SessionID
 }
 
 func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
@@ -351,7 +436,7 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	case result := <-resultChan:
 		// default answer if failed
 		// auto-add: use harness default answer for fallback
-		finalAnswer := SimpleSessionResponse{
+		finalAnswer := SimpleNormalResponse{
 			SessionID: s.GetID(),
 			Response: core.AgentResponse{
 				Response: SimpleHarnessInstance.GetDefaultAnswer().ToString(),

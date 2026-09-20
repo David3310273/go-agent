@@ -162,3 +162,17 @@ func (mr *MockToolMockRecorder) GetContext() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContext", reflect.TypeOf((*MockTool)(nil).GetContext))
 }
+
+// auto-add: IsDestructive mocks base method.
+func (m *MockTool) IsDestructive() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsDestructive")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// auto-add: IsDestructive indicates an expected call of IsDestructive.
+func (mr *MockToolMockRecorder) IsDestructive() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsDestructive", reflect.TypeOf((*MockTool)(nil).IsDestructive))
+}

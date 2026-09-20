@@ -27,12 +27,18 @@ func RegisterToolsToServer(server *mcp.Server, config *MCPConfig) {
 		schema := tool.GetSchema()
 		mcpToolName := schema.Function.Name
 		toolDesc := schema.Function.Description
+		isDestructive := tool.IsDestructive()
+		// auto-add: create a copy to avoid pointer issues
+		destructiveHint := isDestructive
 
 		// create MCP tool definition
 		mcpTool := &mcp.Tool{
 			Name:        mcpToolName,
 			Description: toolDesc,
 			InputSchema: schema.Function.Parameters,
+			Annotations: &mcp.ToolAnnotations{
+				DestructiveHint: &destructiveHint,
+			},
 		}
 
 		// register tool with adapter

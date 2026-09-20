@@ -12,6 +12,7 @@ const (
 type Session interface {
 	WorkFlow
 	Observable
+	ToolConfirmManager
 	EventManager
 
 	GetID() string
@@ -39,6 +40,32 @@ type Session interface {
 	SaveMemory(ReActMessage) *Diagnostic
 	// return pointer so ProcessQuestion can modify session conversation in place
 	GetConversation() *Conversation
+	// TODO: get loaded tools in session
+	GetLoadTools() *[]Tool
+	// set load tools
+	SetLoadTools(tool Tool)
+}
+
+type ToolConfirmManager interface {
+	// auto-add: check if a destructive tool has been confirmed by user (answered Yes or No)
+	IsToolConfirmed(serverName string, toolName string) bool
+	// auto-add: record user's answer for a destructive tool (Yes or No)
+	SetToolConfirmed(serverName string, toolName string, answer string)
+	// clear tool confirmed
+	ClearToolConfirmed(serverName string, toolName string)
+	// auto-add: get pending MCP tool call info for confirmation flow
+	GetPendingMCPToolCall(serverName, toolName string) *PendingMCPToolCall
+	// auto-add: save pending MCP tool call info
+	SetPendingMCPToolCall(serverName, toolName string, pending *PendingMCPToolCall)
+	// auto-add: delete pending MCP tool call info after tool execution
+	DeletePendingMCPToolCall(serverName, toolName string)
+}
+
+// auto-add: PendingMCPToolCall stores info about a destructive MCP tool waiting for user confirmation
+type PendingMCPToolCall struct {
+	Args       map[string]any // inner tool args
+	Tool       Tool           // inner tool
+	ToolCallID string
 }
 
 type SessionAnswer interface {
