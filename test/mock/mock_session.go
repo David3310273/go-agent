@@ -68,6 +68,18 @@ func (mr *MockSessionMockRecorder) BeforeStop(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockSession)(nil).BeforeStop), arg0)
 }
 
+// ClearToolConfirmed mocks base method.
+func (m *MockSession) ClearToolConfirmed(serverName, toolName string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ClearToolConfirmed", serverName, toolName)
+}
+
+// ClearToolConfirmed indicates an expected call of ClearToolConfirmed.
+func (mr *MockSessionMockRecorder) ClearToolConfirmed(serverName, toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearToolConfirmed", reflect.TypeOf((*MockSession)(nil).ClearToolConfirmed), serverName, toolName)
+}
+
 // CloseBenchmarkListeningChannels mocks base method.
 func (m *MockSession) CloseBenchmarkListeningChannels() {
 	m.ctrl.T.Helper()
@@ -78,6 +90,18 @@ func (m *MockSession) CloseBenchmarkListeningChannels() {
 func (mr *MockSessionMockRecorder) CloseBenchmarkListeningChannels() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseBenchmarkListeningChannels", reflect.TypeOf((*MockSession)(nil).CloseBenchmarkListeningChannels))
+}
+
+// DeletePendingMCPToolCall mocks base method.
+func (m *MockSession) DeletePendingMCPToolCall(serverName, toolName string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "DeletePendingMCPToolCall", serverName, toolName)
+}
+
+// DeletePendingMCPToolCall indicates an expected call of DeletePendingMCPToolCall.
+func (mr *MockSessionMockRecorder) DeletePendingMCPToolCall(serverName, toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePendingMCPToolCall", reflect.TypeOf((*MockSession)(nil).DeletePendingMCPToolCall), serverName, toolName)
 }
 
 // GetBenchmarkListeningChannels mocks base method.
@@ -164,6 +188,20 @@ func (mr *MockSessionMockRecorder) GetID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetID", reflect.TypeOf((*MockSession)(nil).GetID))
 }
 
+// GetLoadTools mocks base method.
+func (m *MockSession) GetLoadTools() *[]core.Tool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLoadTools")
+	ret0, _ := ret[0].(*[]core.Tool)
+	return ret0
+}
+
+// GetLoadTools indicates an expected call of GetLoadTools.
+func (mr *MockSessionMockRecorder) GetLoadTools() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLoadTools", reflect.TypeOf((*MockSession)(nil).GetLoadTools))
+}
+
 // GetModelProviders mocks base method.
 func (m *MockSession) GetModelProviders() []core.Provider {
 	m.ctrl.T.Helper()
@@ -176,6 +214,20 @@ func (m *MockSession) GetModelProviders() []core.Provider {
 func (mr *MockSessionMockRecorder) GetModelProviders() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetModelProviders", reflect.TypeOf((*MockSession)(nil).GetModelProviders))
+}
+
+// GetPendingMCPToolCall mocks base method.
+func (m *MockSession) GetPendingMCPToolCall(serverName, toolName string) *core.PendingMCPToolCall {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPendingMCPToolCall", serverName, toolName)
+	ret0, _ := ret[0].(*core.PendingMCPToolCall)
+	return ret0
+}
+
+// GetPendingMCPToolCall indicates an expected call of GetPendingMCPToolCall.
+func (mr *MockSessionMockRecorder) GetPendingMCPToolCall(serverName, toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPendingMCPToolCall", reflect.TypeOf((*MockSession)(nil).GetPendingMCPToolCall), serverName, toolName)
 }
 
 // GetQuestionChan mocks base method.
@@ -204,6 +256,20 @@ func (m *MockSession) GetStatus() core.SessionStatus {
 func (mr *MockSessionMockRecorder) GetStatus() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatus", reflect.TypeOf((*MockSession)(nil).GetStatus))
+}
+
+// IsToolConfirmed mocks base method.
+func (m *MockSession) IsToolConfirmed(serverName, toolName string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsToolConfirmed", serverName, toolName)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsToolConfirmed indicates an expected call of IsToolConfirmed.
+func (mr *MockSessionMockRecorder) IsToolConfirmed(serverName, toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsToolConfirmed", reflect.TypeOf((*MockSession)(nil).IsToolConfirmed), serverName, toolName)
 }
 
 // NewSubSession mocks base method.
@@ -284,18 +350,16 @@ func (mr *MockSessionMockRecorder) SelectLocalKB(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelectLocalKB", reflect.TypeOf((*MockSession)(nil).SelectLocalKB), arg0)
 }
 
-// SelectTools mocks base method.
-func (m *MockSession) SelectTools(arg0 core.Question, arg1 core.ReActMessage) []core.Tool {
+// SetLoadTools mocks base method.
+func (m *MockSession) SetLoadTools(tool core.Tool) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SelectTools", arg0, arg1)
-	ret0, _ := ret[0].([]core.Tool)
-	return ret0
+	m.ctrl.Call(m, "SetLoadTools", tool)
 }
 
-// SelectTools indicates an expected call of SelectTools.
-func (mr *MockSessionMockRecorder) SelectTools(arg0, arg1 any) *gomock.Call {
+// SetLoadTools indicates an expected call of SetLoadTools.
+func (mr *MockSessionMockRecorder) SetLoadTools(tool any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelectTools", reflect.TypeOf((*MockSession)(nil).SelectTools), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLoadTools", reflect.TypeOf((*MockSession)(nil).SetLoadTools), tool)
 }
 
 // SetLogger mocks base method.
@@ -312,6 +376,18 @@ func (mr *MockSessionMockRecorder) SetLogger(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLogger", reflect.TypeOf((*MockSession)(nil).SetLogger), arg0)
 }
 
+// SetPendingMCPToolCall mocks base method.
+func (m *MockSession) SetPendingMCPToolCall(serverName, toolName string, pending *core.PendingMCPToolCall) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetPendingMCPToolCall", serverName, toolName, pending)
+}
+
+// SetPendingMCPToolCall indicates an expected call of SetPendingMCPToolCall.
+func (mr *MockSessionMockRecorder) SetPendingMCPToolCall(serverName, toolName, pending any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPendingMCPToolCall", reflect.TypeOf((*MockSession)(nil).SetPendingMCPToolCall), serverName, toolName, pending)
+}
+
 // SetStatus mocks base method.
 func (m *MockSession) SetStatus(status core.SessionStatus) *core.Diagnostic {
 	m.ctrl.T.Helper()
@@ -324,6 +400,18 @@ func (m *MockSession) SetStatus(status core.SessionStatus) *core.Diagnostic {
 func (mr *MockSessionMockRecorder) SetStatus(status any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStatus", reflect.TypeOf((*MockSession)(nil).SetStatus), status)
+}
+
+// SetToolConfirmed mocks base method.
+func (m *MockSession) SetToolConfirmed(serverName, toolName, answer string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetToolConfirmed", serverName, toolName, answer)
+}
+
+// SetToolConfirmed indicates an expected call of SetToolConfirmed.
+func (mr *MockSessionMockRecorder) SetToolConfirmed(serverName, toolName, answer any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetToolConfirmed", reflect.TypeOf((*MockSession)(nil).SetToolConfirmed), serverName, toolName, answer)
 }
 
 // Start mocks base method.
@@ -352,6 +440,106 @@ func (m *MockSession) Stop(arg0 core.AgentCoreConfig) []core.Diagnostic {
 func (mr *MockSessionMockRecorder) Stop(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSession)(nil).Stop), arg0)
+}
+
+// MockToolConfirmManager is a mock of ToolConfirmManager interface.
+type MockToolConfirmManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockToolConfirmManagerMockRecorder
+	isgomock struct{}
+}
+
+// MockToolConfirmManagerMockRecorder is the mock recorder for MockToolConfirmManager.
+type MockToolConfirmManagerMockRecorder struct {
+	mock *MockToolConfirmManager
+}
+
+// NewMockToolConfirmManager creates a new mock instance.
+func NewMockToolConfirmManager(ctrl *gomock.Controller) *MockToolConfirmManager {
+	mock := &MockToolConfirmManager{ctrl: ctrl}
+	mock.recorder = &MockToolConfirmManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockToolConfirmManager) EXPECT() *MockToolConfirmManagerMockRecorder {
+	return m.recorder
+}
+
+// ClearToolConfirmed mocks base method.
+func (m *MockToolConfirmManager) ClearToolConfirmed(serverName, toolName string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ClearToolConfirmed", serverName, toolName)
+}
+
+// ClearToolConfirmed indicates an expected call of ClearToolConfirmed.
+func (mr *MockToolConfirmManagerMockRecorder) ClearToolConfirmed(serverName, toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearToolConfirmed", reflect.TypeOf((*MockToolConfirmManager)(nil).ClearToolConfirmed), serverName, toolName)
+}
+
+// DeletePendingMCPToolCall mocks base method.
+func (m *MockToolConfirmManager) DeletePendingMCPToolCall(serverName, toolName string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "DeletePendingMCPToolCall", serverName, toolName)
+}
+
+// DeletePendingMCPToolCall indicates an expected call of DeletePendingMCPToolCall.
+func (mr *MockToolConfirmManagerMockRecorder) DeletePendingMCPToolCall(serverName, toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePendingMCPToolCall", reflect.TypeOf((*MockToolConfirmManager)(nil).DeletePendingMCPToolCall), serverName, toolName)
+}
+
+// GetPendingMCPToolCall mocks base method.
+func (m *MockToolConfirmManager) GetPendingMCPToolCall(serverName, toolName string) *core.PendingMCPToolCall {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPendingMCPToolCall", serverName, toolName)
+	ret0, _ := ret[0].(*core.PendingMCPToolCall)
+	return ret0
+}
+
+// GetPendingMCPToolCall indicates an expected call of GetPendingMCPToolCall.
+func (mr *MockToolConfirmManagerMockRecorder) GetPendingMCPToolCall(serverName, toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPendingMCPToolCall", reflect.TypeOf((*MockToolConfirmManager)(nil).GetPendingMCPToolCall), serverName, toolName)
+}
+
+// IsToolConfirmed mocks base method.
+func (m *MockToolConfirmManager) IsToolConfirmed(serverName, toolName string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsToolConfirmed", serverName, toolName)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsToolConfirmed indicates an expected call of IsToolConfirmed.
+func (mr *MockToolConfirmManagerMockRecorder) IsToolConfirmed(serverName, toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsToolConfirmed", reflect.TypeOf((*MockToolConfirmManager)(nil).IsToolConfirmed), serverName, toolName)
+}
+
+// SetPendingMCPToolCall mocks base method.
+func (m *MockToolConfirmManager) SetPendingMCPToolCall(serverName, toolName string, pending *core.PendingMCPToolCall) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetPendingMCPToolCall", serverName, toolName, pending)
+}
+
+// SetPendingMCPToolCall indicates an expected call of SetPendingMCPToolCall.
+func (mr *MockToolConfirmManagerMockRecorder) SetPendingMCPToolCall(serverName, toolName, pending any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPendingMCPToolCall", reflect.TypeOf((*MockToolConfirmManager)(nil).SetPendingMCPToolCall), serverName, toolName, pending)
+}
+
+// SetToolConfirmed mocks base method.
+func (m *MockToolConfirmManager) SetToolConfirmed(serverName, toolName, answer string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetToolConfirmed", serverName, toolName, answer)
+}
+
+// SetToolConfirmed indicates an expected call of SetToolConfirmed.
+func (mr *MockToolConfirmManagerMockRecorder) SetToolConfirmed(serverName, toolName, answer any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetToolConfirmed", reflect.TypeOf((*MockToolConfirmManager)(nil).SetToolConfirmed), serverName, toolName, answer)
 }
 
 // MockSessionAnswer is a mock of SessionAnswer interface.

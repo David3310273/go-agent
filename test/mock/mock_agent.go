@@ -69,6 +69,48 @@ func (mr *MockQuestionMockRecorder) GetHintChan() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHintChan", reflect.TypeOf((*MockQuestion)(nil).GetHintChan))
 }
 
+// auto-add: GetType mocks base method.
+func (m *MockQuestion) GetType() core.QuestionType {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetType")
+	ret0, _ := ret[0].(core.QuestionType)
+	return ret0
+}
+
+// auto-add: GetType indicates an expected call of GetType.
+func (mr *MockQuestionMockRecorder) GetType() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetType", reflect.TypeOf((*MockQuestion)(nil).GetType))
+}
+
+// auto-add: GetConfirmToolName mocks base method.
+func (m *MockQuestion) GetConfirmToolName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfirmToolName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// auto-add: GetConfirmToolName indicates an expected call of GetConfirmToolName.
+func (mr *MockQuestionMockRecorder) GetConfirmToolName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmToolName", reflect.TypeOf((*MockQuestion)(nil).GetConfirmToolName))
+}
+
+// auto-add: GetConfirmAnswer mocks base method.
+func (m *MockQuestion) GetConfirmAnswer() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfirmAnswer")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// auto-add: GetConfirmAnswer indicates an expected call of GetConfirmAnswer.
+func (mr *MockQuestionMockRecorder) GetConfirmAnswer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmAnswer", reflect.TypeOf((*MockQuestion)(nil).GetConfirmAnswer))
+}
+
 // GetID mocks base method.
 func (m *MockQuestion) GetID() string {
 	m.ctrl.T.Helper()

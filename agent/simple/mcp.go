@@ -13,10 +13,11 @@ import (
 
 // MCPToolWrapper represents a tool provided by MCP server
 type MCPToolWrapper struct {
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Schema      map[string]any `json:"params,omitempty"`
-	context     core.Context   // auto-add: agent session runtime context
+	Name          string         `json:"name"`
+	Description   string         `json:"description"`
+	Schema        map[string]any `json:"params,omitempty"`
+	isDestructive bool
+	context       core.Context // auto-add: agent session runtime context
 }
 
 // MCPRemoteUtil provides utilities for interacting with MCP server
@@ -41,6 +42,10 @@ func (m *MCPToolWrapper) GetSchema() core.ToolSchema {
 			Parameters:  m.Schema,
 		},
 	}
+}
+
+func (m *MCPToolWrapper) IsDestructive() bool {
+	return m.isDestructive
 }
 
 // GetName returns tool name
@@ -173,10 +178,11 @@ func (m *MCPRemoteUtil) BuildTools(context core.Context) map[string]core.Tool {
 	toolsMap := make(map[string]core.Tool)
 	for _, toolInfo := range toolsResult.Tools {
 		mcpTool := &MCPToolWrapper{
-			Name:        toolInfo.Name,
-			Description: toolInfo.Description,
-			Schema:      toolInfo.InputSchema,
-			context:     context,
+			Name:          toolInfo.Name,
+			Description:   toolInfo.Description,
+			Schema:        toolInfo.InputSchema,
+			isDestructive: toolInfo.IsDestructive(),
+			context:       context,
 		}
 		toolsMap[toolInfo.Name] = mcpTool
 	}

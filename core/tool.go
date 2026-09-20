@@ -36,6 +36,8 @@ type Tool interface {
 	GetRunner() func(args map[string]any) (string, *Diagnostic)
 	// get agent session runtime context
 	GetContext() Context
+	// is destructive
+	IsDestructive() bool
 }
 
 // CallTool validates and executes a tool with given args.

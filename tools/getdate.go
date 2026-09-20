@@ -38,6 +38,10 @@ func (f GetDateCall) GetName() string {
 	return f.GetSchema().Function.Name
 }
 
+func (f GetDateCall) IsDestructive() bool {
+	return false
+}
+
 // implement core.Tool interface, returns provider-agnostic ToolSchema
 func (f GetDateCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema

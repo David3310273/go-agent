@@ -73,6 +73,10 @@ func (f FileWriterCall) GetContext() core.Context {
 	return f.Context
 }
 
+func (f FileWriterCall) IsDestructive() bool {
+	return true
+}
+
 // Validate validates the tool configuration
 func (f FileWriterCall) Validate(args map[string]any) *core.Diagnostic {
 	pathArg, _ := args["path"].(string)

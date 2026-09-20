@@ -83,6 +83,10 @@ func (f SearchKnowledgebaseCall) Validate(args map[string]any) *core.Diagnostic 
 	return nil
 }
 
+func (f SearchKnowledgebaseCall) IsDestructive() bool {
+	return false
+}
+
 // SearchResult represents a single search result from knowledge base.
 // used for JSON serialization of search results.
 type SearchResult struct {

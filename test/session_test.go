@@ -109,32 +109,6 @@ func TestMockSession_GetConversation(t *testing.T) {
 	}
 }
 
-func TestMockSession_SelectTools(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSession := testmock.NewMockSession(ctrl)
-	mockQuestion := testmock.NewMockQuestion(ctrl)
-	mockSession.EXPECT().SelectTools(mockQuestion, gomock.Any()).Return(nil)
-
-	tools := mockSession.SelectTools(mockQuestion, core.ReActMessage{})
-	if tools != nil {
-		t.Errorf("expected nil tools, got %v", tools)
-	}
-}
-
-func TestMockSession_ProcessQuery(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSession := testmock.NewMockSession(ctrl)
-	mockQuestion := testmock.NewMockQuestion(ctrl)
-
-	mockSession.EXPECT().ProcessQuery(mockQuestion)
-
-	mockSession.ProcessQuery(mockQuestion)
-}
-
 func TestMockSession_SelectLocalKB(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -148,6 +122,18 @@ func TestMockSession_SelectLocalKB(t *testing.T) {
 	if result != "local_kb_content" {
 		t.Errorf("expected 'local_kb_content', got %s", result)
 	}
+}
+
+func TestMockSession_ProcessQuery(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockSession := testmock.NewMockSession(ctrl)
+	mockQuestion := testmock.NewMockQuestion(ctrl)
+
+	mockSession.EXPECT().ProcessQuery(mockQuestion)
+
+	mockSession.ProcessQuery(mockQuestion)
 }
 
 func TestMockSession_NewSubSession(t *testing.T) {

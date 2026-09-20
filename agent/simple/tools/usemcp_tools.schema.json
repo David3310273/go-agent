@@ -14,6 +14,10 @@
           "type": "string",
           "description": "The name of the tool to execute."
         },
+        "isDestructive":{
+          "type": "boolean",
+          "description": "Whether the tool is destructive or not. Get this info from destructiveHint returned by DiscoverMCPServer."
+        },
         "arguments": {
           "type": "object",
           "description": "The arguments to pass to the tool."
