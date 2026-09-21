@@ -2,10 +2,11 @@ package core
 
 import (
 	json "encoding/json"
+	"fmt"
 	"log"
 )
 
-// auto-add: QuestionType distinguishes between normal questions and tool confirmation questions
+// QuestionType distinguishes between normal questions and tool confirmation questions
 type QuestionType string
 
 const (
@@ -36,7 +37,7 @@ type Question interface {
 	GetResponseChan() chan Answer
 	// get hint channel for returning intermediate status (e.g. thinking...)
 	GetHintChan() chan Answer
-	// auto-add: get question type (normal or tool confirm)
+	// get question type (normal or tool confirm)
 	GetType() QuestionType
 }
 
@@ -123,7 +124,7 @@ const (
 	AgentStatusExpired // plan expired such as doesn't renew
 )
 
-// auto-add: InitContext initializes the agent context with configs
+// InitContext initializes the agent context with configs
 // loads history, skills, prompt, knowledge base, and tools
 func InitContext(agent AgentCore, agentConfigs AgentCoreConfig) []Diagnostic {
 	diagnostics := []Diagnostic{}
@@ -187,7 +188,7 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 		diagnostics = append(diagnostics, *err)
 	}
 
-	// auto-add: initialize context (history, skills, prompt, kb, tools, mcp clients)
+	// initialize context (history, skills, prompt, kb, tools, mcp clients)
 	contextDiagnostics := InitContext(agent, agentConfigs)
 	if len(contextDiagnostics) > 0 {
 		diagnostics = append(diagnostics, contextDiagnostics...)
@@ -238,6 +239,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	contextMessages := session.GetContext()
 	maxReActRounds := config.ReActMaxRounds
 	diagnostics := []Diagnostic{}
+	ctx := session.GetQueryCtx()
 
 	// generate prompt context and build initial messages
 	prompt := harness.GenerateFinalPrompt(contextMessages, int(config.PromptFileMaxSize))
@@ -253,16 +255,14 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		})
 	}
 
-	// auto-add: use harness to get default answer for fallback
-	defaultAnswer := AgentResponse{
-		Response: harness.GetDefaultAnswer().ToString(),
-	}
+	// use harness to get default answer for fallback
+	defaultAnswer := harness.GetDefaultAnswer()
 
 	// set max reAct rounds
 	// track current tools for dynamic loading based on skill
-	// auto-add: let harness get skill name from session
+	// let harness get skill name from session
 
-	// auto-add: harness constructs user message from question (handles both normal and confirm types)
+	// harness constructs user message from question (handles both normal and confirm types)
 	userMessage := harness.HandleUserQuestion(session, question)
 	// append user message to conversation
 	if userMessage == nil {
@@ -277,7 +277,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		Data:       *userMessage,
 	})
 
-	// auto-add: for ToolConfirm questions with UseMCPServerTools, execute the pending tool directly
+	// for ToolConfirm questions with UseMCPServerTools, execute the pending tool directly
 	if question.GetType() == QuestionTypeToolConfirm {
 		toolResultMessage := harness.HandleUserToolConfirm(session, question)
 		if toolResultMessage != nil {
@@ -288,6 +288,23 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 				Data:       *toolResultMessage,
 			})
 		}
+	}
+
+	// check if session has been cancelled before entering reAct loop
+	select {
+	case <-ctx.Done():
+		log.Printf("ProcessQuestion: session %s cancelled before reAct loop", session.GetID())
+		cancelMessage := ReActMessage{
+			Role:    RoleTool,
+			Content: "Operation has been canceled by user",
+		}
+		*messages = append(*messages, cancelMessage)
+		Emit(session, CommonEvent[ReActMessage]{
+			SourceType: SessionHistory,
+			Data:       cancelMessage,
+		})
+		return defaultAnswer, diagnostics
+	default:
 	}
 
 	log.Printf("messages after harness: %v", messages.ToString())
@@ -351,6 +368,23 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 
 				// 2. execute each tool and append tool response
 				for _, toolCall := range *operation.Message.ToolCalls {
+					// check if session has been cancelled
+					select {
+					case <-ctx.Done():
+						log.Printf("ProcessQuestion: tool call %s cancelled by user", toolCall.Function.Name)
+						cancelMessage := ReActMessage{
+							Role:       RoleTool,
+							Content:    fmt.Sprintf("Tool call %s cancelled by user", toolCall.Function.Name),
+							ToolCallID: toolCall.ID,
+						}
+						*messages = append(*messages, cancelMessage)
+						Emit(session, CommonEvent[ReActMessage]{
+							SourceType: SessionHistory,
+							Data:       cancelMessage,
+						})
+						return defaultAnswer, diagnostics
+					default:
+					}
 					// find the tool from loaded tools by name
 					var targetTool Tool
 					for _, tool := range *loadedTools {
@@ -474,7 +508,7 @@ func AskQuestion(session Session, messages []ReActMessage, tools []Tool, questio
 	diagnostics := []Diagnostic{}
 
 	// pick the model provider
-	providers := session.GetModelProviders()
+	providers := session.GetContext().GetModelProviders()
 	modelName := question.GetProviderName()
 
 	// debug log for providers
@@ -559,6 +593,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 	contextMessages := session.GetContext()
 	maxReActRounds := config.ReActMaxRounds
 	diagnostics := []Diagnostic{}
+	ctx := session.GetQueryCtx()
 
 	// generate prompt context and build initial messages
 	prompt := harness.GenerateFinalPrompt(contextMessages, int(config.PromptFileMaxSize))
@@ -574,12 +609,10 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		})
 	}
 
-	// auto-add: use harness to get default answer for fallback
-	defaultAnswer := AgentResponse{
-		Response: harness.GetDefaultAnswer().ToString(),
-	}
+	// use harness to get default answer for fallback
+	defaultAnswer := harness.GetDefaultAnswer()
 
-	// auto-add: harness constructs user message from question (handles both normal and confirm types)
+	// harness constructs user message from question (handles both normal and confirm types)
 	userMessage := harness.HandleUserQuestion(session, question)
 	// append user message to conversation
 	log.Printf("current message: %v", userMessage.ToString())
@@ -590,7 +623,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		Data:       *userMessage,
 	})
 
-	// auto-add: for ToolConfirm questions with UseMCPServerTools, execute the pending tool directly
+	// for ToolConfirm questions with UseMCPServerTools, execute the pending tool directly
 	if question.GetType() == QuestionTypeToolConfirm {
 		if question.GetQuery() == "Yes" {
 			toolResultMessage := harness.HandleUserToolConfirm(session, question)
@@ -600,6 +633,23 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 				Data:       *toolResultMessage,
 			})
 		}
+	}
+
+	// check if session has been cancelled before entering reAct loop
+	select {
+	case <-ctx.Done():
+		log.Printf("ProcessQuestionStream: session %s cancelled before reAct loop", session.GetID())
+		cancelMessage := ReActMessage{
+			Role:    RoleTool,
+			Content: "Operation has been canceled by user",
+		}
+		*messages = append(*messages, cancelMessage)
+		Emit(session, CommonEvent[ReActMessage]{
+			SourceType: SessionHistory,
+			Data:       cancelMessage,
+		})
+		return defaultAnswer, diagnostics
+	default:
 	}
 
 	// append user message to conversation
@@ -670,6 +720,23 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 			})
 
 			for _, toolCall := range acc.toolCalls {
+				// check if session has been cancelled
+				select {
+				case <-ctx.Done():
+					log.Printf("ProcessQuestion: tool call %s cancelled by user", toolCall.Function.Name)
+					cancelMessage := ReActMessage{
+						Role:       RoleTool,
+						Content:    fmt.Sprintf("Tool call %s cancelled by user", toolCall.Function.Name),
+						ToolCallID: toolCall.ID,
+					}
+					*messages = append(*messages, cancelMessage)
+					Emit(session, CommonEvent[ReActMessage]{
+						SourceType: SessionHistory,
+						Data:       cancelMessage,
+					})
+					return defaultAnswer, diagnostics
+				default:
+				}
 				var targetTool Tool
 				for _, tool := range *loadedTools {
 					if tool.GetName() == toolCall.Function.Name {
@@ -700,7 +767,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 							serverName = args["serverName"].(string)
 						}
 
-						// auto-add: check if tool is destructive and needs user confirmation (only for UseMCPServerTools)
+						// check if tool is destructive and needs user confirmation (only for UseMCPServerTools)
 						if isDestructive {
 							if !session.IsToolConfirmed(serverName, toolName) {
 								// delegate to harness to generate confirmation response
@@ -782,7 +849,7 @@ func AskQuestionStream(session Session, messages []ReActMessage, tools []Tool, q
 	diagnostics := []Diagnostic{}
 	acc := &streamAccumulator{}
 
-	providers := session.GetModelProviders()
+	providers := session.GetContext().GetModelProviders()
 	modelName := question.GetProviderName()
 
 	log.Printf("AskQuestionStream: providers count = %d, modelName = %s", len(providers), modelName)

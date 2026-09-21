@@ -28,7 +28,7 @@ func RegisterToolsToServer(server *mcp.Server, config *MCPConfig) {
 		mcpToolName := schema.Function.Name
 		toolDesc := schema.Function.Description
 		isDestructive := tool.IsDestructive()
-		// auto-add: create a copy to avoid pointer issues
+		// create a copy to avoid pointer issues
 		destructiveHint := isDestructive
 
 		// create MCP tool definition

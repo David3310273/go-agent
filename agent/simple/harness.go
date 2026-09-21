@@ -58,7 +58,7 @@ func (h SimpleHarness) GenerateFinalPrompt(context core.Context, maxSize int) st
 		}
 	}
 
-	// auto-add: append MCP server definitions to prompt
+	// append MCP server definitions to prompt
 	if mcpConfigs := context.GetMCPServerConfigs(); len(mcpConfigs) > 0 {
 		prompt.WriteString("\n\n# Available MCP Servers\n")
 		for _, config := range mcpConfigs {
@@ -139,7 +139,7 @@ func (h SimpleHarness) SetNextRoundMessages(question *core.Question, messages *c
 }
 
 // special message management
-func (h SimpleHarness) GetDefaultAnswer() core.Answer {
+func (h SimpleHarness) GetDefaultAnswer() core.AgentResponse {
 	return core.AgentResponse{
 		Response: "Sorry I don't understand your question, and I don't know how to do next, please ask me something else.",
 	}
@@ -153,7 +153,7 @@ func (h SimpleHarness) GetConfirmDestructiveToolResult(toolName string) string {
 	return fmt.Sprintf("The tool %s is destructive, should make sure if user want to use. Keep running if user responses yes.", toolName)
 }
 
-// auto-add: GenerateToolConfirmResponse generates the confirmation response for destructive tools
+// GenerateToolConfirmResponse generates the confirmation response for destructive tools
 // saves pending MCP tool call info to session and returns confirmation response with usage info
 func (h SimpleHarness) GenerateToolConfirmResponse(
 	session core.Session,
@@ -185,7 +185,7 @@ func (h SimpleHarness) GenerateToolConfirmResponse(
 	}
 }
 
-// auto-add: HandleUserQuestion handles question types and returns the user message to append
+// HandleUserQuestion handles question types and returns the user message to append
 // for normal questions: constructs message from query
 // for confirm questions: records answer and constructs simple confirmation message
 func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Question) *core.ReActMessage {
@@ -199,6 +199,11 @@ func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Qu
 		toolName := confirmQuestion.GetConfirmToolName()
 		serverName := confirmQuestion.GetConfirmMCPServerName()
 		confirmAnswer := confirmQuestion.GetConfirmAnswer()
+
+		if toolCall := session.GetPendingMCPToolCall(serverName, toolName); toolCall == nil {
+			alreadyConfirmedMessage := fmt.Sprintf("The tool %s from mcp server %s has been confirmed before, ignore this tool confirm operation and do nothing.", toolName, serverName)
+			return &core.ReActMessage{Role: core.RoleUser, Content: alreadyConfirmedMessage}
+		}
 
 		// record user's answer (Yes or No) - either way counts as confirmed
 		session.SetToolConfirmed(serverName, toolName, confirmAnswer)
@@ -217,34 +222,43 @@ func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core
 		serverName := confirmQuestion.GetConfirmMCPServerName()
 		toolName := confirmQuestion.GetConfirmToolName()
 
-		if question.GetQuery() == "No" {
-			session.DeletePendingMCPToolCall(serverName, toolName)
-			session.ClearToolConfirmed(serverName, toolName)
+		toolCall := session.GetPendingMCPToolCall(serverName, toolName)
+		if toolCall == nil {
+			log.Printf("HandleUserToolConfirm: no pending tool call found for %s:%s", serverName, toolName)
 			return nil
 		}
 
-		toolCall := session.GetPendingMCPToolCall(serverName, toolName)
-		if toolCall != nil {
-			tool := toolCall.Tool
-			args := toolCall.Args
-			result, diag := core.CallTool(tool, args)
-
-			// clear pending info in session
+		if question.GetQuery() == "No" {
+			// user declined - return cancellation message
 			session.DeletePendingMCPToolCall(serverName, toolName)
 			session.ClearToolConfirmed(serverName, toolName)
+			return &core.ReActMessage{
+				Role:       core.RoleTool,
+				Content:    "Tool call has been declined by user",
+				ToolCallID: toolCall.ToolCallID,
+			}
+		}
 
-			if diag != nil && diag.Level == core.SeverityError {
-				return &core.ReActMessage{
-					Role:       core.RoleTool,
-					Content:    diag.Message,
-					ToolCallID: toolCall.ToolCallID,
-				}
-			} else {
-				return &core.ReActMessage{
-					Role:       core.RoleTool,
-					Content:    result,
-					ToolCallID: toolCall.ToolCallID,
-				}
+		// user confirmed - execute the tool
+		tool := toolCall.Tool
+		args := toolCall.Args
+		result, diag := core.CallTool(tool, args)
+
+		// clear pending info in session
+		session.DeletePendingMCPToolCall(serverName, toolName)
+		session.ClearToolConfirmed(serverName, toolName)
+
+		if diag != nil && diag.Level == core.SeverityError {
+			return &core.ReActMessage{
+				Role:       core.RoleTool,
+				Content:    diag.Message,
+				ToolCallID: toolCall.ToolCallID,
+			}
+		} else {
+			return &core.ReActMessage{
+				Role:       core.RoleTool,
+				Content:    result,
+				ToolCallID: toolCall.ToolCallID,
 			}
 		}
 	}

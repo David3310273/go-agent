@@ -1,17 +1,19 @@
 package core
 
+import "context"
+
 type SessionStatus int
 
 const (
 	SessionStatusRunning SessionStatus = iota
-	SessionStatusIdle
-	SessionStatusSuspended
-	SessionStatusKilled
+	SessionStatusIdle                  // session is idle, waiting for user input
+	SessionStatusKilled                // deleted from agent session manager
 )
 
 type Session interface {
 	WorkFlow
 	Observable
+	LockManager
 	ToolConfirmManager
 	EventManager
 
@@ -26,42 +28,48 @@ type Session interface {
 	GetConfigs() SessionConfig
 	// get session context
 	GetContext() Context
-	// get available providers
-	GetModelProviders() []Provider
 	// session support tree structure
 	NewSubSession() Session
-	// get question chan
-	GetQuestionChan() chan Question
+	// runtime query related
+	GetQueryCtx() context.Context
+	// set query ctx for query cancellation
+	SetQueryContext(ctx context.Context, cancel context.CancelFunc) *Diagnostic
+	// cancel current query processing
+	CancelQuery()
 	// process query
 	ProcessQuery(query Question)
-	// dynamically select local kb given question
-	SelectLocalKB(Question) string
-	// save reAct message to a storage, not harness
-	SaveMemory(ReActMessage) *Diagnostic
+	// get question chan
+	GetQuestionChan() chan Question
+	// runtime message related
 	// return pointer so ProcessQuestion can modify session conversation in place
 	GetConversation() *Conversation
-	// TODO: get loaded tools in session
+	// save reAct message to a storage, not harness
+	SaveMemory(ReActMessage) *Diagnostic
+	// remove session history from memory
+	DeleteMemory()
+	// runtime tools related
+	// get loaded tools in session
 	GetLoadTools() *[]Tool
 	// set load tools
 	SetLoadTools(tool Tool)
 }
 
 type ToolConfirmManager interface {
-	// auto-add: check if a destructive tool has been confirmed by user (answered Yes or No)
+	// check if a destructive tool has been confirmed by user (answered Yes or No)
 	IsToolConfirmed(serverName string, toolName string) bool
-	// auto-add: record user's answer for a destructive tool (Yes or No)
+	// record user's answer for a destructive tool (Yes or No)
 	SetToolConfirmed(serverName string, toolName string, answer string)
 	// clear tool confirmed
 	ClearToolConfirmed(serverName string, toolName string)
-	// auto-add: get pending MCP tool call info for confirmation flow
+	// get pending MCP tool call info for confirmation flow
 	GetPendingMCPToolCall(serverName, toolName string) *PendingMCPToolCall
-	// auto-add: save pending MCP tool call info
+	// save pending MCP tool call info
 	SetPendingMCPToolCall(serverName, toolName string, pending *PendingMCPToolCall)
-	// auto-add: delete pending MCP tool call info after tool execution
+	// delete pending MCP tool call info after tool execution
 	DeletePendingMCPToolCall(serverName, toolName string)
 }
 
-// auto-add: PendingMCPToolCall stores info about a destructive MCP tool waiting for user confirmation
+// PendingMCPToolCall stores info about a destructive MCP tool waiting for user confirmation
 type PendingMCPToolCall struct {
 	Args       map[string]any // inner tool args
 	Tool       Tool           // inner tool

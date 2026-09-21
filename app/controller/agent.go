@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// auto-add: ResponseType constants for different interaction types
+// ResponseType constants for different interaction types
 const (
 	ResponseTypeNormal      = "normal"       // normal response with answer
 	ResponseTypeToolConfirm = "tool_confirm" // destructive tool needs user confirmation
@@ -46,6 +46,47 @@ type AskResponse struct {
 	ServerName string     `json:"serverName,omitempty"` // only for tool_confirm type
 }
 
+// CancelRequest represents the request body for /v1/agent/cancel endpoint
+type CancelRequest struct {
+	SessionID string `json:"sessionID" binding:"required"`
+}
+
+// CancelResponse represents the response body for /v1/agent/cancel endpoint
+type CancelResponse struct {
+	SessionID string `json:"sessionID"`
+	Message   string `json:"message"`
+}
+
+// HandleCancel handles POST /v1/agent/cancel requests
+func HandleCancel(c *gin.Context, agent *simple.SimpleAgent) {
+	var req CancelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request: " + err.Error(),
+		})
+		return
+	}
+
+	// get session
+	session, diag := agent.GetSessionOnCreate(req.SessionID, false, false, false)
+	if diag != nil || session == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    core.MessageCodeSessionStopError,
+			"message": "session not found: " + req.SessionID,
+			"level":   core.SeverityError,
+		})
+		return
+	}
+
+	// cancel current query processing (triggers queryCtx.Done())
+	session.CancelQuery()
+
+	c.JSON(http.StatusOK, CancelResponse{
+		SessionID: req.SessionID,
+		Message:   "Session query cancelled successfully",
+	})
+}
+
 // HandleAsk handles POST /v1/ask requests
 func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppConfig) {
 	var req AskRequest
@@ -56,7 +97,7 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 		return
 	}
 
-	// auto-add: validate tool_confirm question must be "Yes" or "No"
+	// validate tool_confirm question must be "Yes" or "No"
 	if req.Type == core.QuestionTypeToolConfirm {
 		if req.Question != "Yes" && req.Question != "No" {
 			diag := core.Diagnostic{
@@ -148,7 +189,7 @@ func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *ser
 				})
 				return false
 			case simple.SimpleToolConfirmResponse:
-				// auto-add: send tool confirmation event for destructive tool
+				// send tool confirmation event for destructive tool
 				log.Printf("[handleAsk][stream] tool confirm needed, toolName=%s, sessionID=%s", resp.ToolName, resp.SessionID)
 				c.SSEvent("tool_confirm", gin.H{
 					"type":       ResponseTypeToolConfirm,
@@ -191,7 +232,7 @@ func handleNonStreamResponse(c *gin.Context, result *services.AskResult, timeout
 				})
 				return
 			}
-			// auto-add: handle different response types
+			// handle different response types
 			switch resp := answer.(type) {
 			case simple.SimpleNormalResponse:
 				agentResponse := resp.Response
@@ -207,7 +248,7 @@ func handleNonStreamResponse(c *gin.Context, result *services.AskResult, timeout
 				}
 				c.JSON(http.StatusOK, response)
 			case simple.SimpleToolConfirmResponse:
-				// auto-add: return confirmation response for destructive tool
+				// return confirmation response for destructive tool
 				response := AskResponse{
 					Type:       ResponseTypeToolConfirm,
 					SessionID:  resp.SessionID,

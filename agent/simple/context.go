@@ -27,11 +27,11 @@ type SimpleAgentContext struct {
 	Tools []core.ToolConfig
 	// mcp server configs
 	MCPServers []core.MCPConfig
-	// auto-add: mcp server clients, server name -> client
+	// mcp server clients, server name -> client
 	MCPClients map[string]core.MCPAccessible
 }
 
-// auto-add: interface assertion
+// interface assertion
 var _ core.Context = (*SimpleAgentContext)(nil)
 
 // Context getter/setter methods
@@ -152,7 +152,7 @@ func (c *SimpleAgentContext) GetTools() []core.ToolConfig {
 	return c.Tools
 }
 
-// auto-add: SetMCPClient creates and stores MCP clients for the given configs
+// SetMCPClient creates and stores MCP clients for the given configs
 func (a *SimpleAgentContext) SetMCPClient(configs []core.MCPConfig) *core.Diagnostic {
 	a.MCPServers = configs
 
@@ -174,7 +174,7 @@ func (a *SimpleAgentContext) SetMCPClient(configs []core.MCPConfig) *core.Diagno
 	return nil
 }
 
-// auto-add: GetMCPClients returns all MCP clients
+// GetMCPClients returns all MCP clients
 func (c *SimpleAgentContext) GetMCPClients() map[string]core.MCPAccessible {
 	return c.MCPClients
 }

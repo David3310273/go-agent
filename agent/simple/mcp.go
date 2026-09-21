@@ -17,20 +17,20 @@ type MCPToolWrapper struct {
 	Description   string         `json:"description"`
 	Schema        map[string]any `json:"params,omitempty"`
 	isDestructive bool
-	context       core.Context // auto-add: agent session runtime context
+	context       core.Context // agent session runtime context
 }
 
 // MCPRemoteUtil provides utilities for interacting with MCP server
 type MCPRemoteUtil struct {
 	Config *core.MCPConfig
-	tools  map[string]core.Tool // auto-add: cached MCPToolWrapper instances, name -> tool
+	tools  map[string]core.Tool // cached MCPToolWrapper instances, name -> tool
 }
 
-// auto-add: interface assertions
+// interface assertions
 var _ core.Tool = (*MCPToolWrapper)(nil)
 var _ core.MCPAccessible = (*MCPRemoteUtil)(nil)
 
-// auto-add: MCPToolWrapper implements core.Tool interface
+// MCPToolWrapper implements core.Tool interface
 
 // GetSchema returns tool schema in provider-agnostic format
 func (m *MCPToolWrapper) GetSchema() core.ToolSchema {
@@ -59,7 +59,7 @@ func (m *MCPToolWrapper) GetDescription() string {
 }
 
 // Validate validates tool arguments
-// auto-add: validates serverName and toolName are present
+// validates serverName and toolName are present
 func (m *MCPToolWrapper) Validate(args map[string]any) *core.Diagnostic {
 	if serverName, ok := args["serverName"].(string); !ok || serverName == "" {
 		return &core.Diagnostic{
@@ -79,14 +79,14 @@ func (m *MCPToolWrapper) Validate(args map[string]any) *core.Diagnostic {
 }
 
 // GetRunner returns the runner function that executes the tool.
-// auto-add: parses serverName and toolName from args, gets client from context
+// parses serverName and toolName from args, gets client from context
 func (m *MCPToolWrapper) GetRunner() func(args map[string]any) (string, *core.Diagnostic) {
 	return func(args map[string]any) (string, *core.Diagnostic) {
-		// auto-add: parse serverName and toolName from args
+		// parse serverName and toolName from args
 		serverName, _ := args["serverName"].(string)
 		toolName, _ := args["toolName"].(string)
 
-		// auto-add: get MCP client from context by server name
+		// get MCP client from context by server name
 		mcpClients := m.context.GetMCPClients()
 		client, exists := mcpClients[serverName]
 		if !exists {
@@ -144,7 +144,7 @@ func (m *MCPToolWrapper) GetContext() core.Context {
 	return m.context
 }
 
-// auto-add: MCPRemoteUtil implements core.MCPAccessible interface
+// MCPRemoteUtil implements core.MCPAccessible interface
 
 // GetConfig returns MCP configuration
 func (m *MCPRemoteUtil) GetConfig() *core.MCPConfig {
@@ -157,16 +157,16 @@ func (m *MCPRemoteUtil) SetConfig(config *core.MCPConfig) {
 }
 
 // BuildTools fetches tools from MCP server and builds Tool instances.
-// auto-add: combines list and build, returns cached MCPToolWrapper instances
+// combines list and build, returns cached MCPToolWrapper instances
 func (m *MCPRemoteUtil) BuildTools(context core.Context) map[string]core.Tool {
-	// auto-add: use sendRequest to get SSE support
+	// use sendRequest to get SSE support
 	resp, diag := m.sendRequest(core.MCPMethodToolsList, nil)
 	if diag != nil {
 		log.Printf("%s failed: %v", core.MCPMethodToolsList, diag.Message)
 		return nil
 	}
 
-	// auto-add: directly parse Result into MCPListToolsResponse
+	// directly parse Result into MCPListToolsResponse
 	resultBytes, _ := json.Marshal(resp.Result)
 	var toolsResult core.MCPListToolsResponse
 	if err := json.Unmarshal(resultBytes, &toolsResult); err != nil {
@@ -194,8 +194,8 @@ func (m *MCPRemoteUtil) BuildTools(context core.Context) map[string]core.Tool {
 }
 
 // ListPrompts lists available prompts from MCP server.
-// auto-add: sends prompts/list request to MCP server
-// auto-add: now returns MCPServerResponse
+// sends prompts/list request to MCP server
+// now returns MCPServerResponse
 func (m *MCPRemoteUtil) ListPrompts() (core.MCPServerResponse, *core.Diagnostic) {
 	resp, diag := m.sendRequest(core.MCPMethodPromptsList, nil)
 	if diag != nil {
@@ -205,8 +205,8 @@ func (m *MCPRemoteUtil) ListPrompts() (core.MCPServerResponse, *core.Diagnostic)
 }
 
 // GetPrompt gets a specific prompt from MCP server.
-// auto-add: sends prompts/get request to MCP server
-// auto-add: parses response and extracts prompt content
+// sends prompts/get request to MCP server
+// parses response and extracts prompt content
 func (m *MCPRemoteUtil) GetPrompt(name string) (string, *core.Diagnostic) {
 	params := map[string]any{
 		"name": name,
@@ -216,7 +216,7 @@ func (m *MCPRemoteUtil) GetPrompt(name string) (string, *core.Diagnostic) {
 		return "", diag
 	}
 
-	// auto-add: parse the response to extract prompt content
+	// parse the response to extract prompt content
 	if resp.Result != nil {
 		resultJSON, err := json.Marshal(resp.Result)
 		if err != nil {
@@ -238,7 +238,7 @@ func (m *MCPRemoteUtil) GetPrompt(name string) (string, *core.Diagnostic) {
 			}
 		}
 
-		// auto-add: extract text from messages
+		// extract text from messages
 		var texts []string
 		for _, msg := range promptResult.Messages {
 			if msg.Content.Type == "text" && msg.Content.Text != "" {
@@ -253,8 +253,8 @@ func (m *MCPRemoteUtil) GetPrompt(name string) (string, *core.Diagnostic) {
 }
 
 // ListResources lists available resources from MCP server.
-// auto-add: sends resources/list request to MCP server
-// auto-add: now returns MCPServerResponse
+// sends resources/list request to MCP server
+// now returns MCPServerResponse
 func (m *MCPRemoteUtil) ListResources() (core.MCPServerResponse, *core.Diagnostic) {
 	resp, diag := m.sendRequest(core.MCPMethodResourcesList, nil)
 	if diag != nil {
@@ -264,8 +264,8 @@ func (m *MCPRemoteUtil) ListResources() (core.MCPServerResponse, *core.Diagnosti
 }
 
 // GetResource gets a specific resource from MCP server.
-// auto-add: sends resources/read request to MCP server
-// auto-add: parses response and extracts resource content
+// sends resources/read request to MCP server
+// parses response and extracts resource content
 func (m *MCPRemoteUtil) GetResource(name string) (string, *core.Diagnostic) {
 	params := map[string]any{
 		"uri": name,
@@ -275,7 +275,7 @@ func (m *MCPRemoteUtil) GetResource(name string) (string, *core.Diagnostic) {
 		return "", diag
 	}
 
-	// auto-add: parse the response to extract resource content
+	// parse the response to extract resource content
 	if resp.Result != nil {
 		resultJSON, err := json.Marshal(resp.Result)
 		if err != nil {
@@ -297,7 +297,7 @@ func (m *MCPRemoteUtil) GetResource(name string) (string, *core.Diagnostic) {
 			}
 		}
 
-		// auto-add: extract text from contents
+		// extract text from contents
 		var texts []string
 		for _, content := range resourceResult.Contents {
 			if content.Text != "" {
@@ -327,9 +327,9 @@ func (m *MCPRemoteUtil) createHeaders() map[string]string {
 	}
 }
 
-// auto-add: parseSSEResponse parses SSE format and extracts JSON data
+// parseSSEResponse parses SSE format and extracts JSON data
 // SSE format: "event: message\ndata: {...}\n\n"
-// auto-add: supports multiple data lines, concatenates them
+// supports multiple data lines, concatenates them
 func parseSSEResponse(body []byte) []byte {
 	lines := strings.Split(string(body), "\n")
 	var dataLines []string
@@ -342,13 +342,13 @@ func parseSSEResponse(body []byte) []byte {
 	if len(dataLines) == 0 {
 		return nil
 	}
-	// auto-add: if multiple data lines, concatenate them (for streaming responses)
+	// if multiple data lines, concatenate them (for streaming responses)
 	return []byte(strings.Join(dataLines, ""))
 }
 
 // sendRequest sends a request to MCP server with the given method and params.
-// auto-add: uses utils.SendRequest, generic helper for all MCP requests
-// auto-add: now returns MCPServerResponse to parse the result
+// uses utils.SendRequest, generic helper for all MCP requests
+// now returns MCPServerResponse to parse the result
 func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any) (*core.MCPServerResponse, *core.Diagnostic) {
 	// build JSON-RPC request body
 	body := map[string]any{
@@ -367,7 +367,7 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 		Method:  "POST",
 	}
 
-	// auto-add: log request body and headers before sending
+	// log request body and headers before sending
 	bodyJSON, _ := json.Marshal(body)
 	log.Printf("[MCP] %s request body: %s", jsonrpcMethod, string(bodyJSON))
 	log.Printf("[MCP] %s request headers: %v", jsonrpcMethod, request.Headers)
@@ -386,7 +386,7 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 	}
 	defer resp.Body.Close()
 
-	// auto-add: read response body for debugging
+	// read response body for debugging
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("%s: failed to read response body: %v", jsonrpcMethod, err)
@@ -401,12 +401,12 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 	log.Printf("[MCP] %s response content-type: %s", jsonrpcMethod, resp.Header.Get("Content-Type"))
 	log.Printf("[MCP] %s response body: %s", jsonrpcMethod, string(respBody))
 
-	// auto-add: parse response based on content-type
+	// parse response based on content-type
 	contentType := resp.Header.Get("Content-Type")
 	var jsonBody []byte
 
 	if strings.Contains(contentType, "text/event-stream") {
-		// auto-add: parse SSE format
+		// parse SSE format
 		jsonBody = parseSSEResponse(respBody)
 		if jsonBody == nil {
 			return nil, &core.Diagnostic{
@@ -417,11 +417,11 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 			}
 		}
 	} else {
-		// auto-add: direct JSON response
+		// direct JSON response
 		jsonBody = respBody
 	}
 
-	// auto-add: parse response body
+	// parse response body
 	var serverResp core.MCPServerResponse
 	if err := json.Unmarshal(jsonBody, &serverResp); err != nil {
 		log.Printf("%s: failed to decode response: %v", jsonrpcMethod, err)
@@ -438,15 +438,15 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 }
 
 // CallTool calls a tool on the MCP server with the given name and arguments.
-// auto-add: uses sendRequest to get SSE support
+// uses sendRequest to get SSE support
 func (m *MCPRemoteUtil) CallTool(name string, arguments map[string]any) (string, any, error) {
-	// auto-add: build params for tools/call
+	// build params for tools/call
 	params := map[string]any{
 		"name":      name,
 		"arguments": arguments,
 	}
 
-	// auto-add: use sendRequest
+	// use sendRequest
 	resp, diag := m.sendRequest(core.MCPMethodToolsCall, params)
 	if diag != nil {
 		return "", nil, fmt.Errorf("failed to call tool %s: %s", name, diag.Message)
@@ -457,7 +457,7 @@ func (m *MCPRemoteUtil) CallTool(name string, arguments map[string]any) (string,
 		return "", nil, fmt.Errorf("tool call failed: %s", resp.Error.Message)
 	}
 
-	// auto-add: parse result using MCPCallToolResult
+	// parse result using MCPCallToolResult
 	resultBytes, err := json.Marshal(resp.Result)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to marshal tool result: %w", err)
@@ -468,7 +468,7 @@ func (m *MCPRemoteUtil) CallTool(name string, arguments map[string]any) (string,
 		return "", nil, fmt.Errorf("failed to unmarshal tool result: %w", err)
 	}
 
-	// auto-add: extract text from content array
+	// extract text from content array
 	var texts []string
 	for _, content := range callResult.Content {
 		if content.Text != "" {

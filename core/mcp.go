@@ -1,6 +1,6 @@
 package core
 
-// auto-add: MCP protocol method constants
+// MCP protocol method constants
 const (
 	// tools
 	MCPMethodToolsList = "tools/list"
@@ -16,7 +16,7 @@ const (
 	MCPMethodResourcesTemplatesList = "resources/templates/list"
 )
 
-// auto-add: MCPServerResponse is a generic JSON-RPC 2.0 response structure for MCP server
+// MCPServerResponse is a generic JSON-RPC 2.0 response structure for MCP server
 type MCPServerResponse struct {
 	JSONRPC string    `json:"jsonrpc"`          // JSON-RPC version, should be "2.0"
 	ID      int       `json:"id"`               // Request ID
@@ -24,14 +24,14 @@ type MCPServerResponse struct {
 	Error   *MCPError `json:"error,omitempty"`  // Error object, if request failed
 }
 
-// auto-add: MCPError represents a JSON-RPC 2.0 error object
+// MCPError represents a JSON-RPC 2.0 error object
 type MCPError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 }
 
-// auto-add: MCPToolWrapperInfo represents a tool from MCP server
+// MCPToolWrapperInfo represents a tool from MCP server
 type MCPListToolResult struct {
 	Name        string              `json:"name"`
 	Description string              `json:"description"`
@@ -39,12 +39,12 @@ type MCPListToolResult struct {
 	Annotations *MCPToolAnnotations `json:"annotations,omitempty"`
 }
 
-// auto-add: MCPToolAnnotations represents tool annotations from MCP server
+// MCPToolAnnotations represents tool annotations from MCP server
 type MCPToolAnnotations struct {
 	DestructiveHint *bool `json:"destructiveHint,omitempty"`
 }
 
-// auto-add: IsDestructive returns the destructive hint from annotations
+// IsDestructive returns the destructive hint from annotations
 func (t MCPListToolResult) IsDestructive() bool {
 	if t.Annotations != nil && t.Annotations.DestructiveHint != nil {
 		return *t.Annotations.DestructiveHint
@@ -52,14 +52,14 @@ func (t MCPListToolResult) IsDestructive() bool {
 	return false
 }
 
-// auto-add: MCPListDocInfo represents a prompt or resource from MCP server
+// MCPListDocInfo represents a prompt or resource from MCP server
 type MCPListDocResult struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	Uri         string `json:"uri"`
 }
 
-// auto-add: MCPToolsListResult represents the result of tools/list
+// MCPToolsListResult represents the result of tools/list
 type MCPListToolsResponse struct {
 	TTLMs      int                 `json:"ttlMs,omitempty"`
 	CacheScope string              `json:"cacheScope,omitempty"`
@@ -78,7 +78,7 @@ type MCPListPromptsResponse struct {
 	Prompts    []MCPListDocResult `json:"prompts"`
 }
 
-// auto-add: MCPGetPromptResult represents the result of prompts/get
+// MCPGetPromptResult represents the result of prompts/get
 type MCPGetPromptResult struct {
 	Description string `json:"description"`
 	Messages    []struct {

@@ -23,7 +23,7 @@
           "description": "The arguments to pass to the tool."
         }
       },
-      "required": ["serverName", "toolName"]
+      "required": ["serverName", "toolName", "isDestructive"]
     }
   }
 }

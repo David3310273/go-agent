@@ -66,10 +66,11 @@ const (
 	MessageCodeLockError  MessageCode = 400
 	MessageCodeLockFailed MessageCode = 401
 	// 5xx: session error
-	MessageCodeWriteHistoryError  MessageCode = 500
-	MessageCodeSessionNotFound    MessageCode = 501
-	MessageCodeSessionCreateError MessageCode = 502
-	MessageCodeSessionStopError   MessageCode = 503
+	MessageCodeWriteHistoryError      MessageCode = 500
+	MessageCodeSessionNotFound        MessageCode = 501
+	MessageCodeSessionCreateError     MessageCode = 502
+	MessageCodeSessionStopError       MessageCode = 503
+	MessageCodeSessionMultiQueryError MessageCode = 504
 	// 6xx: tool error
 	MessageCodeToolNotFound      MessageCode = 600
 	MessageCodeToolRunError      MessageCode = 601

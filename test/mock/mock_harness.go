@@ -123,10 +123,10 @@ func (mr *MockHarnessMockRecorder) GetCurrRoundKnowledges(question any) *gomock.
 }
 
 // GetDefaultAnswer mocks base method.
-func (m *MockHarness) GetDefaultAnswer() core.Answer {
+func (m *MockHarness) GetDefaultAnswer() core.AgentResponse {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDefaultAnswer")
-	ret0, _ := ret[0].(core.Answer)
+	ret0, _ := ret[0].(core.AgentResponse)
 	return ret0
 }
 

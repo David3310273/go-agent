@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-// auto-add: generic HTTP request/response wrappers
+// generic HTTP request/response wrappers
 
 // Request represents a generic request with typed body and headers
 type Request[T any] struct {
@@ -41,7 +41,7 @@ type HTTPConfig struct {
 }
 
 // SendRequest sends a request and returns the raw HTTP response.
-// auto-add: caller decides how to parse headers or body
+// caller decides how to parse headers or body
 func SendRequest[ReqBody any](
 	config HTTPConfig,
 	request Request[ReqBody],
