@@ -72,11 +72,11 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) *AskR
 		case agent.Question <- question:
 		case <-time.After(requestWaitingTimeout):
 			// non-blocking send, abandon if handler already exited
-			// auto-add: use harness default answer for timeout fallback, wrapped in SimpleNormalResponse
+			// use harness default answer for timeout fallback, wrapped in SimpleNormalResponse
 			select {
 			case responseChan <- simple.SimpleNormalResponse{
 				SessionID: question.GetSessionID(),
-				Response:  core.AgentResponse{Response: simple.SimpleHarnessInstance.GetDefaultAnswer().ToString()},
+				Response:  simple.SimpleHarnessInstance.GetDefaultAnswer(),
 			}:
 			default:
 			}
@@ -115,13 +115,13 @@ func (q *SimpleQuestion) GetSessionID() string              { return q.sessionID
 func (q *SimpleQuestion) GetResponseChan() chan core.Answer { return q.responseChan }
 func (q *SimpleQuestion) GetHintChan() chan core.Answer     { return q.hintChan }
 
-// auto-add: GetType returns the question type (normal for SimpleQuestion)
+// GetType returns the question type (normal for SimpleQuestion)
 func (q *SimpleQuestion) GetType() core.QuestionType { return q.questionType }
 
-// auto-add: removed GetDefaultAnswer, default answer is now managed by harness
+// removed GetDefaultAnswer, default answer is now managed by harness
 func (q *SimpleQuestion) ToString() string { return q.query }
 
-// auto-add: SimpleToolConfirmQuestion represents a user's confirmation for a destructive tool
+// SimpleToolConfirmQuestion represents a user's confirmation for a destructive tool
 type SimpleToolConfirmQuestion struct {
 	SimpleQuestion
 	ToolName   string `json:"toolName"`   // outer tool name

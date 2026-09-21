@@ -13,12 +13,12 @@ type Harness interface {
 	LoadTools(skillName string, session Session, rootPath string)
 	GetCurrRoundKnowledges(question Question) string
 	SetNextRoundMessages(question *Question, messages *Conversation)
-	// auto-add: GetDefaultAnswer returns the default answer when agent fails to produce a valid response
-	GetDefaultAnswer() Answer
+	// GetDefaultAnswer returns the default answer when agent fails to produce a valid response
+	GetDefaultAnswer() AgentResponse
 	GetUserToolConfirmMessage(toolName string) string
-	// auto-add: GetDestructiveConfirmMessage returns the confirmation message for destructive tools
+	// GetDestructiveConfirmMessage returns the confirmation message for destructive tools
 	GetConfirmDestructiveToolResult(toolName string) string
-	// auto-add: GenerateToolConfirmResponse generates the confirmation response for destructive tools
+	// GenerateToolConfirmResponse generates the confirmation response for destructive tools
 	// saves pending tool call info and returns confirmation response with usage info
 	GenerateToolConfirmResponse(
 		session Session,
@@ -27,7 +27,7 @@ type Harness interface {
 		args map[string]any,
 		usage Usage,
 	) Answer
-	// auto-add: HandleUserQuestion handles question types and returns the user message to append
+	// HandleUserQuestion handles question types and returns the user message to append
 	// for normal questions: constructs message from query
 	// for confirm questions: records answer and constructs confirmation message
 	HandleUserQuestion(session Session, question Question) *ReActMessage

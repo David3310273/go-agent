@@ -43,9 +43,6 @@ type SimpleAgentSession struct {
 	ParentSession *SimpleAgentSession
 	SubSessions   []*SimpleAgentSession
 	Status        core.SessionStatus
-	Providers     []core.Provider
-	// changed to []any to support multiple entity types via generics.
-	KnowledgeBases []core.KnowledgeBase[any]
 	// logger
 	Logger *log.Logger
 
@@ -67,6 +64,9 @@ type SimpleAgentSession struct {
 	// context
 	ctx    context.Context
 	cancel context.CancelFunc
+	// query context for single ProcessQuery cancellation
+	queryCtx    context.Context
+	queryCancel context.CancelFunc
 
 	// user input chan
 	Question chan core.Question
@@ -76,9 +76,9 @@ type SimpleAgentSession struct {
 	eventChans map[string]chan core.Event[any]
 	// session context
 	Context SimpleSessionContext
-	// auto-add: track confirmed destructive tools, value is user's answer (Yes/No)
+	// track confirmed destructive tools, value is user's answer (Yes/No)
 	confirmedTools map[string]string
-	// auto-add: store pending MCP tool calls waiting for user confirmation, key: "serverName:toolName"
+	// store pending MCP tool calls waiting for user confirmation, key: "serverName:toolName"
 	pendingMCPCalls map[string]*core.PendingMCPToolCall
 }
 
@@ -87,9 +87,6 @@ type SimpleAgentSession struct {
 func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, enableThinking bool, memory *core.Conversation) *SimpleAgentSession {
 	providers := agent.GetModelProviders()
 	log.Printf("NewAgentSession: providers count = %d", len(providers))
-	// fixed method name from GetKnowledgeBases to GetKnowledgeBase.
-	knowledgeBases := agent.GetKnowledgeBase()
-	log.Printf("NewAgentSession: knowledgeBases count = %d", len(knowledgeBases))
 
 	sessionConfig := agent.GetSessionConfig()
 	//  propagate RootPath from agent to session config
@@ -98,19 +95,17 @@ func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, ena
 	}
 
 	session := &SimpleAgentSession{
-		Providers:      providers,
-		Status:         core.SessionStatusRunning,
-		KnowledgeBases: knowledgeBases,
-		mu:             make(chan struct{}, 1),
-		lockTimeOut:    LockTimeout,
-		Question:       make(chan core.Question),
-		Config:         sessionConfig,
+		Status:      core.SessionStatusRunning,
+		mu:          make(chan struct{}, 1),
+		lockTimeOut: LockTimeout,
+		Question:    make(chan core.Question),
+		Config:      sessionConfig,
 
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		eventChans:       make(map[string]chan core.Event[any]),
 		streaming:        streaming,
 		enableThinking:   true,
-		// auto-add: initialize confirmation tracking maps
+		// initialize confirmation tracking maps
 		confirmedTools:  make(map[string]string),
 		pendingMCPCalls: make(map[string]*core.PendingMCPToolCall),
 	}
@@ -138,6 +133,7 @@ func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, ena
 	session.Context.Tools = agent.GetToolsConfig()
 	session.Context.MCPServers = agent.GetMCPServerConfigs()
 	session.Context.MCPClients = agent.GetMCPClients()
+	session.Context.ModelProviders = providers
 
 	session.Context.Conversation = core.Conversation{}
 	if memory != nil {
@@ -157,7 +153,6 @@ func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, ena
 func (s *SimpleAgentSession) NewSubSession() core.Session {
 	session := &SimpleAgentSession{
 		ParentSession: s,
-		Providers:     s.Providers,
 		Status:        core.SessionStatusRunning,
 		mu:            make(chan struct{}, 1),
 	}
@@ -203,6 +198,31 @@ func (s *SimpleAgentSession) GetContext() core.Context {
 	return &s.Context
 }
 
+func (s *SimpleAgentSession) GetQueryCtx() context.Context {
+	return s.queryCtx
+}
+
+func (s *SimpleAgentSession) SetQueryContext(ctx context.Context, cancel context.CancelFunc) *core.Diagnostic {
+	if diag := s.Acquire(); diag == nil {
+		defer s.Release()
+		s.queryCtx = ctx
+		s.queryCancel = cancel
+		return nil
+	}
+
+	return &core.Diagnostic{
+		Level:   core.SeverityError,
+		Code:    core.MessageCodeSessionMultiQueryError,
+		Message: "Failed to set query context while session is processing another query, please wait.",
+	}
+}
+
+func (s *SimpleAgentSession) CancelQuery() {
+	if s.queryCancel != nil {
+		s.queryCancel()
+	}
+}
+
 func (s *SimpleAgentSession) SetSessionHistory() core.Diagnostic {
 	return core.Diagnostic{}
 }
@@ -226,14 +246,14 @@ func (s *SimpleAgentSession) GetQuestionChan() chan core.Question {
 	return s.Question
 }
 
-// auto-add: IsToolConfirmed checks if user has answered for a destructive tool (Yes or No)
+// IsToolConfirmed checks if user has answered for a destructive tool (Yes or No)
 func (s *SimpleAgentSession) IsToolConfirmed(serverName, toolName string) bool {
 	key := serverName + ":" + toolName
 	_, exists := s.confirmedTools[key]
 	return exists
 }
 
-// auto-add: SetToolConfirmed records user's answer for a destructive tool
+// SetToolConfirmed records user's answer for a destructive tool
 func (s *SimpleAgentSession) SetToolConfirmed(serverName, toolName string, answer string) {
 	key := serverName + ":" + toolName
 	s.confirmedTools[key] = answer
@@ -245,26 +265,26 @@ func (s *SimpleAgentSession) ClearToolConfirmed(serverName, toolName string) {
 	delete(s.confirmedTools, key)
 }
 
-// auto-add: GetPendingMCPToolCall retrieves pending MCP tool call info
+// GetPendingMCPToolCall retrieves pending MCP tool call info
 func (s *SimpleAgentSession) GetPendingMCPToolCall(serverName, toolName string) *core.PendingMCPToolCall {
 	key := serverName + ":" + toolName
 	return s.pendingMCPCalls[key]
 }
 
-// auto-add: SetPendingMCPToolCall saves pending MCP tool call info
+// SetPendingMCPToolCall saves pending MCP tool call info
 func (s *SimpleAgentSession) SetPendingMCPToolCall(serverName, toolName string, pending *core.PendingMCPToolCall) {
 	key := serverName + ":" + toolName
 	s.pendingMCPCalls[key] = pending
 }
 
-// auto-add: DeletePendingMCPToolCall deletes pending MCP tool call info after tool execution
+// DeletePendingMCPToolCall deletes pending MCP tool call info after tool execution
 func (s *SimpleAgentSession) DeletePendingMCPToolCall(serverName, toolName string) {
 	key := serverName + ":" + toolName
 	delete(s.pendingMCPCalls, key)
 }
 
-func (s *SimpleAgentSession) GetModelProviders() []core.Provider {
-	return s.Providers
+func (s *SimpleSessionContext) GetModelProviders() []core.Provider {
+	return s.ModelProviders
 }
 
 func (s *SimpleAgentSession) GetStatus() core.SessionStatus {
@@ -293,6 +313,15 @@ func (s *SimpleAgentSession) SetLoadTools(tool core.Tool) {
 	if _, ok := s.Context.LoadedToolsMap[tool.GetName()]; !ok {
 		s.Context.LoadedToolsMap[tool.GetName()] = tool
 		s.Context.LoadedTools = append(s.Context.LoadedTools, tool)
+	}
+}
+
+func (s *SimpleAgentSession) DeleteMemory() {
+	filePath := path.Join(s.Config.RootPath, s.Config.MemoryFilePathFormat)
+	filename := fmt.Sprintf(filePath, s.GetID())
+	if err := os.Remove(filename); err != nil {
+		// ignore error
+		log.Printf("remove session history file %s error: %v", filename, err)
 	}
 }
 
@@ -353,7 +382,7 @@ func (s *SimpleAgentSession) SelectLocalKB(query core.Question) string {
 	return result.String()
 }
 
-// auto-add: SimpleNormalResponse is the standard response type for normal questions
+// SimpleNormalResponse is the standard response type for normal questions
 type SimpleNormalResponse struct {
 	Response  core.AgentResponse `json:"response"`
 	SessionID string             `json:"sessionID"`
@@ -372,7 +401,7 @@ func (s SimpleNormalResponse) GetSessionID() string {
 	return s.SessionID
 }
 
-// auto-add: SimpleToolConfirmResponse is sent to the user when a destructive tool needs confirmation
+// SimpleToolConfirmResponse is sent to the user when a destructive tool needs confirmation
 type SimpleToolConfirmResponse struct {
 	Response   core.AgentResponse `json:"response"`   // confirmation message from harness
 	ToolName   string             `json:"toolName"`   // outer tool name (e.g., "UseMCPServerTools")
@@ -397,6 +426,24 @@ func (r SimpleToolConfirmResponse) GetSessionID() string {
 func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	// debug log
 	log.Printf("ProcessQuery: session %s, query = %s", s.GetID(), query.GetQuery())
+
+	// create query-level context for single query cancellation
+	queryCtx, queryCancel := context.WithCancel(context.Background())
+	if diag := s.SetQueryContext(queryCtx, queryCancel); diag == nil {
+		defer queryCancel()
+	} else {
+		multiQueryErrorAnswer := SimpleNormalResponse{
+			SessionID: s.GetID(),
+			Response: core.AgentResponse{
+				Response: diag.Message,
+			},
+		}
+		select {
+		case query.GetResponseChan() <- multiQueryErrorAnswer:
+		default:
+		}
+		return
+	}
 
 	// use goroutine and channel to handle timeout
 	type processResult struct {
@@ -427,7 +474,7 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 		// use select to avoid goroutine leak when context is cancelled
 		select {
 		case resultChan <- processResult{response: response, diagnostics: diagnostics}:
-		case <-s.ctx.Done():
+		case <-queryCtx.Done():
 		}
 	}()
 
@@ -435,12 +482,11 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	select {
 	case result := <-resultChan:
 		// default answer if failed
-		// auto-add: use harness default answer for fallback
+		defaultAnswer := SimpleHarnessInstance.GetDefaultAnswer()
+
 		finalAnswer := SimpleNormalResponse{
 			SessionID: s.GetID(),
-			Response: core.AgentResponse{
-				Response: SimpleHarnessInstance.GetDefaultAnswer().ToString(),
-			},
+			Response:  defaultAnswer,
 		}
 
 		if len(result.diagnostics) > 0 {
@@ -463,13 +509,43 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 					SessionID:    s.GetID(),
 				},
 			})
-		case <-s.ctx.Done():
+		case <-queryCtx.Done():
 		}
 
-	case <-s.ctx.Done():
-		// session cancelled, exit gracefully
+	case <-queryCtx.Done():
+		// query cancelled, send cancel response to unblock caller
+		cancelAnswer := SimpleNormalResponse{
+			SessionID: s.GetID(),
+			Response: core.AgentResponse{
+				Response: "Query cancelled by user",
+			},
+		}
+		select {
+		case query.GetResponseChan() <- cancelAnswer:
+		default:
+		}
 		return
 	}
+}
+
+// lock manager methods
+
+func (s *SimpleAgentSession) Acquire() *core.Diagnostic {
+	select {
+	case s.mu <- struct{}{}:
+		return nil
+	case <-time.After(s.lockTimeOut):
+		return &core.Diagnostic{
+			Code:    core.MessageCodeLockError,
+			Level:   core.SeverityError,
+			Message: "Lock timeout",
+		}
+	}
+}
+
+func (s *SimpleAgentSession) Release() *core.Diagnostic {
+	<-s.mu
+	return nil
 }
 
 // =============================================================================
@@ -564,7 +640,7 @@ func (s *SimpleAgentSession) BeforeStart(config core.AgentCoreConfig) []core.Dia
 
 func (s *SimpleAgentSession) Start(config core.AgentCoreConfig) []core.Diagnostic {
 	// log when session starts listening
-	log.Printf("Session %s Start: listening for questions, providers count = %d", s.GetID(), len(s.Providers))
+	log.Printf("Session %s Start: listening for questions, providers count = %d", s.GetID(), len(s.GetContext().GetModelProviders()))
 
 	core.Emit(s, core.CommonEvent[SessionEventTimeData]{
 		SourceType: core.SessionEventStart,
@@ -628,5 +704,7 @@ func (s *SimpleAgentSession) Stop(config core.AgentCoreConfig) []core.Diagnostic
 	// 3. cancel goroutine
 	s.cancel()
 
+	// 4. remove session history from memory
+	s.DeleteMemory()
 	return nil
 }

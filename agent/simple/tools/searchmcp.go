@@ -10,14 +10,14 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
-// auto-add: MCPResource represents a single resource from MCP server
+// MCPResource represents a single resource from MCP server
 type MCPResource struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
 	URI         string `json:"uri"`
 }
 
-// auto-add: MCPListResourcesResult represents the result of resources/list
+// MCPListResourcesResult represents the result of resources/list
 type MCPListResourcesResult struct {
 	TTLMs      int           `json:"ttlMs,omitempty"`
 	CacheScope string        `json:"cacheScope,omitempty"`
@@ -55,7 +55,7 @@ func init() {
 		}
 	})
 
-	// auto-add: register DiscoverMCPServer tool factory
+	// register DiscoverMCPServer tool factory
 	core.RegisterTool("DiscoverMCPServer", func(rootPath string, context core.Context) core.Tool {
 		return DiscoverMCPServerCall{
 			Name:     "DiscoverMCPServer",
@@ -70,7 +70,7 @@ func init() {
 // UseMCPServerTools
 // =============================================================================
 
-// auto-add: interface assertion
+// interface assertion
 var _ core.Tool = (*UseMCPServerToolsCall)(nil)
 
 // UseMCPServerToolsCall implements core.Tool interface for executing MCP server tools.
@@ -111,7 +111,7 @@ func (f UseMCPServerToolsCall) GetContext() core.Context {
 }
 
 func (f UseMCPServerToolsCall) Validate(args map[string]any) *core.Diagnostic {
-	// auto-add: validate serverName and toolName are present
+	// validate serverName and toolName are present
 	if serverName, ok := args["serverName"].(string); !ok || serverName == "" {
 		return &core.Diagnostic{
 			Level:   core.SeverityError,
@@ -153,7 +153,7 @@ func (f UseMCPServerToolsCall) GetRunner() func(args map[string]any) (string, *c
 			}
 		}
 
-		// auto-add: call the specific tool on the MCP server
+		// call the specific tool on the MCP server
 		resultStr, _, err := client.CallTool(toolName, arguments)
 		if err != nil {
 			return "", &core.Diagnostic{
@@ -191,7 +191,7 @@ func (f UseMCPServerToolsCall) GetRunner() func(args map[string]any) (string, *c
 // SearchMCPResources
 // =============================================================================
 
-// auto-add: interface assertion
+// interface assertion
 var _ core.Tool = (*SearchMCPResourcesCall)(nil)
 
 // SearchMCPResourcesCall implements core.Tool interface for searching MCP resources.
@@ -232,7 +232,7 @@ func (f SearchMCPResourcesCall) IsDestructive() bool {
 }
 
 func (f SearchMCPResourcesCall) Validate(args map[string]any) *core.Diagnostic {
-	// auto-add: validate serverName and uri are present
+	// validate serverName and uri are present
 	if serverName, ok := args["serverName"].(string); !ok || serverName == "" {
 		return &core.Diagnostic{
 			Level:   core.SeverityError,
@@ -273,7 +273,7 @@ func (f SearchMCPResourcesCall) GetRunner() func(args map[string]any) (string, *
 			}
 		}
 
-		// auto-add: read the specific resource from MCP server
+		// read the specific resource from MCP server
 		content, diag := client.GetResource(uri)
 		if diag != nil && diag.Level == core.SeverityError {
 			return "", &core.Diagnostic{
@@ -311,7 +311,7 @@ func (f SearchMCPResourcesCall) GetRunner() func(args map[string]any) (string, *
 // SearchMCPPrompts
 // =============================================================================
 
-// auto-add: interface assertion
+// interface assertion
 var _ core.Tool = (*SearchMCPPromptsCall)(nil)
 
 // SearchMCPPromptsCall implements core.Tool interface for searching MCP prompts.
@@ -352,7 +352,7 @@ func (f SearchMCPPromptsCall) IsDestructive() bool {
 }
 
 func (f SearchMCPPromptsCall) Validate(args map[string]any) *core.Diagnostic {
-	// auto-add: validate serverName and promptName are present
+	// validate serverName and promptName are present
 	if serverName, ok := args["serverName"].(string); !ok || serverName == "" {
 		return &core.Diagnostic{
 			Level:   core.SeverityError,
@@ -393,7 +393,7 @@ func (f SearchMCPPromptsCall) GetRunner() func(args map[string]any) (string, *co
 			}
 		}
 
-		// auto-add: get the specific prompt from MCP server
+		// get the specific prompt from MCP server
 		content, diag := client.GetPrompt(promptName)
 		if diag != nil && diag.Level == core.SeverityError {
 			return "", &core.Diagnostic{
@@ -431,7 +431,7 @@ func (f SearchMCPPromptsCall) GetRunner() func(args map[string]any) (string, *co
 // DiscoverMCPServer
 // =============================================================================
 
-// auto-add: interface assertion
+// interface assertion
 var _ core.Tool = (*DiscoverMCPServerCall)(nil)
 
 // DiscoverMCPServerCall implements core.Tool interface for discovering MCP server capabilities.
@@ -515,7 +515,7 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 			}
 		}
 
-		// auto-add: build MCPServerDefinition
+		// build MCPServerDefinition
 		definition := MCPServerDefinition{
 			ServerName: serverName,
 			Tools:      []core.MCPListToolResult{},

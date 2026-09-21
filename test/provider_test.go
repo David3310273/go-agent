@@ -2,6 +2,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/David3310273/go-agent/core"
@@ -419,6 +420,8 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
+	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{}).AnyTimes()
 	mockSession.EXPECT().SetLoadTools(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
@@ -490,6 +493,8 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
+	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{}).AnyTimes()
 	mockSession.EXPECT().SetLoadTools(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
@@ -584,6 +589,8 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
+	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{mockTool}).AnyTimes()
 	mockSession.EXPECT().SetLoadTools(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
@@ -683,6 +690,8 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
+	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{}).AnyTimes()
 	mockSession.EXPECT().SetLoadTools(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
@@ -776,6 +785,8 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
+	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{mockTool}).AnyTimes()
 	mockSession.EXPECT().SetLoadTools(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any(), gomock.Any()).Return(false).AnyTimes()

@@ -39,6 +39,21 @@ func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 			}
 			controller.HandleAsk(c, agent, appConfig)
 		})
+
+		// POST /v1/agent/cancel - cancel a running session
+		v1Agent.POST("/cancel", func(c *gin.Context) {
+			agentValue, exists := c.Get("agent")
+			if !exists {
+				c.JSON(500, gin.H{"error": "agent not available"})
+				return
+			}
+			agent, ok := agentValue.(*simple.SimpleAgent)
+			if !ok {
+				c.JSON(500, gin.H{"error": "invalid agent type"})
+				return
+			}
+			controller.HandleCancel(c, agent)
+		})
 	}
 
 	// internal knowledgebase api group (not exposed to external users when it's toC app)
