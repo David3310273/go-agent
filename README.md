@@ -12,11 +12,14 @@ Using param injection from outside app to start eventual tool call
 
 - Param injection rather than variables in struct
 - Only composition on final interface, interface unit should have single responsibility.
+- Easy to extend and customize based on clear interface implementation
 
-## Highlights
+## Thoughts
 
-- Multi-layered architecture, clear boundary and simple organization of directories, easy to understand
-- Easy to extend and customize based on interface implementation
+- Multi-layered architecture, clear boundary and simple organization of directories, easy to understand and extend.
+- Minimal tools/prompt should be provided, dynamically load tools using MCP server, and extend backgrounds with knowledge base. 
+- **Framework process control rather than LLM process or prompt control**. For example, control the process using framework logic, rather than keep modifying the prompt hint word. 
+
 
 ## How to start
 
@@ -45,7 +48,7 @@ go run main.go
 For example:
 
 ```bash
-curl -X POST -H "Content-Type: application/json" -d '{"question": "hello"}' http://localhost:8080/v1/ask
+curl -X POST -H "Content-Type: application/json" -d '{"question": "hello"}' http://localhost:8080/v1/agent/ask
 ```
 
 For mode details, see README.md under `app` directory
