@@ -4,7 +4,7 @@
 
 1. **MUST** cd to `app` directory
 2. run `go run main.go`
-3. send post request to `/v1/ask`
+3. send post request to `/v1/agent/ask`
 
 ## V1.0.0
 
@@ -48,10 +48,11 @@ Content-Type: application/json
 | model | string | No | The model agent used in this request. |
 | enableThinking | bool | No | Whether to enable thinking. |
 | stream | bool | No | Whether to stream the response. |
+| type |string|Yes|Question type. "normal" or "tool_confirm"|
 
 **Example:**
 ```bash
-curl -X POST http://localhost:8080/v1/ask \
+curl -X POST http://localhost:8080/v1/agent/ask \
   -H "Content-Type: application/json" \
   -d '{"question": "What is Go?", "sessionID": "test-123"}'
 ```

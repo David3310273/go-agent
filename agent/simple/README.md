@@ -2,6 +2,19 @@
 
 ## start your first agent
 
+## v1.0.3
+
+Using this version of agent, you can start as a simple personal assistant.
+
+- ~~no mcp support~~
+- no router for model selection
+- no sandbox, only definition
+- ~~no loading history memory...(will fix it later)~~
+- no parallel processing in running tools
+- ~~no support for local knowledge base (something like vector database...)~~
+- ~~no compact context, only has file rotating~~
+- ~~only support http services, sync response, no streaming...~~
+
 ## V1.0.0
 
 happy path for this agent framework
