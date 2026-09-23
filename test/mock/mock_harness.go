@@ -151,11 +151,12 @@ func (mr *MockHarnessMockRecorder) GetUserToolConfirmMessage(toolName any) *gomo
 }
 
 // HandleUserQuestion mocks base method.
-func (m *MockHarness) HandleUserQuestion(session core.Session, question core.Question) *core.ReActMessage {
+func (m *MockHarness) HandleUserQuestion(session core.Session, question core.Question) (*core.ReActMessage, core.Diagnostic) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "HandleUserQuestion", session, question)
 	ret0, _ := ret[0].(*core.ReActMessage)
-	return ret0
+	ret1, _ := ret[1].(core.Diagnostic)
+	return ret0, ret1
 }
 
 // HandleUserQuestion indicates an expected call of HandleUserQuestion.

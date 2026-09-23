@@ -72,9 +72,11 @@ const (
 	MessageCodeSessionStopError       MessageCode = 503
 	MessageCodeSessionMultiQueryError MessageCode = 504
 	// 6xx: tool error
-	MessageCodeToolNotFound      MessageCode = 600
-	MessageCodeToolRunError      MessageCode = 601
-	MessageCodeToolValidateError MessageCode = 602
+	MessageCodeToolNotFound         MessageCode = 600
+	MessageCodeToolRunError         MessageCode = 601
+	MessageCodeToolValidateError    MessageCode = 602
+	MessageCodeToolAlreadyConfirmed MessageCode = 603
+	MessageCodeInvalidConfirmAnswer MessageCode = 604
 	// 7xx: agent core error
 	MessageCodeAgentCoreConfigError   MessageCode = 700
 	MessageCodeInvalidResponseFromLLM MessageCode = 701

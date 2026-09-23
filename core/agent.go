@@ -263,10 +263,13 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	// let harness get skill name from session
 
 	// harness constructs user message from question (handles both normal and confirm types)
-	userMessage := harness.HandleUserQuestion(session, question)
-	// append user message to conversation
-	if userMessage == nil {
+	userMessage, handleDiag := harness.HandleUserQuestion(session, question)
+	// check if harness returned a diagnostic indicating special case
+	switch handleDiag.Code {
+	case MessageCodeInvalidConfirmAnswer:
 		return defaultAnswer, diagnostics
+	case MessageCodeToolAlreadyConfirmed:
+		return AgentResponse{Response: "This tool operation has already been confirmed and executed, do you want to execute it again?"}, nil
 	}
 
 	log.Printf("current message: %v", userMessage.ToString())
@@ -613,8 +616,15 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 	defaultAnswer := harness.GetDefaultAnswer()
 
 	// harness constructs user message from question (handles both normal and confirm types)
-	userMessage := harness.HandleUserQuestion(session, question)
-	// append user message to conversation
+	userMessage, handleDiag := harness.HandleUserQuestion(session, question)
+	// check if harness returned a diagnostic indicating special case
+	switch handleDiag.Code {
+	case MessageCodeInvalidConfirmAnswer:
+		return defaultAnswer, diagnostics
+	case MessageCodeToolAlreadyConfirmed:
+		return AgentResponse{Response: "This tool operation has already been confirmed and executed, please send the new message if you want to execute it again."}, nil
+	}
+
 	log.Printf("current message: %v", userMessage.ToString())
 	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
 
