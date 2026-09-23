@@ -28,9 +28,8 @@ type Harness interface {
 		usage Usage,
 	) Answer
 	// HandleUserQuestion handles question types and returns the user message to append
-	// for normal questions: constructs message from query
-	// for confirm questions: records answer and constructs confirmation message
-	HandleUserQuestion(session Session, question Question) *ReActMessage
+	// returns (*ReActMessage, Diagnostic) where Diagnostic indicates special cases like already confirmed
+	HandleUserQuestion(session Session, question Question) (*ReActMessage, Diagnostic)
 
 	HandleUserToolConfirm(session Session, question Question) *ReActMessage
 }

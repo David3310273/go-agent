@@ -704,7 +704,5 @@ func (s *SimpleAgentSession) Stop(config core.AgentCoreConfig) []core.Diagnostic
 	// 3. cancel goroutine
 	s.cancel()
 
-	// 4. remove session history from memory
-	s.DeleteMemory()
 	return nil
 }

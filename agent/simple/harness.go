@@ -188,12 +188,16 @@ func (h SimpleHarness) GenerateToolConfirmResponse(
 // HandleUserQuestion handles question types and returns the user message to append
 // for normal questions: constructs message from query
 // for confirm questions: records answer and constructs simple confirmation message
-func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Question) *core.ReActMessage {
+func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Question) (*core.ReActMessage, core.Diagnostic) {
 	if question.GetType() == core.QuestionTypeToolConfirm {
 		confirmQuestion, ok := question.(core.ToolConfirmable)
 		// not a tool confirm question, treat it as normal question
 		if !ok || !confirmQuestion.ValiateConfirmAnswer() {
-			return nil
+			return nil, core.Diagnostic{
+				Code:    core.MessageCodeInvalidConfirmAnswer,
+				Level:   core.SeverityError,
+				Message: "Invalid confirm answer, please use Yes or No.",
+			}
 		}
 
 		toolName := confirmQuestion.GetConfirmToolName()
@@ -201,8 +205,13 @@ func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Qu
 		confirmAnswer := confirmQuestion.GetConfirmAnswer()
 
 		if toolCall := session.GetPendingMCPToolCall(serverName, toolName); toolCall == nil {
-			alreadyConfirmedMessage := fmt.Sprintf("The tool %s from mcp server %s has been confirmed before, ignore this tool confirm operation and do nothing.", toolName, serverName)
-			return &core.ReActMessage{Role: core.RoleUser, Content: alreadyConfirmedMessage}
+			// auto-add: tool already confirmed, return diagnostic to skip LLM
+			diag := core.Diagnostic{
+				Code:    core.MessageCodeToolAlreadyConfirmed,
+				Level:   core.SeverityInfo,
+				Message: fmt.Sprintf("The tool %s from mcp server %s has already been confirmed and executed.", toolName, serverName),
+			}
+			return nil, diag
 		}
 
 		// record user's answer (Yes or No) - either way counts as confirmed
@@ -210,11 +219,11 @@ func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Qu
 
 		// simple confirmation message - tool will be executed directly by ProcessQuestion
 		confirmMessage := fmt.Sprintf("The user's answer about using tool %s from mcp server %s is: %s", toolName, serverName, confirmAnswer)
-		return &core.ReActMessage{Role: core.RoleUser, Content: confirmMessage}
+		return &core.ReActMessage{Role: core.RoleUser, Content: confirmMessage}, core.Diagnostic{}
 	}
 
 	// normal question: construct message from query
-	return &core.ReActMessage{Role: core.RoleUser, Content: question.GetQuery()}
+	return &core.ReActMessage{Role: core.RoleUser, Content: question.GetQuery()}, core.Diagnostic{}
 }
 
 func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core.Question) *core.ReActMessage {
