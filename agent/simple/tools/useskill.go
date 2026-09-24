@@ -17,27 +17,27 @@ const (
 
 func init() {
 	// register UseSkillCall tool factory
-	// updated to accept Context instead of skillDefinitions.
-	core.RegisterTool("UseSkill", func(rootPath string, context core.Context) core.Tool {
+	// updated to accept Session instead of Context.
+	core.RegisterTool("UseSkill", func(rootPath string, session core.Session) core.Tool {
 		return UseSkillCall{
 			Name:     "UseSkill",
 			Schema:   "useskill.schema.json",
 			RootPath: rootPath,
-			Context:  context,
+			Session:  session,
 		}
 	})
 }
 
 // UseSkillCall implements core.Tool interface for loading skills dynamically.
 // loads skill by name and returns skill info with tool list.
-// changed SkillDefinitions to Context for unified access to skills and knowledge bases.
+// changed Context to Session for unified access to session and context.
 type UseSkillCall struct {
 	Name   string `json:"name"`
 	Schema string `json:"schema"`
 	// project root path for resolving schema file path
 	RootPath string
-	// context for accessing skill definitions at runtime.
-	Context core.Context
+	// session for accessing context at runtime.
+	Session core.Session
 }
 
 // GetName returns the function name from schema for matching with LLM tool calls
@@ -75,7 +75,7 @@ func (f UseSkillCall) GetDescription() string {
 // GetContext returns the agent session runtime context.
 // implements core.Tool interface.
 func (f UseSkillCall) GetContext() core.Context {
-	return f.Context
+	return f.Session.GetContext()
 }
 
 // Validate validates the tool configuration
@@ -91,7 +91,7 @@ func (f UseSkillCall) Validate(args map[string]any) *core.Diagnostic {
 	}
 
 	// check if skill exists
-	for _, skill := range f.Context.GetSkills() {
+	for _, skill := range f.Session.GetContext().GetSkills() {
 		if skill.Name == name {
 			return nil
 		}
@@ -113,9 +113,10 @@ func (f UseSkillCall) GetRunner() func(args map[string]any) (string, *core.Diagn
 
 		// find skill definition from context
 		var skillDef *core.SkillDefinition
-		for i := range f.Context.GetSkills() {
-			if f.Context.GetSkills()[i].Name == name {
-				skillDef = &f.Context.GetSkills()[i]
+		skills := f.Session.GetContext().GetSkills()
+		for i := range skills {
+			if skills[i].Name == name {
+				skillDef = &skills[i]
 				break
 			}
 		}
@@ -135,7 +136,7 @@ func (f UseSkillCall) GetRunner() func(args map[string]any) (string, *core.Diagn
 		fmt.Fprintf(&response, "\nTools to execute (with descriptions):\n")
 		for _, toolName := range skillDef.Tools {
 			// use GetTool to get tool instance, then call GetDescription.
-			tool := core.GetTool(toolName, f.RootPath, f.Context)
+			tool := core.GetTool(toolName, f.RootPath, f.Session)
 			if tool != nil {
 				fmt.Fprintf(&response, "- **%s**: %s\n", toolName, tool.GetDescription())
 			}

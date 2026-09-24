@@ -111,7 +111,7 @@ func (h SimpleHarness) LoadTools(skillName string, session core.Session, rootPat
 	// if skillName is empty, load default tools directly
 	if skillName == "" {
 		for _, cfg := range context.GetToolsConfig() {
-			if tool := core.CreateTool(cfg.Name, rootPath, context); tool != nil {
+			if tool := core.CreateTool(cfg.Name, rootPath, session); tool != nil {
 				session.SetLoadTools(tool)
 			}
 		}
@@ -125,7 +125,7 @@ func (h SimpleHarness) LoadTools(skillName string, session core.Session, rootPat
 	}
 
 	for _, toolName := range skillDef.Tools {
-		if tool := core.CreateTool(toolName, rootPath, context); tool != nil {
+		if tool := core.CreateTool(toolName, rootPath, session); tool != nil {
 			session.SetLoadTools(tool)
 		}
 	}

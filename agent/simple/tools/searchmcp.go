@@ -26,42 +26,42 @@ type MCPListResourcesResult struct {
 
 func init() {
 	// register UseMCPServerTools tool factory
-	core.RegisterTool("UseMCPServerTools", func(rootPath string, context core.Context) core.Tool {
+	core.RegisterTool("UseMCPServerTools", func(rootPath string, session core.Session) core.Tool {
 		return UseMCPServerToolsCall{
 			Name:     "UseMCPServerTools",
 			Schema:   "usemcp_tools.schema.json",
 			RootPath: rootPath,
-			Context:  context,
+			Session:  session,
 		}
 	})
 
 	// register SearchMCPResources tool factory
-	core.RegisterTool("UseMCPResources", func(rootPath string, context core.Context) core.Tool {
+	core.RegisterTool("UseMCPResources", func(rootPath string, session core.Session) core.Tool {
 		return SearchMCPResourcesCall{
 			Name:     "SearchMCPResources",
 			Schema:   "usemcp_resources.schema.json",
 			RootPath: rootPath,
-			Context:  context,
+			Session:  session,
 		}
 	})
 
 	// register SearchMCPPrompts tool factory
-	core.RegisterTool("UseMCPPrompts", func(rootPath string, context core.Context) core.Tool {
+	core.RegisterTool("UseMCPPrompts", func(rootPath string, session core.Session) core.Tool {
 		return SearchMCPPromptsCall{
 			Name:     "SearchMCPPrompts",
 			Schema:   "usemcp_prompts.schema.json",
 			RootPath: rootPath,
-			Context:  context,
+			Session:  session,
 		}
 	})
 
 	// register DiscoverMCPServer tool factory
-	core.RegisterTool("DiscoverMCPServer", func(rootPath string, context core.Context) core.Tool {
+	core.RegisterTool("DiscoverMCPServer", func(rootPath string, session core.Session) core.Tool {
 		return DiscoverMCPServerCall{
 			Name:     "DiscoverMCPServer",
 			Schema:   "discovermcp.schema.json",
 			RootPath: rootPath,
-			Context:  context,
+			Session:  session,
 		}
 	})
 }
@@ -78,7 +78,7 @@ type UseMCPServerToolsCall struct {
 	Name     string `json:"name"`
 	Schema   string `json:"schema"`
 	RootPath string
-	Context  core.Context
+	Session  core.Session
 }
 
 func (f UseMCPServerToolsCall) IsDestructive() bool {
@@ -107,7 +107,7 @@ func (f UseMCPServerToolsCall) GetDescription() string {
 }
 
 func (f UseMCPServerToolsCall) GetContext() core.Context {
-	return f.Context
+	return f.Session.GetContext()
 }
 
 func (f UseMCPServerToolsCall) Validate(args map[string]any) *core.Diagnostic {
@@ -143,7 +143,7 @@ func (f UseMCPServerToolsCall) GetRunner() func(args map[string]any) (string, *c
 		arguments, _ := args["arguments"].(map[string]any)
 
 		// get MCP clients from context
-		mcpClients := f.Context.GetMCPClients()
+		mcpClients := f.Session.GetContext().GetMCPClients()
 		client, exists := mcpClients[serverName]
 		if !exists {
 			return "", &core.Diagnostic{
@@ -199,7 +199,7 @@ type SearchMCPResourcesCall struct {
 	Name     string `json:"name"`
 	Schema   string `json:"schema"`
 	RootPath string
-	Context  core.Context
+	Session  core.Session
 }
 
 func (f SearchMCPResourcesCall) GetName() string {
@@ -224,7 +224,7 @@ func (f SearchMCPResourcesCall) GetDescription() string {
 }
 
 func (f SearchMCPResourcesCall) GetContext() core.Context {
-	return f.Context
+	return f.Session.GetContext()
 }
 
 func (f SearchMCPResourcesCall) IsDestructive() bool {
@@ -263,7 +263,7 @@ func (f SearchMCPResourcesCall) GetRunner() func(args map[string]any) (string, *
 		uri, _ := args["uri"].(string)
 
 		// get MCP clients from context
-		mcpClients := f.Context.GetMCPClients()
+		mcpClients := f.Session.GetContext().GetMCPClients()
 		client, exists := mcpClients[serverName]
 		if !exists {
 			return "", &core.Diagnostic{
@@ -319,7 +319,7 @@ type SearchMCPPromptsCall struct {
 	Name     string `json:"name"`
 	Schema   string `json:"schema"`
 	RootPath string
-	Context  core.Context
+	Session  core.Session
 }
 
 func (f SearchMCPPromptsCall) GetName() string {
@@ -344,7 +344,7 @@ func (f SearchMCPPromptsCall) GetDescription() string {
 }
 
 func (f SearchMCPPromptsCall) GetContext() core.Context {
-	return f.Context
+	return f.Session.GetContext()
 }
 
 func (f SearchMCPPromptsCall) IsDestructive() bool {
@@ -383,7 +383,7 @@ func (f SearchMCPPromptsCall) GetRunner() func(args map[string]any) (string, *co
 		promptName, _ := args["promptName"].(string)
 
 		// get MCP clients from context
-		mcpClients := f.Context.GetMCPClients()
+		mcpClients := f.Session.GetContext().GetMCPClients()
 		client, exists := mcpClients[serverName]
 		if !exists {
 			return "", &core.Diagnostic{
@@ -439,7 +439,7 @@ type DiscoverMCPServerCall struct {
 	Name     string `json:"name"`
 	Schema   string `json:"schema"`
 	RootPath string
-	Context  core.Context
+	Session  core.Session
 }
 
 func (f DiscoverMCPServerCall) GetName() string {
@@ -468,7 +468,7 @@ func (f DiscoverMCPServerCall) GetDescription() string {
 }
 
 func (f DiscoverMCPServerCall) GetContext() core.Context {
-	return f.Context
+	return f.Session.GetContext()
 }
 
 func (f DiscoverMCPServerCall) Validate(args map[string]any) *core.Diagnostic {
@@ -496,7 +496,7 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 		serverName, _ := args["serverName"].(string)
 
 		// get MCP clients from context
-		mcpClients := f.Context.GetMCPClients()
+		mcpClients := f.Session.GetContext().GetMCPClients()
 		if len(mcpClients) == 0 {
 			return "Failed", &core.Diagnostic{
 				Level:   core.SeverityError,
@@ -525,7 +525,7 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 
 		// 1. Get tools
 		log.Printf("[DiscoverMCPServer] Building tools for server: %s", serverName)
-		tools := client.BuildTools(f.Context)
+		tools := client.BuildTools(f.Session.GetContext())
 		log.Printf("[DiscoverMCPServer] Built %d tools", len(tools))
 		for name, tool := range tools {
 			log.Printf("[DiscoverMCPServer] Adding tool: %s, description: %s, input schema: %v, isDestructive: %v", name, tool.GetDescription(), tool.GetSchema().Function.Parameters, tool.IsDestructive())
