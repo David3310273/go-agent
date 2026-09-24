@@ -52,8 +52,8 @@ func CallTool(tool Tool, args map[string]any) (string, *Diagnostic) {
 
 // ToolFactory is a function that creates a Tool instance.
 // factory function type for tool registration.
-// accepts Context for accessing skills and knowledge bases at runtime.
-type ToolFactory func(rootPath string, context Context) Tool
+// accepts Session for accessing context, skills, and knowledge bases at runtime.
+type ToolFactory func(rootPath string, session Session) Tool
 
 // toolRegistry stores registered tool factories.
 // populated during init() which is single-threaded.
@@ -66,16 +66,16 @@ func RegisterTool(name string, factory ToolFactory) {
 }
 
 // CreateTool creates a tool instance by name.
-// used by harness to dynamically create tools with context.
-func CreateTool(name string, rootPath string, context Context) Tool {
+// used by harness to dynamically create tools with session.
+func CreateTool(name string, rootPath string, session Session) Tool {
 	if factory, ok := toolRegistry[name]; ok {
-		return factory(rootPath, context)
+		return factory(rootPath, session)
 	}
 	return nil
 }
 
 // GetTool returns the tool instance by name.
 // changed from GetToolDescription to return Tool instead of string.
-func GetTool(name string, rootPath string, context Context) Tool {
-	return CreateTool(name, rootPath, context)
+func GetTool(name string, rootPath string, session Session) Tool {
+	return CreateTool(name, rootPath, session)
 }

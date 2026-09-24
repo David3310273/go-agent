@@ -10,6 +10,7 @@ import (
 	"github.com/David3310273/go-agent/app/services"
 	"github.com/David3310273/go-agent/core"
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid/v5"
 )
 
 // ResponseType constants for different interaction types
@@ -118,9 +119,14 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 		Stream:         req.Stream,
 		EnableThinking: req.EnableThinking,
 	}
+
 	if req.SessionID != nil {
 		params.SessionID = *req.SessionID
+	} else {
+		id, _ := uuid.NewV4()
+		params.SessionID = id.String()
 	}
+
 	if req.Model != nil {
 		params.Model = *req.Model
 	}

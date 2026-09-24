@@ -18,13 +18,12 @@ const (
 
 func init() {
 	// register FileWriterCall tool factory
-	// updated to accept Context instead of skillDefinitions.
-	core.RegisterTool("WriteToFile", func(rootPath string, context core.Context) core.Tool {
+	core.RegisterTool("WriteToFile", func(rootPath string, session core.Session) core.Tool {
 		return FileWriterCall{
 			Name:     "filewriter",
 			Schema:   "filewriter.schema.json",
 			RootPath: rootPath,
-			Context:  context,
+			Session:  session,
 		}
 	})
 }
@@ -35,8 +34,8 @@ type FileWriterCall struct {
 	Schema string `json:"schema"`
 	//  project root path for resolving schema file path
 	RootPath string
-	// context for accessing runtime resources.
-	Context core.Context
+	// session for accessing runtime resources.
+	Session core.Session
 }
 
 // GetName returns the function name from schema for matching with LLM tool calls
@@ -70,7 +69,7 @@ func (f FileWriterCall) GetDescription() string {
 // GetContext returns the agent session runtime context.
 // implements core.Tool interface.
 func (f FileWriterCall) GetContext() core.Context {
-	return f.Context
+	return f.Session.GetContext()
 }
 
 func (f FileWriterCall) IsDestructive() bool {

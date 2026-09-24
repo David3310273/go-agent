@@ -12,13 +12,13 @@ import (
 
 func init() {
 	// register SearchKnowledgebaseCall tool factory
-	// updated to accept Context for accessing knowledge bases.
-	core.RegisterTool("SearchKnowledgeBase", func(rootPath string, context core.Context) core.Tool {
+	// updated to accept Session instead of Context.
+	core.RegisterTool("SearchKnowledgeBase", func(rootPath string, session core.Session) core.Tool {
 		return SearchKnowledgebaseCall{
 			Name:     "SearchKnowledgeBase",
 			Schema:   "searchkb.schema.json",
 			RootPath: rootPath,
-			Context:  context,
+			Session:  session,
 		}
 	})
 }
@@ -30,8 +30,8 @@ type SearchKnowledgebaseCall struct {
 	Schema string `json:"schema"`
 	// project root path for resolving schema file path
 	RootPath string
-	// context for accessing knowledge bases at runtime.
-	Context core.Context
+	// session for accessing context at runtime.
+	Session core.Session
 }
 
 // GetName returns the function name from schema for matching with LLM tool calls
@@ -65,7 +65,7 @@ func (f SearchKnowledgebaseCall) GetDescription() string {
 // GetContext returns the agent session runtime context.
 // implements core.Tool interface.
 func (f SearchKnowledgebaseCall) GetContext() core.Context {
-	return f.Context
+	return f.Session.GetContext()
 }
 
 // Validate validates the tool configuration
@@ -114,7 +114,7 @@ func (f SearchKnowledgebaseCall) GetRunner() func(args map[string]any) (string, 
 		}
 
 		// get knowledge bases from context
-		knowledgeBases := f.Context.GetKnowledgeBase()
+		knowledgeBases := f.Session.GetContext().GetKnowledgeBase()
 		if len(knowledgeBases) == 0 {
 			return "Failed", &core.Diagnostic{
 				Level:   core.SeverityError,

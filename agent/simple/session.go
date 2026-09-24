@@ -155,6 +155,7 @@ func (s *SimpleAgentSession) NewSubSession() core.Session {
 		ParentSession: s,
 		Status:        core.SessionStatusRunning,
 		mu:            make(chan struct{}, 1),
+		Context:       s.Context,
 	}
 
 	session.ctx, session.cancel = context.WithCancel(s.ctx)
