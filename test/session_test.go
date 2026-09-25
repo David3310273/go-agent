@@ -4,6 +4,7 @@ package test
 import (
 	"testing"
 
+	"github.com/David3310273/go-agent/agent/simple/utils"
 	"github.com/David3310273/go-agent/core"
 	testmock "github.com/David3310273/go-agent/test/mock"
 	"go.uber.org/mock/gomock"
@@ -72,19 +73,6 @@ func TestMockSession_GetConfigs(t *testing.T) {
 	}
 }
 
-func TestMockSession_GetModelProviders(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSession := testmock.NewMockSession(ctrl)
-	mockSession.EXPECT().GetModelProviders().Return(nil)
-
-	providers := mockSession.GetModelProviders()
-	if providers != nil {
-		t.Errorf("expected nil providers, got %v", providers)
-	}
-}
-
 func TestMockSession_GetConversation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -109,21 +97,6 @@ func TestMockSession_GetConversation(t *testing.T) {
 	}
 }
 
-func TestMockSession_SelectLocalKB(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSession := testmock.NewMockSession(ctrl)
-	mockQuestion := testmock.NewMockQuestion(ctrl)
-
-	mockSession.EXPECT().SelectLocalKB(mockQuestion).Return("local_kb_content")
-
-	result := mockSession.SelectLocalKB(mockQuestion)
-	if result != "local_kb_content" {
-		t.Errorf("expected 'local_kb_content', got %s", result)
-	}
-}
-
 func TestMockSession_ProcessQuery(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -143,9 +116,9 @@ func TestMockSession_NewSubSession(t *testing.T) {
 	mockSession := testmock.NewMockSession(ctrl)
 	mockSubSession := testmock.NewMockSession(ctrl)
 
-	mockSession.EXPECT().NewSubSession().Return(mockSubSession)
+	mockSession.EXPECT().NewSubSession(gomock.Any()).Return(mockSubSession)
 
-	subSession := mockSession.NewSubSession()
+	subSession := mockSession.NewSubSession([]core.Tool{})
 	if subSession == nil {
 		t.Error("expected sub session, got nil")
 	}
@@ -228,5 +201,56 @@ func TestStopSession_BeforeStopError(t *testing.T) {
 	diagnostics := core.StopSession(mockSession, config)
 	if len(diagnostics) != 1 {
 		t.Errorf("expected 1 diagnostic, got %d", len(diagnostics))
+	}
+}
+
+// =============================================================================
+// Config path resolution tests
+// =============================================================================
+
+// TestResolveConfigPath covers the root path resolution shared by the session log, the session
+// memory file, the agent log and the conversation recovery.
+// auto-add: an absolute configured path used to be joined with RootPath, and path.Join turns
+// ".." + "/tmp/x/memories" into the relative "../tmp/x/memories", so the file was written
+// outside the configured directory and nothing was ever found at the configured path.
+func TestResolveConfigPath(t *testing.T) {
+	cases := []struct {
+		name       string
+		rootPath   string
+		configPath string
+		want       string
+	}{
+		{
+			name:       "relative config path is joined with the root path",
+			rootPath:   "/app",
+			configPath: "app/logs/session_%s.log",
+			want:       "/app/app/logs/session_%s.log",
+		},
+		{
+			name:       "relative config path with a relative root path",
+			rootPath:   "..",
+			configPath: "memories/%s.jsonl",
+			want:       "../memories/%s.jsonl",
+		},
+		{
+			name:       "absolute config path is kept as it is",
+			rootPath:   "/app",
+			configPath: "/tmp/dir/logs/session_%s.log",
+			want:       "/tmp/dir/logs/session_%s.log",
+		},
+		{
+			name:       "absolute config path survives a relative root path",
+			rootPath:   "..",
+			configPath: "/tmp/dir/memories/%s.jsonl",
+			want:       "/tmp/dir/memories/%s.jsonl",
+		},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			if got := utils.ResolvePath(testCase.rootPath, testCase.configPath); got != testCase.want {
+				t.Errorf("expected %q, got %q", testCase.want, got)
+			}
+		})
 	}
 }

@@ -10,7 +10,7 @@ type Harness interface {
 	SetCurrRoundMessages(messages *Conversation, message ReActMessage, windowSize int, skip int)
 	// LoadTools loads tools based on skill name and registers them into session's loaded tools.
 	// If skillName is empty, loads default tools. Deduplication is handled by session.SetLoadTools.
-	LoadTools(skillName string, session Session, rootPath string)
+	LoadTools(skillName string, session Session)
 	GetCurrRoundKnowledges(question Question) string
 	SetNextRoundMessages(question *Question, messages *Conversation)
 	// GetDefaultAnswer returns the default answer when agent fails to produce a valid response
@@ -22,7 +22,6 @@ type Harness interface {
 	// saves pending tool call info and returns confirmation response with usage info
 	GenerateToolConfirmResponse(
 		session Session,
-		toolName string,
 		tool Tool,
 		args map[string]any,
 		usage Usage,
@@ -32,4 +31,9 @@ type Harness interface {
 	HandleUserQuestion(session Session, question Question) (*ReActMessage, Diagnostic)
 
 	HandleUserToolConfirm(session Session, question Question) *ReActMessage
+
+	// auto-add: RunSubSession creates a one-shot sub-session for the CreateSubSession tool and
+	// drives it through the sub-session's own ProcessQuery. It returns the text that becomes the
+	// tool result in the parent conversation.
+	RunSubSession(session Session, args map[string]any, model string) (string, *Diagnostic)
 }

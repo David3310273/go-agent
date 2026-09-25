@@ -32,9 +32,8 @@ func init() {
 // loads skill by name and returns skill info with tool list.
 // changed Context to Session for unified access to session and context.
 type UseSkillCall struct {
-	Name   string `json:"name"`
-	Schema string `json:"schema"`
-	// project root path for resolving schema file path
+	Name     string `json:"name"`
+	Schema   string `json:"schema"`
 	RootPath string
 	// session for accessing context at runtime.
 	Session core.Session
@@ -49,7 +48,6 @@ func (f UseSkillCall) GetName() string {
 func (f UseSkillCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 
-	// use RootPath instead of hardcoded relative path
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
 		log.Printf("GetSchema: failed to read schema file: %v", err)

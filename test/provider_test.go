@@ -293,6 +293,7 @@ func TestAskQuestion_Success(t *testing.T) {
 	mockSession := testmock.NewMockSession(ctrl)
 	mockQuestion := testmock.NewMockQuestion(ctrl)
 	mockProvider := testmock.NewMockProvider(ctrl)
+	mockContext := testmock.NewMockContext(ctrl)
 
 	messages := []core.ReActMessage{
 		{Role: core.RoleSystem, Content: "system prompt"},
@@ -301,7 +302,8 @@ func TestAskQuestion_Success(t *testing.T) {
 	tools := []core.Tool{}
 
 	mockQuestion.EXPECT().GetProviderName().Return("qwen")
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
 	mockProvider.EXPECT().GetName().Return("qwen")
 	mockProvider.EXPECT().Complete(messages, tools).Return(nil, nil)
 
@@ -321,13 +323,15 @@ func TestAskQuestion_ProviderNotFound(t *testing.T) {
 	mockSession := testmock.NewMockSession(ctrl)
 	mockQuestion := testmock.NewMockQuestion(ctrl)
 	mockProvider := testmock.NewMockProvider(ctrl)
+	mockContext := testmock.NewMockContext(ctrl)
 
 	messages := []core.ReActMessage{
 		{Role: core.RoleUser, Content: "hello"},
 	}
 	tools := []core.Tool{}
 
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
 	mockQuestion.EXPECT().GetProviderName().Return("unknown-provider")
 	mockProvider.EXPECT().GetName().Return("qwen")
 	mockProvider.EXPECT().Complete(messages, tools).Return(nil, nil)
@@ -347,13 +351,15 @@ func TestAskQuestion_NoProviders(t *testing.T) {
 
 	mockSession := testmock.NewMockSession(ctrl)
 	mockQuestion := testmock.NewMockQuestion(ctrl)
+	mockContext := testmock.NewMockContext(ctrl)
 
 	messages := []core.ReActMessage{
 		{Role: core.RoleUser, Content: "hello"},
 	}
 	tools := []core.Tool{}
 
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{})
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{})
 	mockQuestion.EXPECT().GetProviderName().Return("qwen")
 
 	answer, diagnostics := core.AskQuestion(mockSession, messages, tools, mockQuestion)
@@ -372,6 +378,7 @@ func TestAskQuestion_WithDiagnostics(t *testing.T) {
 	mockSession := testmock.NewMockSession(ctrl)
 	mockQuestion := testmock.NewMockQuestion(ctrl)
 	mockProvider := testmock.NewMockProvider(ctrl)
+	mockContext := testmock.NewMockContext(ctrl)
 
 	messages := []core.ReActMessage{
 		{Role: core.RoleUser, Content: "hello"},
@@ -382,7 +389,8 @@ func TestAskQuestion_WithDiagnostics(t *testing.T) {
 	}
 
 	mockQuestion.EXPECT().GetProviderName().Return("qwen")
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
 	mockProvider.EXPECT().GetName().Return("qwen")
 	mockProvider.EXPECT().Complete(messages, tools).Return(nil, expectedDiag)
 
@@ -415,11 +423,10 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	}
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
-	mockSession.EXPECT().SelectLocalKB(mockQuestion).Return("").AnyTimes()
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
-	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
 	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
 	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{}).AnyTimes()
@@ -434,6 +441,8 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
+	mockContext.EXPECT().GetMCPServerConfigs().Return(nil).AnyTimes()
+	mockContext.EXPECT().GetToolsConfig().Return(nil).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
@@ -444,10 +453,10 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockQuestion.EXPECT().GetResponseChan().Return(make(chan core.Answer, 10)).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
-	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}).AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
@@ -488,11 +497,10 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	}
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
-	mockSession.EXPECT().SelectLocalKB(mockQuestion).Return("").AnyTimes()
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
-	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
 	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
 	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{}).AnyTimes()
@@ -507,6 +515,8 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
+	mockContext.EXPECT().GetMCPServerConfigs().Return(nil).AnyTimes()
+	mockContext.EXPECT().GetToolsConfig().Return(nil).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
@@ -515,10 +525,10 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockQuestion.EXPECT().GetResponseChan().Return(make(chan core.Answer, 10)).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
-	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}).AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(expectedAnswer, nil)
 
@@ -584,8 +594,8 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	}
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
-	mockSession.EXPECT().SelectLocalKB(mockQuestion).Return("").AnyTimes()
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
@@ -612,10 +622,10 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockQuestion.EXPECT().GetResponseChan().Return(make(chan core.Answer, 10)).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
-	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}).AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool").AnyTimes()
@@ -685,11 +695,10 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	}
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
-	mockSession.EXPECT().SelectLocalKB(mockQuestion).Return("").AnyTimes()
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
-	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
 	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
 	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{}).AnyTimes()
@@ -704,6 +713,8 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
+	mockContext.EXPECT().GetMCPServerConfigs().Return(nil).AnyTimes()
+	mockContext.EXPECT().GetToolsConfig().Return(nil).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
@@ -713,10 +724,10 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockQuestion.EXPECT().GetResponseChan().Return(make(chan core.Answer, 10)).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
-	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}).AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(finalResponse, nil)
@@ -780,11 +791,10 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	}
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
-	mockSession.EXPECT().SelectLocalKB(mockQuestion).Return("").AnyTimes()
-	mockSession.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
+	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
-	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
 	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
 	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{mockTool}).AnyTimes()
@@ -799,6 +809,8 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
+	mockContext.EXPECT().GetMCPServerConfigs().Return(nil).AnyTimes()
+	mockContext.EXPECT().GetToolsConfig().Return(nil).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
@@ -808,10 +820,10 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockQuestion.EXPECT().GetResponseChan().Return(make(chan core.Answer, 10)).AnyTimes()
 
 	mockHarness.EXPECT().GenerateFinalPrompt(gomock.Any(), gomock.Any()).Return("final prompt").AnyTimes()
-	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}).AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool")

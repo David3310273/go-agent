@@ -38,28 +38,29 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) *AskR
 
 	var question core.Question
 	if askParams, ok := params.(*AskParams); ok {
-		question = &SimpleQuestion{
-			query:          askParams.Question,
-			responseChan:   responseChan,
-			hintChan:       hintChan,
-			streaming:      askParams.Stream,
-			enableThinking: askParams.EnableThinking,
-			sessionID:      askParams.SessionID,
-			model:          askParams.Model,
-			questionType:   askParams.Type,
-		}
+		// auto-add: SimpleQuestion now lives in agent/simple, so build it via its constructor
+		question = simple.NewSimpleQuestion(
+			askParams.Question,
+			askParams.SessionID,
+			askParams.Model,
+			responseChan,
+			hintChan,
+			askParams.Stream,
+			askParams.EnableThinking,
+			askParams.Type,
+		)
 	} else if toolConfirmParams, ok := params.(*ToolConfirmAskParams); ok {
 		question = &SimpleToolConfirmQuestion{
-			SimpleQuestion: SimpleQuestion{
-				query:          toolConfirmParams.Question,
-				responseChan:   responseChan,
-				hintChan:       hintChan,
-				streaming:      toolConfirmParams.Stream,
-				enableThinking: toolConfirmParams.EnableThinking,
-				sessionID:      toolConfirmParams.SessionID,
-				model:          toolConfirmParams.Model,
-				questionType:   core.QuestionTypeToolConfirm,
-			},
+			SimpleQuestion: *simple.NewSimpleQuestion(
+				toolConfirmParams.Question,
+				toolConfirmParams.SessionID,
+				toolConfirmParams.Model,
+				responseChan,
+				hintChan,
+				toolConfirmParams.Stream,
+				toolConfirmParams.EnableThinking,
+				core.QuestionTypeToolConfirm,
+			),
 			ToolName:   toolConfirmParams.ToolName,
 			ServerName: toolConfirmParams.ServerName,
 		}
@@ -92,38 +93,10 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) *AskR
 	}
 }
 
-// SimpleQuestion implements core.Question interface for HTTP requests
-type SimpleQuestion struct {
-	query          string
-	sessionID      string
-	model          string
-	responseChan   chan core.Answer
-	hintChan       chan core.Answer
-	streaming      bool
-	enableThinking bool
-	questionType   core.QuestionType
-}
-
-func (q *SimpleQuestion) GetID() string                     { return q.sessionID }
-func (q *SimpleQuestion) GetProviderName() string           { return q.model }
-func (q *SimpleQuestion) GetStreaming() bool                { return q.streaming }
-func (q *SimpleQuestion) GetEnableThinking() bool           { return q.enableThinking }
-func (q *SimpleQuestion) GetQuery() string                  { return q.query }
-func (q *SimpleQuestion) SetQuery(query string)             { q.query = query }
-func (q *SimpleQuestion) GetRetryQuery() string             { return q.query }
-func (q *SimpleQuestion) GetSessionID() string              { return q.sessionID }
-func (q *SimpleQuestion) GetResponseChan() chan core.Answer { return q.responseChan }
-func (q *SimpleQuestion) GetHintChan() chan core.Answer     { return q.hintChan }
-
-// GetType returns the question type (normal for SimpleQuestion)
-func (q *SimpleQuestion) GetType() core.QuestionType { return q.questionType }
-
-// removed GetDefaultAnswer, default answer is now managed by harness
-func (q *SimpleQuestion) ToString() string { return q.query }
-
 // SimpleToolConfirmQuestion represents a user's confirmation for a destructive tool
+// auto-add: SimpleQuestion moved to agent/simple, so it is embedded from there now
 type SimpleToolConfirmQuestion struct {
-	SimpleQuestion
+	simple.SimpleQuestion
 	ToolName   string `json:"toolName"`   // outer tool name
 	ServerName string `json:"serverName"` // MCP server name
 }

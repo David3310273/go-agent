@@ -86,7 +86,7 @@ type SessionManager interface {
 	// stop a session
 	StopSession(string) *Diagnostic
 	// get session, if not exist, create a new one with options
-	GetSessionOnCreate(id string, streaming bool, enableThinking bool, forceCreate bool) (Session, *Diagnostic)
+	GetSessionOnCreate(id string, forceCreate bool) (Session, *Diagnostic)
 	// load conversation from file/db, take care of size
 	RecoverConversation(sessionID string) *Conversation
 }
@@ -314,14 +314,14 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 
 	loadedTools := session.GetLoadTools()
 	if len(*loadedTools) == 0 {
-		harness.LoadTools("", session, config.RootPath)
+		harness.LoadTools("", session)
 	}
 
 	var currentSkillName string
 	for i := 0; i < maxReActRounds; i++ {
 		// dynamically load tools based on skill from previous round
 		if currentSkillName != "" {
-			harness.LoadTools(currentSkillName, session, config.RootPath)
+			harness.LoadTools(currentSkillName, session)
 			currentSkillName = "" // reset after loading
 		}
 
@@ -349,7 +349,9 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		} else {
 			// send thoughts to hint chan only when thinking is enabled
 			if question.GetEnableThinking() {
-				question.GetHintChan() <- answer
+				if hintChan := question.GetHintChan(); hintChan != nil {
+					hintChan <- answer
+				}
 			}
 			// for simplicity, only use the first choice
 			// TODO: support multiple choices
@@ -427,7 +429,6 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 									// delegate to harness to generate confirmation response
 									confirmResponse := harness.GenerateToolConfirmResponse(
 										session,
-										toolCall.Function.Name,
 										targetTool,
 										args,
 										answer.Usage,
@@ -454,14 +455,28 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 										ToolCallID: toolCall.ID,
 									})
 
-									question.GetResponseChan() <- confirmResponse
+									if responseChan := question.GetResponseChan(); responseChan != nil {
+										responseChan <- confirmResponse
+									}
 									// return to terminate reAct loop
 									return confirmResponse, diagnostics
 								}
 							}
 
-							// use result string from CallTool, check diagnostic level for error.
-							result, diag := CallTool(targetTool, args)
+							// auto-add: CreateSubSession is intercepted instead of going through
+							// CallTool. The tool only declares the intent, the harness creates and
+							// drives the sub-session, because the tool package cannot import the
+							// agent package that owns the concrete Session and Question types.
+							// Only the model name crosses the boundary, never the caller question.
+							var result string
+							var diag *Diagnostic
+							if toolCall.Function.Name == SubSessionToolName {
+								result, diag = harness.RunSubSession(session, args, question.GetProviderName())
+							} else {
+								// use result string from CallTool, check diagnostic level for error.
+								result, diag = CallTool(targetTool, args)
+							}
+
 							if diag != nil && diag.Level == SeverityError {
 								toolResult = "Error: " + diag.Message
 							} else {
@@ -673,14 +688,14 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 
 	loadedTools := session.GetLoadTools()
 	if len(*loadedTools) == 0 {
-		harness.LoadTools("", session, config.RootPath)
+		harness.LoadTools("", session)
 	}
 
 	var currentSkillName string
 	for i := 0; i < maxReActRounds; i++ {
 		// dynamically load tools based on skill from previous round
 		if currentSkillName != "" {
-			harness.LoadTools(currentSkillName, session, config.RootPath)
+			harness.LoadTools(currentSkillName, session)
 			currentSkillName = "" // reset after loading
 		}
 		log.Printf("init messages (stream): %v", messages.ToString())
@@ -783,7 +798,6 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 								// delegate to harness to generate confirmation response
 								confirmResponse := harness.GenerateToolConfirmResponse(
 									session,
-									toolCall.Function.Name,
 									targetTool,
 									args,
 									acc.usage,
@@ -808,14 +822,28 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 									ToolCallID: toolCall.ID,
 								})
 
-								question.GetResponseChan() <- confirmResponse
+								if responseChan := question.GetResponseChan(); responseChan != nil {
+									responseChan <- confirmResponse
+								}
 								// return to terminate reAct loop
 								return confirmResponse, diagnostics
 							}
 						}
 
-						// use result string from CallTool, check diagnostic level for error.
-						result, diag := CallTool(targetTool, args)
+						// auto-add: CreateSubSession is intercepted instead of going through
+						// CallTool. The tool only declares the intent, the harness creates and
+						// drives the sub-session, because the tool package cannot import the
+						// agent package that owns the concrete Session and Question types.
+						// Only the model name crosses the boundary, never the caller question.
+						var result string
+						var diag *Diagnostic
+						if toolCall.Function.Name == SubSessionToolName {
+							result, diag = harness.RunSubSession(session, args, question.GetProviderName())
+						} else {
+							// use result string from CallTool, check diagnostic level for error.
+							result, diag = CallTool(targetTool, args)
+						}
+
 						if diag != nil && diag.Level == SeverityError {
 							toolResult = "Error: " + diag.Message
 						} else {

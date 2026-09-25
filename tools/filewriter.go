@@ -47,7 +47,6 @@ func (f FileWriterCall) GetName() string {
 func (f FileWriterCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 
-	//  use RootPath instead of hardcoded relative path
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
 		log.Printf("GetSchema: failed to read schema file: %v", err)

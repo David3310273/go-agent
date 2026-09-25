@@ -69,7 +69,7 @@ func HandleCancel(c *gin.Context, agent *simple.SimpleAgent) {
 	}
 
 	// get session
-	session, diag := agent.GetSessionOnCreate(req.SessionID, false, false, false)
+	session, diag := agent.GetSessionOnCreate(req.SessionID, false)
 	if diag != nil || session == nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    core.MessageCodeSessionStopError,

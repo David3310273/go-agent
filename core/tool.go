@@ -1,5 +1,10 @@
 package core
 
+// auto-add: name of the tool that requests a sub-session. ProcessQuestion intercepts this
+// tool by name and delegates to Harness.RunSubSession instead of calling the tool runner,
+// because the tool package cannot import the agent package that drives the sub-session.
+const SubSessionToolName = "CreateSubSession"
+
 // ToolSchema represents a provider-agnostic tool schema
 type ToolSchema struct {
 	Type     string         `json:"type"`
@@ -52,7 +57,7 @@ func CallTool(tool Tool, args map[string]any) (string, *Diagnostic) {
 
 // ToolFactory is a function that creates a Tool instance.
 // factory function type for tool registration.
-// accepts Session for accessing context, skills, and knowledge bases at runtime.
+// accepts rootPath for resolving schema files, and session for accessing context, skills, and knowledge bases at runtime.
 type ToolFactory func(rootPath string, session Session) Tool
 
 // toolRegistry stores registered tool factories.

@@ -468,18 +468,19 @@ func (m *MockSessionManager) EXPECT() *MockSessionManagerMockRecorder {
 }
 
 // GetSessionOnCreate mocks base method.
-func (m *MockSessionManager) GetSessionOnCreate(id string, streaming, enableThinking, forceCreate bool) (core.Session, *core.Diagnostic) {
+// auto-add: updated by hand to match the slimmed core.SessionManager signature.
+func (m *MockSessionManager) GetSessionOnCreate(id string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSessionOnCreate", id, streaming, enableThinking, forceCreate)
+	ret := m.ctrl.Call(m, "GetSessionOnCreate", id, forceCreate)
 	ret0, _ := ret[0].(core.Session)
 	ret1, _ := ret[1].(*core.Diagnostic)
 	return ret0, ret1
 }
 
 // GetSessionOnCreate indicates an expected call of GetSessionOnCreate.
-func (mr *MockSessionManagerMockRecorder) GetSessionOnCreate(id, streaming, enableThinking, forceCreate any) *gomock.Call {
+func (mr *MockSessionManagerMockRecorder) GetSessionOnCreate(id, forceCreate any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockSessionManager)(nil).GetSessionOnCreate), id, streaming, enableThinking, forceCreate)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockSessionManager)(nil).GetSessionOnCreate), id, forceCreate)
 }
 
 // RecoverConversation mocks base method.
@@ -743,18 +744,19 @@ func (mr *MockAgentCoreMockRecorder) GetSessionConfig() *gomock.Call {
 }
 
 // GetSessionOnCreate mocks base method.
-func (m *MockAgentCore) GetSessionOnCreate(id string, streaming, enableThinking, forceCreate bool) (core.Session, *core.Diagnostic) {
+// auto-add: updated by hand to match the slimmed core.AgentCore signature.
+func (m *MockAgentCore) GetSessionOnCreate(id string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSessionOnCreate", id, streaming, enableThinking, forceCreate)
+	ret := m.ctrl.Call(m, "GetSessionOnCreate", id, forceCreate)
 	ret0, _ := ret[0].(core.Session)
 	ret1, _ := ret[1].(*core.Diagnostic)
 	return ret0, ret1
 }
 
 // GetSessionOnCreate indicates an expected call of GetSessionOnCreate.
-func (mr *MockAgentCoreMockRecorder) GetSessionOnCreate(id, streaming, enableThinking, forceCreate any) *gomock.Call {
+func (mr *MockAgentCoreMockRecorder) GetSessionOnCreate(id, forceCreate any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockAgentCore)(nil).GetSessionOnCreate), id, streaming, enableThinking, forceCreate)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockAgentCore)(nil).GetSessionOnCreate), id, forceCreate)
 }
 
 // GetToolsConfig mocks base method.

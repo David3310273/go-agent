@@ -41,6 +41,20 @@ func (m *MockSession) EXPECT() *MockSessionMockRecorder {
 	return m.recorder
 }
 
+// Acquire mocks base method.
+func (m *MockSession) Acquire() *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Acquire")
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// Acquire indicates an expected call of Acquire.
+func (mr *MockSessionMockRecorder) Acquire() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Acquire", reflect.TypeOf((*MockSession)(nil).Acquire))
+}
+
 // BeforeStart mocks base method.
 func (m *MockSession) BeforeStart(arg0 core.AgentCoreConfig) []core.Diagnostic {
 	m.ctrl.T.Helper()
@@ -69,6 +83,18 @@ func (mr *MockSessionMockRecorder) BeforeStop(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockSession)(nil).BeforeStop), arg0)
 }
 
+// CancelQuery mocks base method.
+func (m *MockSession) CancelQuery() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CancelQuery")
+}
+
+// CancelQuery indicates an expected call of CancelQuery.
+func (mr *MockSessionMockRecorder) CancelQuery() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelQuery", reflect.TypeOf((*MockSession)(nil).CancelQuery))
+}
+
 // ClearToolConfirmed mocks base method.
 func (m *MockSession) ClearToolConfirmed(serverName, toolName string) {
 	m.ctrl.T.Helper()
@@ -91,6 +117,18 @@ func (m *MockSession) CloseBenchmarkListeningChannels() {
 func (mr *MockSessionMockRecorder) CloseBenchmarkListeningChannels() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseBenchmarkListeningChannels", reflect.TypeOf((*MockSession)(nil).CloseBenchmarkListeningChannels))
+}
+
+// DeleteMemory mocks base method.
+func (m *MockSession) DeleteMemory() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "DeleteMemory")
+}
+
+// DeleteMemory indicates an expected call of DeleteMemory.
+func (mr *MockSessionMockRecorder) DeleteMemory() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMemory", reflect.TypeOf((*MockSession)(nil).DeleteMemory))
 }
 
 // DeletePendingMCPToolCall mocks base method.
@@ -145,86 +183,6 @@ func (m *MockSession) GetContext() core.Context {
 func (mr *MockSessionMockRecorder) GetContext() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContext", reflect.TypeOf((*MockSession)(nil).GetContext))
-}
-
-// GetQueryCtx mocks base method.
-func (m *MockSession) GetQueryCtx() context.Context {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetQueryCtx")
-	ret0, _ := ret[0].(context.Context)
-	return ret0
-}
-
-// GetQueryCtx indicates an expected call of GetQueryCtx.
-func (mr *MockSessionMockRecorder) GetQueryCtx() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetQueryCtx", reflect.TypeOf((*MockSession)(nil).GetQueryCtx))
-}
-
-// CancelQuery mocks base method.
-func (m *MockSession) CancelQuery() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CancelQuery")
-}
-
-// CancelQuery indicates an expected call of CancelQuery.
-func (mr *MockSessionMockRecorder) CancelQuery() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelQuery", reflect.TypeOf((*MockSession)(nil).CancelQuery))
-}
-
-// Acquire mocks base method.
-func (m *MockSession) Acquire() *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Acquire")
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// Acquire indicates an expected call of Acquire.
-func (mr *MockSessionMockRecorder) Acquire() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Acquire", reflect.TypeOf((*MockSession)(nil).Acquire))
-}
-
-// Release mocks base method.
-func (m *MockSession) Release() *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Release")
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// Release indicates an expected call of Release.
-func (mr *MockSessionMockRecorder) Release() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Release", reflect.TypeOf((*MockSession)(nil).Release))
-}
-
-// SetQueryContext mocks base method.
-func (m *MockSession) SetQueryContext(ctx context.Context, cancel context.CancelFunc) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetQueryContext", ctx, cancel)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// SetQueryContext indicates an expected call of SetQueryContext.
-func (mr *MockSessionMockRecorder) SetQueryContext(ctx, cancel any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetQueryContext", reflect.TypeOf((*MockSession)(nil).SetQueryContext), ctx, cancel)
-}
-
-// DeleteMemory mocks base method.
-func (m *MockSession) DeleteMemory() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "DeleteMemory")
-}
-
-// DeleteMemory indicates an expected call of DeleteMemory.
-func (mr *MockSessionMockRecorder) DeleteMemory() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMemory", reflect.TypeOf((*MockSession)(nil).DeleteMemory))
 }
 
 // GetConversation mocks base method.
@@ -283,20 +241,6 @@ func (mr *MockSessionMockRecorder) GetLoadTools() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLoadTools", reflect.TypeOf((*MockSession)(nil).GetLoadTools))
 }
 
-// GetModelProviders mocks base method.
-func (m *MockSession) GetModelProviders() []core.Provider {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetModelProviders")
-	ret0, _ := ret[0].([]core.Provider)
-	return ret0
-}
-
-// GetModelProviders indicates an expected call of GetModelProviders.
-func (mr *MockSessionMockRecorder) GetModelProviders() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetModelProviders", reflect.TypeOf((*MockSession)(nil).GetModelProviders))
-}
-
 // GetPendingMCPToolCall mocks base method.
 func (m *MockSession) GetPendingMCPToolCall(serverName, toolName string) *core.PendingMCPToolCall {
 	m.ctrl.T.Helper()
@@ -309,6 +253,20 @@ func (m *MockSession) GetPendingMCPToolCall(serverName, toolName string) *core.P
 func (mr *MockSessionMockRecorder) GetPendingMCPToolCall(serverName, toolName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPendingMCPToolCall", reflect.TypeOf((*MockSession)(nil).GetPendingMCPToolCall), serverName, toolName)
+}
+
+// GetQueryCtx mocks base method.
+func (m *MockSession) GetQueryCtx() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetQueryCtx")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// GetQueryCtx indicates an expected call of GetQueryCtx.
+func (mr *MockSessionMockRecorder) GetQueryCtx() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetQueryCtx", reflect.TypeOf((*MockSession)(nil).GetQueryCtx))
 }
 
 // GetQuestionChan mocks base method.
@@ -354,17 +312,17 @@ func (mr *MockSessionMockRecorder) IsToolConfirmed(serverName, toolName any) *go
 }
 
 // NewSubSession mocks base method.
-func (m *MockSession) NewSubSession() core.Session {
+func (m *MockSession) NewSubSession(tool []core.Tool) core.Session {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewSubSession")
+	ret := m.ctrl.Call(m, "NewSubSession", tool)
 	ret0, _ := ret[0].(core.Session)
 	return ret0
 }
 
 // NewSubSession indicates an expected call of NewSubSession.
-func (mr *MockSessionMockRecorder) NewSubSession() *gomock.Call {
+func (mr *MockSessionMockRecorder) NewSubSession(tool any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewSubSession", reflect.TypeOf((*MockSession)(nil).NewSubSession))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewSubSession", reflect.TypeOf((*MockSession)(nil).NewSubSession), tool)
 }
 
 // OnEvent mocks base method.
@@ -403,6 +361,20 @@ func (mr *MockSessionMockRecorder) RegisterEventChans() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterEventChans", reflect.TypeOf((*MockSession)(nil).RegisterEventChans))
 }
 
+// Release mocks base method.
+func (m *MockSession) Release() *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Release")
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// Release indicates an expected call of Release.
+func (mr *MockSessionMockRecorder) Release() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Release", reflect.TypeOf((*MockSession)(nil).Release))
+}
+
 // SaveMemory mocks base method.
 func (m *MockSession) SaveMemory(arg0 core.ReActMessage) *core.Diagnostic {
 	m.ctrl.T.Helper()
@@ -415,20 +387,6 @@ func (m *MockSession) SaveMemory(arg0 core.ReActMessage) *core.Diagnostic {
 func (mr *MockSessionMockRecorder) SaveMemory(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMemory", reflect.TypeOf((*MockSession)(nil).SaveMemory), arg0)
-}
-
-// SelectLocalKB mocks base method.
-func (m *MockSession) SelectLocalKB(arg0 core.Question) string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SelectLocalKB", arg0)
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// SelectLocalKB indicates an expected call of SelectLocalKB.
-func (mr *MockSessionMockRecorder) SelectLocalKB(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SelectLocalKB", reflect.TypeOf((*MockSession)(nil).SelectLocalKB), arg0)
 }
 
 // SetLoadTools mocks base method.
@@ -467,6 +425,20 @@ func (m *MockSession) SetPendingMCPToolCall(serverName, toolName string, pending
 func (mr *MockSessionMockRecorder) SetPendingMCPToolCall(serverName, toolName, pending any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetPendingMCPToolCall", reflect.TypeOf((*MockSession)(nil).SetPendingMCPToolCall), serverName, toolName, pending)
+}
+
+// SetQueryContext mocks base method.
+func (m *MockSession) SetQueryContext(ctx context.Context, cancel context.CancelFunc) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetQueryContext", ctx, cancel)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// SetQueryContext indicates an expected call of SetQueryContext.
+func (mr *MockSessionMockRecorder) SetQueryContext(ctx, cancel any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetQueryContext", reflect.TypeOf((*MockSession)(nil).SetQueryContext), ctx, cancel)
 }
 
 // SetStatus mocks base method.

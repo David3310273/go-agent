@@ -106,8 +106,9 @@ func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message
 // If skillName is empty, loads default tools.
 // Uses tool registry to create tools dynamically, no switch needed.
 // Deduplication is handled by session.SetLoadTools internally.
-func (h SimpleHarness) LoadTools(skillName string, session core.Session, rootPath string) {
+func (h SimpleHarness) LoadTools(skillName string, session core.Session) {
 	context := session.GetContext()
+	rootPath := session.GetConfigs().RootPath
 	// if skillName is empty, load default tools directly
 	if skillName == "" {
 		for _, cfg := range context.GetToolsConfig() {
@@ -157,7 +158,6 @@ func (h SimpleHarness) GetConfirmDestructiveToolResult(toolName string) string {
 // saves pending MCP tool call info to session and returns confirmation response with usage info
 func (h SimpleHarness) GenerateToolConfirmResponse(
 	session core.Session,
-	toolName string,
 	tool core.Tool,
 	args map[string]any,
 	usage core.Usage,
@@ -178,7 +178,7 @@ func (h SimpleHarness) GenerateToolConfirmResponse(
 			Response: h.GetUserToolConfirmMessage(fmt.Sprintf("%s:%s", serverName, innerToolName)),
 			Usage:    usage,
 		},
-		ToolName:   toolName,
+		ToolName:   tool.GetName(),
 		ServerName: serverName,
 		MCPTool:    innerToolName,
 		SessionID:  session.GetID(),
@@ -273,4 +273,132 @@ func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core
 	}
 
 	return nil
+}
+
+// RunSubSession creates a one-shot sub-session and drives it through the sub-session's own
+// RunQuery, then returns the text that becomes the tool result in the parent conversation.
+// auto-add: implements core.Harness. The CreateSubSession tool only declares the intent, the
+// sub-session is created and driven here because agent/simple/tools cannot import this package.
+// model is the provider name the sub-session runs on, empty means the first available provider.
+// The caller question is not accepted on purpose: it is the user's own request and it carries
+// the user's response and hint channels.
+func (h SimpleHarness) RunSubSession(session core.Session, args map[string]any, model string) (string, *core.Diagnostic) {
+	runError := func(message string) *core.Diagnostic {
+		return &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeToolRunError,
+			Message: message,
+		}
+	}
+
+	// only one level of sub-session is allowed
+	if parent, ok := session.(*SimpleAgentSession); ok && parent.ParentSession != nil {
+		return "", runError("a sub-session cannot create another sub-session")
+	}
+
+	query, _ := args["query"].(string)
+	if query == "" {
+		return "", runError("query is required to run a sub-session")
+	}
+
+	// auto-add: the schema declares tools as a JSON array, so json.Unmarshal gives []any.
+	// The previous map[string]any assertion never matched, and the sub-session was created
+	// without any tool, which made the model write tool calls as plain text.
+	tools := []core.Tool{}
+	if toolList, ok := args["tools"].([]any); ok {
+		for _, toolItem := range toolList {
+			toolObject, ok := toolItem.(map[string]any)
+			if !ok {
+				continue
+			}
+			// auto-add: checked assertion, a missing or non-string name used to panic here
+			toolName, ok := toolObject["name"].(string)
+			if !ok || toolName == "" {
+				continue
+			}
+			tool := core.CreateTool(toolName, session.GetConfigs().RootPath, session)
+			// auto-add: CreateTool returns nil for an unregistered name, a nil tool in the
+			// list would break the reAct loop when it looks the tool up by name
+			if tool == nil {
+				log.Printf("RunSubSession: tool %s is not registered, skipped", toolName)
+				continue
+			}
+			tools = append(tools, tool)
+		}
+	}
+
+	// auto-add: a sub-session runs only with the tools the caller specified, it never inherits
+	// the parent tool config. With no tool at all the reAct loop sends no function schema to the
+	// provider and the model degrades to writing its tool calls as plain text, which used to come
+	// back to the parent as the tool result. Fail here instead, before creating the sub-session.
+	if len(tools) == 0 {
+		return "", runError("no usable tool in the tools argument, a sub-session runs only with " +
+			"the tools explicitly specified and every name must be a registered tool")
+	}
+
+	subSession := session.NewSubSession(tools)
+	sub, ok := subSession.(*SimpleAgentSession)
+	if !ok {
+		return "", runError(fmt.Sprintf("unexpected sub-session type %T", subSession))
+	}
+
+	log.Printf("RunSubSession: session %s created sub-session %s", session.GetID(), sub.GetID())
+
+	// auto-add: the sub-session thinking goes to the standard output. core.ProcessQuestion pushes
+	// the reasoning only when the question carries a hint channel, so give it one and drain it
+	// here instead of writing it into the sub-session log file.
+	hintChan := make(chan core.Answer, 10)
+	drainDone := make(chan struct{})
+	go func() {
+		defer close(drainDone)
+		for hint := range hintChan {
+			hintResponse, ok := hint.(core.AgentResponse)
+			if !ok || len(hintResponse.Choices) == 0 || hintResponse.Choices[0].Message == nil {
+				continue
+			}
+			reasoning := hintResponse.Choices[0].Message.ReasoningContent
+			if reasoning == nil || *reasoning == "" {
+				continue
+			}
+			fmt.Printf("[sub-session %s][thinking] %s\n", sub.GetID(), *reasoning)
+		}
+	}()
+
+	// build sub-session question, only the response channel stays nil
+	subQuestion := NewSimpleQuestion(
+		query,
+		sub.GetID(),
+		model,
+		nil,      // response channel: RunQuery returns answer directly
+		hintChan, // hint channel: drained above, the thinking is printed to the standard output
+		false,    // streaming: the answer becomes a tool result in the parent
+		true,     // enableThinking: the reasoning reaches the hint channel
+		core.QuestionTypeNormal,
+	)
+
+	// run the sub-session synchronously, every hint send happens inside this call
+	response, diagnostics := sub.RunQuery(subQuestion)
+
+	// auto-add: RunQuery has returned, so nothing sends to hintChan anymore. Close it to let the
+	// drainer finish and wait for it, otherwise the last thinking lines can be lost.
+	close(hintChan)
+	<-drainDone
+
+	if len(diagnostics) > 0 {
+		return "", runError(fmt.Sprintf("sub-session failed: %v", diagnostics))
+	}
+
+	// extract answer content
+	if answer, ok := response.(core.AgentResponse); ok {
+		// a real reAct answer carries the text in the first choice
+		if len(answer.Choices) > 0 && answer.Choices[0].Message != nil && answer.Choices[0].Message.Content != "" {
+			return answer.Choices[0].Message.Content, nil
+		}
+		// fall back to Response field
+		if answer.Response != "" {
+			return answer.Response, nil
+		}
+	}
+
+	return "", runError("sub-session returned no answer")
 }

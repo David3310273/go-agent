@@ -14,6 +14,7 @@ import (
 	"time"
 
 	_ "github.com/David3310273/go-agent/agent/simple/tools" // import to register UseSkill, SearchKnowledgeBase
+	"github.com/David3310273/go-agent/agent/simple/utils"
 	"github.com/David3310273/go-agent/core"
 	uuid "github.com/gofrs/uuid/v5"
 )
@@ -196,7 +197,8 @@ func (a *SimpleAgent) GetLogger() *log.Logger {
 
 func (a *SimpleAgent) SetLogger(config core.AgentConfig) *core.Diagnostic {
 	//  use RootPath for log directory instead of relative path
-	realPath := path.Join(a.RootPath, config.LogPath)
+	// auto-add: resolve through ResolvePath so an absolute LogPath is not made relative
+	realPath := utils.ResolvePath(a.RootPath, config.LogPath)
 	folder := path.Dir(realPath)
 
 	if _, err := os.Stat(folder); os.IsNotExist(err) {
@@ -289,10 +291,8 @@ func (a *SimpleAgent) Start(config core.AgentCoreConfig) []core.Diagnostic {
 		select {
 		case query := <-a.Question:
 			sessionID := query.GetSessionID()
-			stream := query.GetStreaming()
-			enableThinking := query.GetEnableThinking()
 			// organize session
-			session, err := a.GetSessionOnCreate(sessionID, stream, enableThinking, true)
+			session, err := a.GetSessionOnCreate(sessionID, true)
 			if err != nil {
 				// send error to question's response channel when session creation fails
 				query.GetResponseChan() <- err
@@ -399,7 +399,9 @@ func (a *SimpleAgent) StopSession(sessionID string) *core.Diagnostic {
 
 // for simplicity, loading all history, no size limit here.
 func (a *SimpleAgent) RecoverConversation(sessionID string) *core.Conversation {
-	memoryPath := path.Join(a.RootPath, fmt.Sprintf(a.GetSessionConfig().MemoryFilePathFormat, sessionID))
+	// auto-add: resolve through ResolvePath so an absolute format is not made relative,
+	// matching SimpleAgentSession.SaveMemory which writes the very same file
+	memoryPath := utils.ResolvePath(a.RootPath, fmt.Sprintf(a.GetSessionConfig().MemoryFilePathFormat, sessionID))
 
 	fp, err := os.Open(memoryPath)
 	if err != nil {
@@ -428,7 +430,7 @@ func (a *SimpleAgent) RecoverConversation(sessionID string) *core.Conversation {
 }
 
 // get session, if not exist and forceCreate is true, create a new one
-func (a *SimpleAgent) GetSessionOnCreate(sessionID string, streaming bool, enableThinking bool, forceCreate bool) (core.Session, *core.Diagnostic) {
+func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	if session, ok := a.sessions[sessionID]; ok {
 		log.Printf("session %s found, will enter conversation", sessionID)
 		return session, nil
@@ -436,7 +438,7 @@ func (a *SimpleAgent) GetSessionOnCreate(sessionID string, streaming bool, enabl
 		log.Printf("session %s not found, will create new one", sessionID)
 
 		memories := a.RecoverConversation(sessionID)
-		session := NewAgentSession(a, sessionID, streaming, enableThinking, memories)
+		session := NewAgentSession(a, sessionID, memories)
 
 		// acquire lock first
 		if err := a.Acquire(); err == nil {

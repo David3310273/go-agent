@@ -29,7 +29,7 @@ type Session interface {
 	// get session context
 	GetContext() Context
 	// session support tree structure
-	NewSubSession() Session
+	NewSubSession(tool []Tool) Session
 	// runtime query related
 	GetQueryCtx() context.Context
 	// set query ctx for query cancellation
