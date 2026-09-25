@@ -54,10 +54,6 @@ type SimpleAgentSession struct {
 	startTime time.Time
 	// start process time
 	startProcessTime time.Time
-	// streaming
-	streaming bool
-	// enable thinking
-	enableThinking bool
 
 	Config core.SessionConfig
 
@@ -67,6 +63,10 @@ type SimpleAgentSession struct {
 	// query context for single ProcessQuery cancellation
 	queryCtx    context.Context
 	queryCancel context.CancelFunc
+	// auto-add: query context of the parent session, captured in NewSubSession. ProcessQuery
+	// derives the sub-session query context from it so cancelling the parent query cancels
+	// the sub-session query as well. Nil for top level sessions.
+	parentQueryCtx context.Context
 
 	// user input chan
 	Question chan core.Question
@@ -84,7 +84,7 @@ type SimpleAgentSession struct {
 
 // NewAgentSession creates a new session from an AgentCore
 // log providers count when creating session
-func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, enableThinking bool, memory *core.Conversation) *SimpleAgentSession {
+func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conversation) *SimpleAgentSession {
 	providers := agent.GetModelProviders()
 	log.Printf("NewAgentSession: providers count = %d", len(providers))
 
@@ -103,8 +103,6 @@ func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, ena
 
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		eventChans:       make(map[string]chan core.Event[any]),
-		streaming:        streaming,
-		enableThinking:   true,
 		// initialize confirmation tracking maps
 		confirmedTools:  make(map[string]string),
 		pendingMCPCalls: make(map[string]*core.PendingMCPToolCall),
@@ -150,25 +148,82 @@ func NewAgentSession(agent core.AgentCore, sessionID string, streaming bool, ena
 }
 
 // NewSubSession creates a child session
-func (s *SimpleAgentSession) NewSubSession() core.Session {
+// auto-add: inherit the parent runtime config and reset every reference-typed field, so the
+// sub-session can run its own reAct loop with its own logger and event listener.
+func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 	session := &SimpleAgentSession{
 		ParentSession: s,
 		Status:        core.SessionStatusRunning,
 		mu:            make(chan struct{}, 1),
-		Context:       s.Context,
+		// auto-add: zero lockTimeOut made Acquire race against time.After(0) and fail randomly
+		lockTimeOut: LockTimeout,
+		// auto-add: zero Config meant ReActMaxRounds 0, empty RootPath and empty memory file format
+		Config: s.Config,
+		// auto-add: Stop closes Question, close of a nil channel panics
+		Question: make(chan core.Question),
+		// auto-add: nil maps make RegisterEventChans and SetPendingMCPToolCall panic on assignment
+		eventChans:       make(map[string]chan core.Event[any]),
+		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
+		confirmedTools:   make(map[string]string),
+		pendingMCPCalls:  make(map[string]*core.PendingMCPToolCall),
+		// value copy of the parent context, reference-typed fields are reset below
+		Context: s.Context,
 	}
 
+	// auto-add: break the references still shared with the parent after the Context value copy.
+	// LoadedToolsMap is a map, so the sub-session used to write into the parent dedup map and
+	// made the parent skip tools in SetLoadTools.
+	session.Context.Tools = nil
+	session.Context.LoadedToolsMap = make(map[string]core.Tool)
+	session.Context.LoadedTools = []core.Tool{}
+	session.Context.Conversation = core.Conversation{}
+
+	// only load tools from parent session
+	for _, tool := range tools {
+		session.SetLoadTools(tool)
+	}
+
+	// inherit parent cancellation so stopping the parent stops the sub-session
 	session.ctx, session.cancel = context.WithCancel(s.ctx)
+	// auto-add: queryCtx was nil, ProcessQuestion calls Done on it before the reAct loop.
+	// Derive it from the parent query context when there is one, so cancelling the parent
+	// query cancels the sub-session query too. ProcessQuery derives from the same base.
+	session.parentQueryCtx = s.queryCtx
+	if session.parentQueryCtx == nil {
+		session.parentQueryCtx = session.ctx
+	}
+	session.queryCtx, session.queryCancel = context.WithCancel(session.parentQueryCtx)
 
 	id, _ := uuid.NewV4()
 	session.ID = id.String()
+
+	if diag := session.SetLogger(s.Config); diag != nil {
+		log.Printf("NewSubSession: failed to set logger for sub-session %s: %s", session.ID, diag.Message)
+	}
+
+	// auto-add: own event channels and listener, OnEvent returns once session.ctx is cancelled
+	session.RegisterEventChans()
+	go session.OnEvent()
+
+	// auto-add: register into the parent so its Stop can shut the sub-session down.
+	// Uses the session channel lock, the same one SetQueryContext takes. Skipped when the
+	// parent is already stopping, since a sub-session registered after Stop is never shut down.
+	if s.ctx.Err() != nil {
+		log.Printf("NewSubSession: parent session %s is stopping, sub-session %s not registered", s.ID, session.ID)
+	} else if diag := s.Acquire(); diag != nil {
+		log.Printf("NewSubSession: lock timeout, sub-session %s not registered: %s", session.ID, diag.Message)
+	} else {
+		s.SubSessions = append(s.SubSessions, session)
+		s.Release()
+	}
 
 	return session
 }
 
 func (s *SimpleAgentSession) SetLogger(config core.SessionConfig) *core.Diagnostic {
 	//  use RootPath for log directory instead of relative path
-	realPath := path.Join(config.RootPath, config.LogPath)
+	// auto-add: resolve through ResolvePath so an absolute LogPath is not made relative
+	realPath := utils.ResolvePath(config.RootPath, config.LogPath)
 	folder := path.Dir(realPath)
 
 	if _, err := os.Stat(folder); os.IsNotExist(err) {
@@ -318,7 +373,8 @@ func (s *SimpleAgentSession) SetLoadTools(tool core.Tool) {
 }
 
 func (s *SimpleAgentSession) DeleteMemory() {
-	filePath := path.Join(s.Config.RootPath, s.Config.MemoryFilePathFormat)
+	// auto-add: resolve through ResolvePath so an absolute format is not made relative
+	filePath := utils.ResolvePath(s.Config.RootPath, s.Config.MemoryFilePathFormat)
 	filename := fmt.Sprintf(filePath, s.GetID())
 	if err := os.Remove(filename); err != nil {
 		// ignore error
@@ -328,7 +384,9 @@ func (s *SimpleAgentSession) DeleteMemory() {
 
 func (s *SimpleAgentSession) SaveMemory(memory core.ReActMessage) *core.Diagnostic {
 	//  use RootPath instead of hardcoded relative path
-	filePath := path.Join(s.Config.RootPath, s.Config.MemoryFilePathFormat)
+	// auto-add: resolve through ResolvePath so an absolute format is not made relative,
+	// and keep it in sync with SimpleAgent.RecoverConversation which reads the same file
+	filePath := utils.ResolvePath(s.Config.RootPath, s.Config.MemoryFilePathFormat)
 	filename := fmt.Sprintf(filePath, s.GetID())
 
 	basePath := path.Dir(filename)
@@ -424,34 +482,39 @@ func (r SimpleToolConfirmResponse) GetSessionID() string {
 	return r.SessionID
 }
 
-func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
-	// debug log
-	log.Printf("ProcessQuery: session %s, query = %s", s.GetID(), query.GetQuery())
-
-	// create query-level context for single query cancellation
-	queryCtx, queryCancel := context.WithCancel(context.Background())
-	if diag := s.SetQueryContext(queryCtx, queryCancel); diag == nil {
-		defer queryCancel()
-	} else {
-		multiQueryErrorAnswer := SimpleNormalResponse{
+// RunQuery executes a query synchronously and returns the final answer.
+// Unlike ProcessQuery, this is a direct synchronous call without channels,
+// streaming, or event emission. Designed for sub-sessions and internal use.
+func (s *SimpleAgentSession) RunQuery(query core.Question) (core.Answer, []core.Diagnostic) {
+	// set up query context for cancellation
+	baseCtx := s.parentQueryCtx
+	if baseCtx == nil {
+		baseCtx = context.Background()
+	}
+	queryCtx, queryCancel := context.WithCancel(baseCtx)
+	if diag := s.SetQueryContext(queryCtx, queryCancel); diag != nil {
+		return SimpleNormalResponse{
 			SessionID: s.GetID(),
 			Response: core.AgentResponse{
 				Response: diag.Message,
 			},
-		}
-		select {
-		case query.GetResponseChan() <- multiQueryErrorAnswer:
-		default:
-		}
-		return
+		}, []core.Diagnostic{*diag}
 	}
+	defer queryCancel()
 
-	// use goroutine and channel to handle timeout
-	type processResult struct {
-		response    core.Answer
-		diagnostics []core.Diagnostic
+	// run reAct loop
+	if query.GetStreaming() {
+		return core.ProcessQuestionStream(s, query, SimpleHarnessInstance)
 	}
-	resultChan := make(chan processResult, 1)
+	return core.ProcessQuestion(s, query, SimpleHarnessInstance)
+}
+
+// ProcessQuery handles a user question with full channel support, streaming, and events.
+// Wraps RunQuery for user-facing scenarios.
+func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
+	// debug log
+	log.Printf("ProcessQuery: session %s, query = %s", s.GetID(), query.GetQuery())
+
 	// emit start event for benchmark
 	core.Emit(s, core.CommonEvent[SessionEventTimeData]{
 		SourceType: core.SessionStartProcessQuestion,
@@ -461,71 +524,38 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 		},
 	})
 
-	// async process query
-	go func() {
-		var response core.Answer
-		var diagnostics []core.Diagnostic
+	// run the query synchronously
+	response, diagnostics := s.RunQuery(query)
 
-		if s.streaming {
-			response, diagnostics = core.ProcessQuestionStream(s, query, SimpleHarnessInstance)
-		} else {
-			response, diagnostics = core.ProcessQuestion(s, query, SimpleHarnessInstance)
+	// default answer if failed
+	defaultAnswer := SimpleHarnessInstance.GetDefaultAnswer()
+
+	finalAnswer := SimpleNormalResponse{
+		SessionID: s.GetID(),
+		Response:  defaultAnswer,
+	}
+
+	if len(diagnostics) > 0 {
+		log.Printf("[Session] processQuery error: %v", diagnostics)
+	} else {
+		answer, ok := response.(core.AgentResponse)
+		if ok {
+			finalAnswer.Response = answer
 		}
+	}
 
-		// use select to avoid goroutine leak when context is cancelled
-		select {
-		case resultChan <- processResult{response: response, diagnostics: diagnostics}:
-		case <-queryCtx.Done():
-		}
-	}()
-
-	// wait for result or context cancellation
+	// always send finalAnswer to responseChan so streaming handler can extract sessionID and usage
 	select {
-	case result := <-resultChan:
-		// default answer if failed
-		defaultAnswer := SimpleHarnessInstance.GetDefaultAnswer()
-
-		finalAnswer := SimpleNormalResponse{
-			SessionID: s.GetID(),
-			Response:  defaultAnswer,
-		}
-
-		if len(result.diagnostics) > 0 {
-			log.Printf("[Session] processQuery error: %v", result.diagnostics)
-		} else {
-			answer, ok := result.response.(core.AgentResponse)
-			if ok {
-				finalAnswer.Response = answer
-			}
-		}
-
-		// always send finalAnswer to responseChan so streaming handler can extract sessionID and usage
-		select {
-		case query.GetResponseChan() <- finalAnswer:
-			// finished process question
-			core.Emit(s, core.CommonEvent[SessionEventTimeData]{
-				SourceType: core.SessionFinishQuestion,
-				Data: SessionEventTimeData{
-					SnapshotTime: time.Now(),
-					SessionID:    s.GetID(),
-				},
-			})
-		case <-queryCtx.Done():
-		}
-
-	case <-queryCtx.Done():
-		// query cancelled, send cancel response to unblock caller
-		cancelAnswer := SimpleNormalResponse{
-			SessionID: s.GetID(),
-			Response: core.AgentResponse{
-				Response: "Query cancelled by user",
+	case query.GetResponseChan() <- finalAnswer:
+		// finished process question
+		core.Emit(s, core.CommonEvent[SessionEventTimeData]{
+			SourceType: core.SessionFinishQuestion,
+			Data: SessionEventTimeData{
+				SnapshotTime: time.Now(),
+				SessionID:    s.GetID(),
 			},
-		}
-		select {
-		case query.GetResponseChan() <- cancelAnswer:
-		default:
-		}
-		return
+		})
+	default:
 	}
 }
 
@@ -679,10 +709,27 @@ func (s *SimpleAgentSession) BeforeStop(config core.AgentCoreConfig) []core.Diag
 	return nil
 }
 
+// snapshotSubSessions copies SubSessions under the session channel lock.
+// auto-add: NewSubSession appends from the query goroutine while Stop ranges from another one.
+// The copy is returned so the lock is not held across the nested StopSession calls.
+func (s *SimpleAgentSession) snapshotSubSessions() []*SimpleAgentSession {
+	if diag := s.Acquire(); diag == nil {
+		defer s.Release()
+	} else {
+		// best effort: still stop the sub-sessions we know about instead of leaking them
+		log.Printf("Session %s: lock timeout while snapshotting sub-sessions: %s", s.GetID(), diag.Message)
+	}
+
+	subSessions := make([]*SimpleAgentSession, len(s.SubSessions))
+	copy(subSessions, s.SubSessions)
+
+	return subSessions
+}
+
 func (s *SimpleAgentSession) Stop(config core.AgentCoreConfig) []core.Diagnostic {
 	// 1. stop all sub sessions
 	diagnostics := []core.Diagnostic{}
-	for _, subSession := range s.SubSessions {
+	for _, subSession := range s.snapshotSubSessions() {
 		if err := core.StopSession(subSession, config); len(err) > 0 {
 			diagnostics = append(diagnostics, err...)
 		}
@@ -700,8 +747,10 @@ func (s *SimpleAgentSession) Stop(config core.AgentCoreConfig) []core.Diagnostic
 	}
 
 	// 2. close channels
+	// auto-add: mu is deliberately not closed. A closed mu makes every later Acquire panic
+	// with "send on closed channel" instead of returning a lock timeout diagnostic, and the
+	// shutdown signal is already carried by s.cancel below.
 	close(s.Question)
-	close(s.mu)
 	// 3. cancel goroutine
 	s.cancel()
 

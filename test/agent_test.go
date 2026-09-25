@@ -198,9 +198,9 @@ func TestMockSessionManager_GetSessionOnCreate(t *testing.T) {
 	mockSessionMgr := testmock.NewMockSessionManager(ctrl)
 	mockSession := testmock.NewMockSession(ctrl)
 
-	mockSessionMgr.EXPECT().GetSessionOnCreate("session-123", false, false, true).Return(mockSession, nil)
+	mockSessionMgr.EXPECT().GetSessionOnCreate("session-123", true).Return(mockSession, nil)
 
-	session, err := mockSessionMgr.GetSessionOnCreate("session-123", false, false, true)
+	session, err := mockSessionMgr.GetSessionOnCreate("session-123", true)
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}

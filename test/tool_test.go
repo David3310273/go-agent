@@ -200,20 +200,3 @@ func TestCallTool_RunError(t *testing.T) {
 		t.Errorf("expected empty result, got '%s'", result)
 	}
 }
-
-// =============================================================================
-// MCPAvailable interface tests
-// =============================================================================
-
-func TestMockMCPAvailable_Transform(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockMCP := testmock.NewMockMCPAvailable[string](ctrl)
-	mockMCP.EXPECT().Transform("test data").Return("transformed")
-
-	result := mockMCP.Transform("test data")
-	if result != "transformed" {
-		t.Errorf("expected 'transformed', got %s", result)
-	}
-}

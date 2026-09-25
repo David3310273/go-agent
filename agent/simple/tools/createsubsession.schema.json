@@ -1,0 +1,36 @@
+{
+  "type": "function",
+  "function": {
+    "name": "CreateSubSession",
+    "description": "Create a sub-session for handling complex or independent tasks that require separate context and memory. The sub-session works on the query with its own conversation and its own memory file, then its answer is returned as the result of this tool call. Use it for a self-contained sub task instead of doing everything in the current conversation.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The task the sub-session has to work on. This is the only input the sub-session receives: it starts with an empty conversation and cannot see the current one, so the query must be fully self-contained and include every detail, constraint and expected output format the sub-session needs."
+        },
+        "tools": {
+          "type": "array",
+          "description": "The tools the sub-session is allowed to use.",
+          "items": {
+            "type": "object",
+            "description": "A tool the sub-session can call.",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "The registered tool name, for example SearchKnowledgeBase."
+              },
+              "args": {
+                "type": "object",
+                "description": "The preset arguments for the tool."
+              }
+            },
+            "required": ["name"]
+          }
+        }
+      },
+      "required": ["query", "tools"]
+    }
+  }
+}

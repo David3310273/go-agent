@@ -16,7 +16,7 @@ import (
 // context is managed by each tool internally via GetContext().
 func RegisterToolsToServer(server *mcp.Server, config *MCPConfig) {
 	for _, toolName := range config.Tools {
-		// general tool, agent context can be nil
+		// session is nil for MCP, root path is passed explicitly
 		tool := core.GetTool(toolName, config.RootPath, nil)
 		if tool == nil {
 			log.Printf("[MCP] tool not found: %s", toolName)
