@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"slices"
 	"time"
 
 	"path"
@@ -26,20 +27,17 @@ type QwenProvider struct {
 const (
 	ConfigFileName = "qwen.json"
 	ApiKeyEnvName  = "DASHSCOPE_API_KEY"
+	ProviderName   = "qwen"
 )
 
 // register QwenProvider factory so core can create singleton
 func init() {
-	core.RegisterProviderFactory("qwen", func(rootPath string) (core.Provider, *core.Diagnostic) {
+	core.RegisterProviderFactory(ProviderName, func(rootPath string) (core.Provider, *core.Diagnostic) {
 		return NewQwenProvider(rootPath)
 	})
 }
 
 type SupportModelName string
-
-const (
-	Qwen38MaxModelName SupportModelName = "qwen3.8-max"
-)
 
 func NewQwenProvider(rootPath string) (*QwenProvider, *core.Diagnostic) {
 	// use rootPath instead of hardcoded relative path
@@ -78,7 +76,7 @@ func (q *QwenProvider) GetID() string {
 
 func (q *QwenProvider) GetName() string {
 	// permanent name for simplicity
-	return string(Qwen38MaxModelName)
+	return ProviderName
 }
 
 func (q *QwenProvider) Init(config core.ModelConfig) *core.Diagnostic {
@@ -178,7 +176,7 @@ func (q *QwenProvider) convertRequestMessages(messages []core.ReActMessage) []op
 }
 
 // stream version of Complete, returns a channel of partial answers
-func (q *QwenProvider) CompleteStream(messages []core.ReActMessage, tools []core.Tool) (<-chan core.Answer, []core.Diagnostic) {
+func (q *QwenProvider) CompleteStream(messages []core.ReActMessage, tools []core.Tool, modelName string) (<-chan core.Answer, []core.Diagnostic) {
 	qwenTools := q.CreateAvailableTools(tools)
 	qwenMessages := q.convertRequestMessages(messages)
 
@@ -186,12 +184,22 @@ func (q *QwenProvider) CompleteStream(messages []core.ReActMessage, tools []core
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
+	if !slices.Contains(q.Configs.Models, modelName) {
+		return nil, []core.Diagnostic{
+			{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeProviderCreateError,
+				Message: "Model not supported in config: " + modelName,
+			},
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	stream := q.Client.Chat.Completions.NewStreaming(
 		ctx, openai.ChatCompletionNewParams{
 			Messages: qwenMessages,
-			Model:    string(Qwen38MaxModelName),
+			Model:    modelName,
 			Tools:    qwenTools,
 			// return usage info
 			StreamOptions: openai.ChatCompletionStreamOptionsParam{
@@ -289,7 +297,7 @@ func (q *QwenProvider) CompleteStream(messages []core.ReActMessage, tools []core
 	return ch, nil
 }
 
-func (q *QwenProvider) Complete(messages []core.ReActMessage, tools []core.Tool) (core.Answer, []core.Diagnostic) {
+func (q *QwenProvider) Complete(messages []core.ReActMessage, tools []core.Tool, modelName string) (core.Answer, []core.Diagnostic) {
 	qwenTools := q.CreateAvailableTools(tools)
 	qwenMessages := q.convertRequestMessages(messages)
 
@@ -298,13 +306,24 @@ func (q *QwenProvider) Complete(messages []core.ReActMessage, tools []core.Tool)
 	if timeout == 0 {
 		timeout = 60 * time.Second // default 60s if not configured
 	}
+
+	if !slices.Contains(q.Configs.Models, modelName) {
+		return nil, []core.Diagnostic{
+			{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeProviderCreateError,
+				Message: "Model not supported in config: " + modelName,
+			},
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	chatCompletion, err := q.Client.Chat.Completions.New(
 		ctx, openai.ChatCompletionNewParams{
 			Messages: qwenMessages,
-			Model:    string(Qwen38MaxModelName),
+			Model:    modelName,
 			Tools:    qwenTools,
 		},
 	)

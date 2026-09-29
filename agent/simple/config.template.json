@@ -4,6 +4,9 @@
         "name": "go-agent",
         "questionBufferSize": 10,
         "logPath": "app/agentLogs/agent-%s.log",
+        "questionProvider": [
+            "qwen"
+        ],
         "mcpServer": [
             {
                 "host": "http://localhost",

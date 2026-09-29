@@ -3,5 +3,8 @@
     "baseUrl": "Your base url here",
     "apiKey": {
         "key": "Your api key here"
-    }
+    },
+    "models": [
+        "qwen-plus"
+    ]
 }

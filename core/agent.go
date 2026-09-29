@@ -4,6 +4,7 @@ import (
 	json "encoding/json"
 	"fmt"
 	"log"
+	"slices"
 
 	// the tool calls of one assistant message run concurrently now
 	"sync"
@@ -23,7 +24,7 @@ type Question interface {
 	// get ID
 	GetID() string
 	// rules that what model would be used to answer this question
-	GetProviderName() string
+	GetModelName() string
 	// get original question
 	GetQuery() string
 	// set original question for reAct
@@ -532,7 +533,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 				}
 
 				// 3. run the batch concurrently, then append the tool responses in tool call order
-				toolResultMessages := runToolCalls(session, harness, prepared, question.GetProviderName())
+				toolResultMessages := runToolCalls(session, harness, prepared, question.GetModelName())
 				for _, toolResultMessage := range toolResultMessages {
 					*messages = append(*messages, toolResultMessage)
 					Emit(session, CommonEvent[ReActMessage]{
@@ -579,28 +580,32 @@ func AskQuestion(session Session, messages []ReActMessage, tools []Tool, questio
 
 	// pick the model provider
 	providers := session.GetContext().GetModelProviders()
-	modelName := question.GetProviderName()
+	modelName := question.GetModelName()
 
 	// debug log for providers
 	log.Printf("AskQuestion: providers count = %d, modelName = %s", len(providers), modelName)
 
 	var modelProvider Provider
-	if len(providers) > 0 {
-		modelProvider = providers[0]
-	}
-
+	// use the first provider that has the model from request
 	for _, provider := range providers {
-		if modelName != "" && provider.GetName() == modelName {
+		models := provider.GetModelConfig().Models
+		if slices.Contains(models, modelName) {
 			modelProvider = provider
 			break
 		}
 	}
 
 	if modelProvider == nil {
+		diagnostics = append(diagnostics, Diagnostic{
+			Level:   SeverityError,
+			Code:    MessageCodeSystemError,
+			Message: fmt.Sprintf("no provider found for model: %s", modelName),
+		})
 		return nil, diagnostics
 	}
 
-	response, errFromLLM := modelProvider.Complete(messages, tools)
+	session.GetLogger().Printf("AskQuestion: using provider = %s, model = %s", modelProvider.GetName(), modelName)
+	response, errFromLLM := modelProvider.Complete(messages, tools, modelName)
 	if len(errFromLLM) > 0 {
 		diagnostics = append(diagnostics, errFromLLM...)
 	}
@@ -719,15 +724,6 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		return defaultAnswer, diagnostics
 	}
 
-	// append user message to conversation
-	*messages = append(*messages, *userMessage)
-	Emit(session, CommonEvent[ReActMessage]{
-		SourceType: SessionHistory,
-		Data:       *userMessage,
-	})
-
-	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
-
 	loadedTools := session.GetLoadTools()
 	if len(*loadedTools) == 0 {
 		harness.LoadTools("", session)
@@ -803,7 +799,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 			}
 
 			// run the batch concurrently, then append the tool responses in tool call order
-			toolResultMessages := runToolCalls(session, harness, prepared, question.GetProviderName())
+			toolResultMessages := runToolCalls(session, harness, prepared, question.GetModelName())
 			for _, toolResultMessage := range toolResultMessages {
 				*messages = append(*messages, toolResultMessage)
 				Emit(session, CommonEvent[ReActMessage]{
@@ -846,16 +842,15 @@ func AskQuestionStream(session Session, messages []ReActMessage, tools []Tool, q
 	acc := &streamAccumulator{}
 
 	providers := session.GetContext().GetModelProviders()
-	modelName := question.GetProviderName()
+	modelName := question.GetModelName()
 
 	log.Printf("AskQuestionStream: providers count = %d, modelName = %s", len(providers), modelName)
 
 	var modelProvider Provider
-	if len(providers) > 0 {
-		modelProvider = providers[0]
-	}
+	// use the first provider that has the model from request
 	for _, provider := range providers {
-		if modelName != "" && provider.GetName() == modelName {
+		models := provider.GetModelConfig().Models
+		if slices.Contains(models, modelName) {
 			modelProvider = provider
 			break
 		}
@@ -865,7 +860,7 @@ func AskQuestionStream(session Session, messages []ReActMessage, tools []Tool, q
 		return acc, diagnostics
 	}
 
-	streamChan, errs := modelProvider.CompleteStream(messages, tools)
+	streamChan, errs := modelProvider.CompleteStream(messages, tools, modelName)
 	if len(errs) > 0 {
 		diagnostics = append(diagnostics, errs...)
 	}

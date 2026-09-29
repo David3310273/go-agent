@@ -48,7 +48,7 @@ func NewSimpleQuestion(
 }
 
 func (q *SimpleQuestion) GetID() string                     { return q.sessionID }
-func (q *SimpleQuestion) GetProviderName() string           { return q.model }
+func (q *SimpleQuestion) GetModelName() string              { return q.model }
 func (q *SimpleQuestion) GetStreaming() bool                { return q.streaming }
 func (q *SimpleQuestion) GetEnableThinking() bool           { return q.enableThinking }
 func (q *SimpleQuestion) GetQuery() string                  { return q.query }
