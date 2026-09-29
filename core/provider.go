@@ -1,5 +1,9 @@
 package core
 
+import (
+	"fmt"
+)
+
 // only oriented to llm, should not define client components in the struct, such as tools/skills
 type Provider interface {
 	// get id of the provider.
@@ -9,9 +13,9 @@ type Provider interface {
 	// auth the model using the given API keys and return the auth result.
 	Auth(ModelConfig) *Diagnostic
 	// Complete the conversation with messages and tools, return the result.
-	Complete(messages []ReActMessage, tools []Tool) (Answer, []Diagnostic)
+	Complete(messages []ReActMessage, tools []Tool, modelName string) (Answer, []Diagnostic)
 	// stream version of Complete, returns a channel of partial answers
-	CompleteStream(messages []ReActMessage, tools []Tool) (<-chan Answer, []Diagnostic)
+	CompleteStream(messages []ReActMessage, tools []Tool, modelName string) (<-chan Answer, []Diagnostic)
 	// get static configuration of the provider.
 	GetModelConfig() ModelConfig
 	// Init the runtime env for provider if needed.
@@ -22,11 +26,22 @@ func ValidateProviders(providers []Provider) []Diagnostic {
 	diagnostics := []Diagnostic{}
 	hasAvailableModels := false
 
-	for _, model := range providers {
-		if err := model.Auth(model.GetModelConfig()); err != nil {
+	for _, provider := range providers {
+		modelConfig := provider.GetModelConfig()
+		// skip providers with no models configured
+		if len(modelConfig.Models) == 0 {
+			diagnostics = append(diagnostics, Diagnostic{
+				Level:   SeverityWarn,
+				Code:    MessageCodeNoAvailableProvider,
+				Message: fmt.Sprintf("provider %s has no models configured", provider.GetName()),
+			})
+			continue
+		}
+
+		if err := provider.Auth(modelConfig); err != nil {
 			diagnostics = append(diagnostics, *err)
 		} else {
-			if err := model.Init(model.GetModelConfig()); err != nil {
+			if err := provider.Init(modelConfig); err != nil {
 				diagnostics = append(diagnostics, *err)
 			} else {
 				hasAvailableModels = true

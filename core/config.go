@@ -87,7 +87,8 @@ type AgentConfig struct {
 	// streaming
 	Streaming bool `json:"streaming"`
 	// question buffer size
-	QuestionBufferSize int `json:"questionBufferSize"`
+	QuestionBufferSize int      `json:"questionBufferSize"`
+	QuestionProvider   []string `json:"questionProvider"`
 }
 
 type PromptConfig struct {
@@ -187,4 +188,6 @@ type ModelConfig struct {
 	BaseUrl string `json:"baseUrl"`
 	// app api key, no secret
 	APIKey APIKey `json:"apiKey"`
+	// models
+	Models []string `json:"models"`
 }

@@ -242,6 +242,10 @@ func (s *SimpleAgentSession) SetLogger(config core.SessionConfig) *core.Diagnost
 	return nil
 }
 
+func (s *SimpleAgentSession) GetLogger() *log.Logger {
+	return s.Logger
+}
+
 // =============================================================================
 // SessionContext methods
 // =============================================================================

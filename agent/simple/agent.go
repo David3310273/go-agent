@@ -27,15 +27,20 @@ const (
 // creates all registered providers from the core providerregistry
 //
 //	rootPath parameter for resolving provider config file paths
-func CreateProviders(rootPath string) []core.Provider {
+func CreateProviders(rootPath string, agentConfig core.AgentConfig) []core.Provider {
 	providers := []core.Provider{}
-	for name, factory := range core.GetProviderFactories() {
-		provider, err := factory(rootPath)
-		if err != nil {
-			log.Printf("failed to create provider %s: %s", name, err.Message)
-			continue
+	for _, agentProviderName := range agentConfig.QuestionProvider {
+		for name, factory := range core.GetProviderFactories() {
+			if name != agentProviderName {
+				continue
+			}
+			provider, err := factory(rootPath)
+			if err != nil {
+				log.Printf("failed to create provider %s: %s", name, err.Message)
+				continue
+			}
+			providers = append(providers, provider)
 		}
-		providers = append(providers, provider)
 	}
 
 	return providers

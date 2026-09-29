@@ -37,7 +37,7 @@ type AskRequest struct {
 	SessionID *string `json:"sessionID,omitempty"` // optional
 	// no longer binding required, a tool_confirm request carries confirms instead of a
 	// question. HandleAsk validates the field that its type needs.
-	Question string            `json:"question"`
+	Question string            `json:"question,omitempty"`
 	Type     core.QuestionType `json:"type" binding:"required"`
 	Model    *string           `json:"model,omitempty"`
 	// option from request
@@ -231,6 +231,10 @@ func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *ser
 				}
 			case simple.SimpleNormalResponse:
 				log.Printf("[handleAsk][stream] finished, sessionID=%s, usage=%+v", resp.SessionID, resp.Response.Usage)
+				// send response message if available (e.g., tool already confirmed)
+				if resp.Response.Response != "" {
+					c.SSEvent("message", resp.Response.Response)
+				}
 				c.SSEvent("done", gin.H{
 					"type":      ResponseTypeNormal,
 					"sessionID": resp.SessionID,
