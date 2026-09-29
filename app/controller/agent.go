@@ -22,29 +22,41 @@ const (
 	// ResponseTypeInput      = "input"         // request for user input
 )
 
+// ToolConfirmAnswerRequest is one answer of a tool_confirm batch.
+// the frontend answers every pending destructive tool call in a single request, each
+// item carries the toolCallID it got in the tool_confirm response.
+type ToolConfirmAnswerRequest struct {
+	ToolCallID string `json:"toolCallID"`           // identifies the pending call
+	ServerName string `json:"serverName,omitempty"` // MCP server name, echoed back
+	ToolName   string `json:"toolName,omitempty"`   // outer tool name, echoed back
+	Answer     string `json:"answer"`               // Yes or No
+}
+
 // AskRequest represents the request body for /v1/ask endpoint
 type AskRequest struct {
-	SessionID *string           `json:"sessionID,omitempty"` // optional
-	Question  string            `json:"question" binding:"required"`
-	Type      core.QuestionType `json:"type" binding:"required"`
-	Model     *string           `json:"model,omitempty"`
+	SessionID *string `json:"sessionID,omitempty"` // optional
+	// no longer binding required, a tool_confirm request carries confirms instead of a
+	// question. HandleAsk validates the field that its type needs.
+	Question string            `json:"question"`
+	Type     core.QuestionType `json:"type" binding:"required"`
+	Model    *string           `json:"model,omitempty"`
 	// option from request
 	Stream         bool `json:"stream,omitempty"`
 	EnableThinking bool `json:"enableThinking,omitempty"`
 	// option for tool_confirm type
-	ToolName   string `json:"toolName,omitempty"`
-	ServerName string `json:"serverName,omitempty"`
+	// a batch of answers replaces the single toolName/serverName pair
+	Confirms []ToolConfirmAnswerRequest `json:"confirms,omitempty"`
 }
 
 // AskResponse represents the response body for /v1/ask endpoint
 type AskResponse struct {
-	Type       string     `json:"type"` // response type: normal, tool_confirm, etc.
-	SessionID  string     `json:"sessionID"`
-	Answer     string     `json:"answer"`
-	Thought    string     `json:"thought"`
-	Usage      core.Usage `json:"usage"`
-	ToolName   string     `json:"toolName,omitempty"`   // only for tool_confirm type
-	ServerName string     `json:"serverName,omitempty"` // only for tool_confirm type
+	Type      string     `json:"type"` // response type: normal, tool_confirm, etc.
+	SessionID string     `json:"sessionID"`
+	Answer    string     `json:"answer"`
+	Thought   string     `json:"thought"`
+	Usage     core.Usage `json:"usage"`
+	// only for tool_confirm type, the whole batch waiting for the user answers
+	Confirms []simple.ToolConfirmItem `json:"confirms,omitempty"`
 }
 
 // CancelRequest represents the request body for /v1/agent/cancel endpoint
@@ -98,18 +110,36 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 		return
 	}
 
-	// validate tool_confirm question must be "Yes" or "No"
+	// validate the field the request type actually carries. A tool_confirm request
+	// answers a batch of pending destructive calls, every item needs its toolCallID and Yes or No.
 	if req.Type == core.QuestionTypeToolConfirm {
-		if req.Question != "Yes" && req.Question != "No" {
-			diag := core.Diagnostic{
+		if len(req.Confirms) == 0 {
+			c.JSON(http.StatusBadRequest, core.Diagnostic{
 				Code:    core.MessageCodeSystemError,
 				Level:   core.SeverityError,
-				Message: "tool_confirm question must be 'Yes' or 'No'",
-				Data:    req.Question,
-			}
-			c.JSON(http.StatusBadRequest, diag)
+				Message: "tool_confirm requires at least one item in confirms",
+			})
 			return
 		}
+		for _, confirm := range req.Confirms {
+			if confirm.ToolCallID == "" || (confirm.Answer != "Yes" && confirm.Answer != "No") {
+				c.JSON(http.StatusBadRequest, core.Diagnostic{
+					Code:    core.MessageCodeSystemError,
+					Level:   core.SeverityError,
+					Message: "each confirms item requires a toolCallID and answer 'Yes' or 'No'",
+					Data:    confirm.ToolCallID + ":" + confirm.Answer,
+				})
+				return
+			}
+		}
+	} else if req.Question == "" {
+		// the binding tag is gone, so the normal type is checked here instead
+		c.JSON(http.StatusBadRequest, core.Diagnostic{
+			Code:    core.MessageCodeSystemError,
+			Level:   core.SeverityError,
+			Message: "question is required",
+		})
+		return
 	}
 
 	// build params
@@ -133,15 +163,28 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 
 	var finalParams any = params
 	if params.Type == core.QuestionTypeToolConfirm {
+		// map the batch of answers into the confirm question
+		confirms := make([]core.ToolConfirmAnswer, 0, len(req.Confirms))
+		for _, confirm := range req.Confirms {
+			confirms = append(confirms, core.ToolConfirmAnswer{
+				ToolCallID: confirm.ToolCallID,
+				ServerName: confirm.ServerName,
+				ToolName:   confirm.ToolName,
+				Answer:     confirm.Answer,
+			})
+		}
 		finalParams = &services.ToolConfirmAskParams{
-			AskParams:  *params,
-			ToolName:   req.ToolName,
-			ServerName: req.ServerName,
+			AskParams: *params,
+			Confirms:  confirms,
 		}
 	}
 
 	// call service
-	result := services.Ask(agent, appConfig, finalParams)
+	result, diag := services.Ask(agent, appConfig, finalParams)
+	if diag != nil {
+		c.JSON(http.StatusBadRequest, diag)
+		return
+	}
 
 	responseWaitingTimeout := time.Duration(appConfig.MaxWaitingSeconds) * time.Second
 	if req.Stream {
@@ -195,15 +238,15 @@ func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *ser
 				})
 				return false
 			case simple.SimpleToolConfirmResponse:
-				// send tool confirmation event for destructive tool
-				log.Printf("[handleAsk][stream] tool confirm needed, toolName=%s, sessionID=%s", resp.ToolName, resp.SessionID)
+				// send tool confirmation event for the destructive tool batch
+				// the payload carries the whole batch, the frontend answers every item
+				log.Printf("[handleAsk][stream] tool confirm needed, count=%d, sessionID=%s", len(resp.Confirms), resp.SessionID)
 				c.SSEvent("tool_confirm", gin.H{
-					"type":       ResponseTypeToolConfirm,
-					"toolName":   resp.ToolName,
-					"serverName": resp.ServerName,
-					"message":    resp.Response.Response,
-					"sessionID":  resp.SessionID,
-					"usage":      resp.Response.Usage,
+					"type":      ResponseTypeToolConfirm,
+					"confirms":  resp.Confirms,
+					"message":   resp.Response.Response,
+					"sessionID": resp.SessionID,
+					"usage":     resp.Response.Usage,
 				})
 				return false
 			}
@@ -254,14 +297,15 @@ func handleNonStreamResponse(c *gin.Context, result *services.AskResult, timeout
 				}
 				c.JSON(http.StatusOK, response)
 			case simple.SimpleToolConfirmResponse:
-				// return confirmation response for destructive tool
+				// return confirmation response for the destructive tool batch
+				// confirms carries every pending call, the frontend answers them in one
+				// request with a Yes or No per toolCallID
 				response := AskResponse{
-					Type:       ResponseTypeToolConfirm,
-					SessionID:  resp.SessionID,
-					Answer:     resp.Response.Response,
-					Usage:      resp.Response.Usage,
-					ToolName:   resp.ToolName,
-					ServerName: resp.ServerName,
+					Type:      ResponseTypeToolConfirm,
+					SessionID: resp.SessionID,
+					Answer:    resp.Response.Response,
+					Usage:     resp.Response.Usage,
+					Confirms:  resp.Confirms,
 				}
 				c.JSON(http.StatusOK, response)
 			default:

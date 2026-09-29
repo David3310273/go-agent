@@ -8,7 +8,7 @@ import (
 )
 
 // ResolvePath resolves a configured path against the root path.
-// auto-add: moved here from agent/simple/session.go so the agent and the session share one rule.
+// moved here from agent/simple/session.go so the agent and the session share one rule.
 // An absolute configured path used to be joined with RootPath, and path.Join turns
 // ".." + "/tmp/x/logs/session_%s.log" into the relative "../tmp/x/logs/session_%s.log", so the
 // file was written outside the configured directory. An absolute path is kept as it is, a

@@ -114,8 +114,9 @@ func TestNewSubSession_IsolatedFromParent(t *testing.T) {
 		Role:    core.RoleUser,
 		Content: "parent conversation",
 	})
-	parent.SetToolConfirmed("", "DestructiveTool", "Yes")
-	parent.SetPendingMCPToolCall("", "DestructiveTool", &core.PendingMCPToolCall{ToolCallID: "parent-call"})
+	// auto-add: the confirm state is keyed by the tool call ID now, not by server and tool name
+	parent.SetToolConfirmed("parent-call", "Yes")
+	parent.SetPendingMCPToolCall("parent-call", &core.PendingMCPToolCall{ToolCallID: "parent-call"})
 
 	sub := parent.NewSubSession(nil)
 
@@ -125,16 +126,16 @@ func TestNewSubSession_IsolatedFromParent(t *testing.T) {
 	}
 
 	// confirmedTools is empty by design, the sub-session confirms on its own
-	if sub.IsToolConfirmed("", "DestructiveTool") {
+	if sub.IsToolConfirmed("parent-call") {
 		t.Error("expected the sub-session not to inherit the parent confirmed tools")
 	}
 
 	// pendingMCPCalls was a nil map, writing to it panicked
-	sub.SetPendingMCPToolCall("", "DestructiveTool", &core.PendingMCPToolCall{ToolCallID: "sub-call"})
-	if pending := sub.GetPendingMCPToolCall("", "DestructiveTool"); pending == nil || pending.ToolCallID != "sub-call" {
+	sub.SetPendingMCPToolCall("sub-call", &core.PendingMCPToolCall{ToolCallID: "sub-call"})
+	if pending := sub.GetPendingMCPToolCall("sub-call"); pending == nil || pending.ToolCallID != "sub-call" {
 		t.Error("expected the sub-session to store its own pending tool call")
 	}
-	if pending := parent.GetPendingMCPToolCall("", "DestructiveTool"); pending == nil || pending.ToolCallID != "parent-call" {
+	if pending := parent.GetPendingMCPToolCall("parent-call"); pending == nil || pending.ToolCallID != "parent-call" {
 		t.Error("expected the parent pending tool call to be untouched")
 	}
 
