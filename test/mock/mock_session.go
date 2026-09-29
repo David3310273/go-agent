@@ -11,6 +11,7 @@ package mock
 
 import (
 	context "context"
+	log "log"
 	reflect "reflect"
 
 	core "github.com/David3310273/go-agent/core"
@@ -225,6 +226,20 @@ func (m *MockSession) GetID() string {
 func (mr *MockSessionMockRecorder) GetID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetID", reflect.TypeOf((*MockSession)(nil).GetID))
+}
+
+// GetLogger mocks base method.
+func (m *MockSession) GetLogger() *log.Logger {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLogger")
+	ret0, _ := ret[0].(*log.Logger)
+	return ret0
+}
+
+// GetLogger indicates an expected call of GetLogger.
+func (mr *MockSessionMockRecorder) GetLogger() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogger", reflect.TypeOf((*MockSession)(nil).GetLogger))
 }
 
 // GetLoadTools mocks base method.

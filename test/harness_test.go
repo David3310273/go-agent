@@ -128,7 +128,7 @@ func TestHandleUserToolConfirm_RunsApprovedBatchConcurrently(t *testing.T) {
 		content    string
 	}{
 		{"call-approved-1", "approved one"},
-		{"call-declined", "Tool call has been declined by user"},
+		{"call-declined", "Tool call call-declined has been declined by user"},
 		{"call-approved-2", "approved three"},
 	}
 	if len(toolMessages) != len(expected) {
