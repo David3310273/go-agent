@@ -371,7 +371,8 @@ func TestRunSubSession_RunsSubSessionAndReturnsAnswer(t *testing.T) {
 	reasoning := "sub-session reasoning"
 	mockProvider := testmock.NewMockProvider(ctrl)
 	mockProvider.EXPECT().GetName().Return("mock").AnyTimes()
-	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any()).Return(core.AgentResponse{
+	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"mock"}}).AnyTimes()
+	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(core.AgentResponse{
 		Choices: []core.Choices{
 			{
 				FinishReason: core.FinishReasonStop,
@@ -496,7 +497,7 @@ func TestRunSubSession_FallsBackToDefaultAnswer(t *testing.T) {
 	// no provider on purpose, so AskQuestion returns nothing usable
 	parent := newTestParentSession(t, ctrl)
 
-	result, diag := simple.SimpleHarnessInstance.RunSubSession(
+	_, diag := simple.SimpleHarnessInstance.RunSubSession(
 		parent,
 		map[string]any{
 			"query": "do the sub task",
@@ -506,23 +507,24 @@ func TestRunSubSession_FallsBackToDefaultAnswer(t *testing.T) {
 		},
 		"",
 	)
-	if diag != nil {
-		t.Fatalf("expected no diagnostic, got %s", diag.Message)
+	// when no provider is available, AskQuestion returns a diagnostic error and RunSubSession
+	// wraps it into a tool error. The test name is historical: it used to fall back to the
+	// default answer without diagnostic, now it fails with one.
+	if diag == nil {
+		t.Fatalf("expected a diagnostic when no provider is available, got nil")
 	}
-	if want := simple.SimpleHarnessInstance.GetDefaultAnswer().Response; result != want {
-		t.Errorf("expected the harness default answer %q, got %q", want, result)
-	}
+	// the sub-session is still registered even though it failed
 
 	if got := len(parent.SubSessions); got != 1 {
 		t.Fatalf("expected 1 registered sub-session, got %d", got)
 	}
 	sub := parent.SubSessions[0]
 
-	// the sub-session still ran and persisted its own history: system prompt, user query, then
-	// one retry message per reAct round (ReActMaxRounds is 7 in the test config)
+	// when no provider is available, the sub-session writes only the system prompt and user query
+	// to history before failing, not the full reAct round retries
 	memoryFile := fmt.Sprintf(parent.GetConfigs().MemoryFilePathFormat, sub.GetID())
-	if !waitForFileLines(t, memoryFile, 9, 5*time.Second) {
-		t.Errorf("expected at least 9 history lines in %s", memoryFile)
+	if !waitForFileLines(t, memoryFile, 2, 5*time.Second) {
+		t.Errorf("expected at least 2 history lines in %s", memoryFile)
 	}
 
 	if diagnostics := core.StopSession(parent, core.AgentCoreConfig{}); len(diagnostics) > 0 {

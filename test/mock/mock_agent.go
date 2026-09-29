@@ -125,6 +125,20 @@ func (mr *MockQuestionMockRecorder) GetID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetID", reflect.TypeOf((*MockQuestion)(nil).GetID))
 }
 
+// GetModelName mocks base method.
+func (m *MockQuestion) GetModelName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetModelName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetModelName indicates an expected call of GetModelName.
+func (mr *MockQuestionMockRecorder) GetModelName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetModelName", reflect.TypeOf((*MockQuestion)(nil).GetModelName))
+}
+
 // GetProviderName mocks base method.
 func (m *MockQuestion) GetProviderName() string {
 	m.ctrl.T.Helper()

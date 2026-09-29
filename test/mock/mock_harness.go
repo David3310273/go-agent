@@ -108,6 +108,20 @@ func (mr *MockHarnessMockRecorder) GetConfirmDestructiveToolResult(toolName any)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmDestructiveToolResult", reflect.TypeOf((*MockHarness)(nil).GetConfirmDestructiveToolResult), toolName)
 }
 
+// GetConfirmDestructiveToolAnswer mocks base method.
+func (m *MockHarness) GetConfirmDestructiveToolAnswer(toolName string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfirmDestructiveToolAnswer", toolName)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetConfirmDestructiveToolAnswer indicates an expected call of GetConfirmDestructiveToolAnswer.
+func (mr *MockHarnessMockRecorder) GetConfirmDestructiveToolAnswer(toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmDestructiveToolAnswer", reflect.TypeOf((*MockHarness)(nil).GetConfirmDestructiveToolAnswer), toolName)
+}
+
 // GetCurrRoundKnowledges mocks base method.
 func (m *MockHarness) GetCurrRoundKnowledges(question core.Question) string {
 	m.ctrl.T.Helper()
@@ -177,6 +191,20 @@ func (m *MockHarness) HandleUserToolConfirm(session core.Session, question core.
 func (mr *MockHarnessMockRecorder) HandleUserToolConfirm(session, question any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleUserToolConfirm", reflect.TypeOf((*MockHarness)(nil).HandleUserToolConfirm), session, question)
+}
+
+// IsSessionCancelled mocks base method.
+func (m *MockHarness) IsSessionCancelled(session core.Session, toolCalls []core.ToolCall) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsSessionCancelled", session, toolCalls)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsSessionCancelled indicates an expected call of IsSessionCancelled.
+func (mr *MockHarnessMockRecorder) IsSessionCancelled(session, toolCalls any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSessionCancelled", reflect.TypeOf((*MockHarness)(nil).IsSessionCancelled), session, toolCalls)
 }
 
 // LoadTools mocks base method.

@@ -55,33 +55,33 @@ func (mr *MockProviderMockRecorder) Auth(arg0 any) *gomock.Call {
 }
 
 // Complete mocks base method.
-func (m *MockProvider) Complete(messages []core.ReActMessage, tools []core.Tool) (core.Answer, []core.Diagnostic) {
+func (m *MockProvider) Complete(messages []core.ReActMessage, tools []core.Tool, modelName string) (core.Answer, []core.Diagnostic) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Complete", messages, tools)
+	ret := m.ctrl.Call(m, "Complete", messages, tools, modelName)
 	ret0, _ := ret[0].(core.Answer)
 	ret1, _ := ret[1].([]core.Diagnostic)
 	return ret0, ret1
 }
 
 // Complete indicates an expected call of Complete.
-func (mr *MockProviderMockRecorder) Complete(messages, tools any) *gomock.Call {
+func (mr *MockProviderMockRecorder) Complete(messages, tools, modelName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Complete", reflect.TypeOf((*MockProvider)(nil).Complete), messages, tools)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Complete", reflect.TypeOf((*MockProvider)(nil).Complete), messages, tools, modelName)
 }
 
 // CompleteStream mocks base method.
-func (m *MockProvider) CompleteStream(messages []core.ReActMessage, tools []core.Tool) (<-chan core.Answer, []core.Diagnostic) {
+func (m *MockProvider) CompleteStream(messages []core.ReActMessage, tools []core.Tool, modelName string) (<-chan core.Answer, []core.Diagnostic) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CompleteStream", messages, tools)
+	ret := m.ctrl.Call(m, "CompleteStream", messages, tools, modelName)
 	ret0, _ := ret[0].(<-chan core.Answer)
 	ret1, _ := ret[1].([]core.Diagnostic)
 	return ret0, ret1
 }
 
 // CompleteStream indicates an expected call of CompleteStream.
-func (mr *MockProviderMockRecorder) CompleteStream(messages, tools any) *gomock.Call {
+func (mr *MockProviderMockRecorder) CompleteStream(messages, tools, modelName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteStream", reflect.TypeOf((*MockProvider)(nil).CompleteStream), messages, tools)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CompleteStream", reflect.TypeOf((*MockProvider)(nil).CompleteStream), messages, tools, modelName)
 }
 
 // GetID mocks base method.

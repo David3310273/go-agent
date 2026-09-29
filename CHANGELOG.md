@@ -1,14 +1,27 @@
 # Changelog
 
+## v1.0.5
+
+fix:
+
+- log tide and error code translation
+
+feature:
+
+- multiple model support
+- support sandbox
+
 ## v1.0.4
 
 fix: 
 
-- improve the reAct process code
+- fix the model param to support the llm call with model params
+- fix the prompt to support parallel execution and sub session execution
+- architecture improvement in harness and tools
 
 feature:
 
-- support tool paralel execution
+- support tool parallel execution
 - support sub session execution
 
 ## v1.0.3: 2026-09-22
