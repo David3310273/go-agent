@@ -54,19 +54,23 @@ type Session interface {
 	SetLoadTools(tool Tool)
 }
 
+// ToolConfirmManager tracks the destructive tool calls waiting for a user answer.
+// every method is keyed by the tool call ID instead of the server and tool name pair.
+// A batch of destructive calls in one assistant message usually hits the same MCP server and the
+// same outer tool name, so that pair was not unique and the second call overwrote the first one.
 type ToolConfirmManager interface {
-	// check if a destructive tool has been confirmed by user (answered Yes or No)
-	IsToolConfirmed(serverName string, toolName string) bool
-	// record user's answer for a destructive tool (Yes or No)
-	SetToolConfirmed(serverName string, toolName string, answer string)
+	// check if a destructive tool call has been confirmed by user (answered Yes or No)
+	IsToolConfirmed(toolCallID string) bool
+	// record user's answer for a destructive tool call (Yes or No)
+	SetToolConfirmed(toolCallID string, answer string)
 	// clear tool confirmed
-	ClearToolConfirmed(serverName string, toolName string)
+	ClearToolConfirmed(toolCallID string)
 	// get pending MCP tool call info for confirmation flow
-	GetPendingMCPToolCall(serverName, toolName string) *PendingMCPToolCall
+	GetPendingMCPToolCall(toolCallID string) *PendingMCPToolCall
 	// save pending MCP tool call info
-	SetPendingMCPToolCall(serverName, toolName string, pending *PendingMCPToolCall)
+	SetPendingMCPToolCall(toolCallID string, pending *PendingMCPToolCall)
 	// delete pending MCP tool call info after tool execution
-	DeletePendingMCPToolCall(serverName, toolName string)
+	DeletePendingMCPToolCall(toolCallID string)
 }
 
 // PendingMCPToolCall stores info about a destructive MCP tool waiting for user confirmation

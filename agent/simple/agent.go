@@ -197,7 +197,7 @@ func (a *SimpleAgent) GetLogger() *log.Logger {
 
 func (a *SimpleAgent) SetLogger(config core.AgentConfig) *core.Diagnostic {
 	//  use RootPath for log directory instead of relative path
-	// auto-add: resolve through ResolvePath so an absolute LogPath is not made relative
+	// resolve through ResolvePath so an absolute LogPath is not made relative
 	realPath := utils.ResolvePath(a.RootPath, config.LogPath)
 	folder := path.Dir(realPath)
 
@@ -399,7 +399,7 @@ func (a *SimpleAgent) StopSession(sessionID string) *core.Diagnostic {
 
 // for simplicity, loading all history, no size limit here.
 func (a *SimpleAgent) RecoverConversation(sessionID string) *core.Conversation {
-	// auto-add: resolve through ResolvePath so an absolute format is not made relative,
+	// resolve through ResolvePath so an absolute format is not made relative,
 	// matching SimpleAgentSession.SaveMemory which writes the very same file
 	memoryPath := utils.ResolvePath(a.RootPath, fmt.Sprintf(a.GetSessionConfig().MemoryFilePathFormat, sessionID))
 

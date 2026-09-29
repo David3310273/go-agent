@@ -4,7 +4,7 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
-// auto-add: moved here from app/services/agent.go.
+// moved here from app/services/agent.go.
 // app/services imports agent/simple, so agent/simple can never import app/services back.
 // Sub-sessions are driven from this package and need a concrete core.Question, which is why
 // the implementation lives here now.
@@ -24,7 +24,7 @@ type SimpleQuestion struct {
 var _ core.Question = (*SimpleQuestion)(nil)
 
 // NewSimpleQuestion builds a SimpleQuestion.
-// auto-add: the fields are unexported, so packages outside simple need a constructor.
+// the fields are unexported, so packages outside simple need a constructor.
 func NewSimpleQuestion(
 	query string,
 	sessionID string,

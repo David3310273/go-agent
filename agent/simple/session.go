@@ -63,7 +63,7 @@ type SimpleAgentSession struct {
 	// query context for single ProcessQuery cancellation
 	queryCtx    context.Context
 	queryCancel context.CancelFunc
-	// auto-add: query context of the parent session, captured in NewSubSession. ProcessQuery
+	// query context of the parent session, captured in NewSubSession. ProcessQuery
 	// derives the sub-session query context from it so cancelling the parent query cancels
 	// the sub-session query as well. Nil for top level sessions.
 	parentQueryCtx context.Context
@@ -148,20 +148,20 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 }
 
 // NewSubSession creates a child session
-// auto-add: inherit the parent runtime config and reset every reference-typed field, so the
+// inherit the parent runtime config and reset every reference-typed field, so the
 // sub-session can run its own reAct loop with its own logger and event listener.
 func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 	session := &SimpleAgentSession{
 		ParentSession: s,
 		Status:        core.SessionStatusRunning,
 		mu:            make(chan struct{}, 1),
-		// auto-add: zero lockTimeOut made Acquire race against time.After(0) and fail randomly
+		// zero lockTimeOut made Acquire race against time.After(0) and fail randomly
 		lockTimeOut: LockTimeout,
-		// auto-add: zero Config meant ReActMaxRounds 0, empty RootPath and empty memory file format
+		// zero Config meant ReActMaxRounds 0, empty RootPath and empty memory file format
 		Config: s.Config,
-		// auto-add: Stop closes Question, close of a nil channel panics
+		// Stop closes Question, close of a nil channel panics
 		Question: make(chan core.Question),
-		// auto-add: nil maps make RegisterEventChans and SetPendingMCPToolCall panic on assignment
+		// nil maps make RegisterEventChans and SetPendingMCPToolCall panic on assignment
 		eventChans:       make(map[string]chan core.Event[any]),
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		confirmedTools:   make(map[string]string),
@@ -170,7 +170,7 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 		Context: s.Context,
 	}
 
-	// auto-add: break the references still shared with the parent after the Context value copy.
+	// break the references still shared with the parent after the Context value copy.
 	// LoadedToolsMap is a map, so the sub-session used to write into the parent dedup map and
 	// made the parent skip tools in SetLoadTools.
 	session.Context.Tools = nil
@@ -185,7 +185,7 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 
 	// inherit parent cancellation so stopping the parent stops the sub-session
 	session.ctx, session.cancel = context.WithCancel(s.ctx)
-	// auto-add: queryCtx was nil, ProcessQuestion calls Done on it before the reAct loop.
+	// queryCtx was nil, ProcessQuestion calls Done on it before the reAct loop.
 	// Derive it from the parent query context when there is one, so cancelling the parent
 	// query cancels the sub-session query too. ProcessQuery derives from the same base.
 	session.parentQueryCtx = s.queryCtx
@@ -201,11 +201,11 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 		log.Printf("NewSubSession: failed to set logger for sub-session %s: %s", session.ID, diag.Message)
 	}
 
-	// auto-add: own event channels and listener, OnEvent returns once session.ctx is cancelled
+	// own event channels and listener, OnEvent returns once session.ctx is cancelled
 	session.RegisterEventChans()
 	go session.OnEvent()
 
-	// auto-add: register into the parent so its Stop can shut the sub-session down.
+	// register into the parent so its Stop can shut the sub-session down.
 	// Uses the session channel lock, the same one SetQueryContext takes. Skipped when the
 	// parent is already stopping, since a sub-session registered after Stop is never shut down.
 	if s.ctx.Err() != nil {
@@ -222,7 +222,7 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 
 func (s *SimpleAgentSession) SetLogger(config core.SessionConfig) *core.Diagnostic {
 	//  use RootPath for log directory instead of relative path
-	// auto-add: resolve through ResolvePath so an absolute LogPath is not made relative
+	// resolve through ResolvePath so an absolute LogPath is not made relative
 	realPath := utils.ResolvePath(config.RootPath, config.LogPath)
 	folder := path.Dir(realPath)
 
@@ -302,41 +302,36 @@ func (s *SimpleAgentSession) GetQuestionChan() chan core.Question {
 	return s.Question
 }
 
-// IsToolConfirmed checks if user has answered for a destructive tool (Yes or No)
-func (s *SimpleAgentSession) IsToolConfirmed(serverName, toolName string) bool {
-	key := serverName + ":" + toolName
-	_, exists := s.confirmedTools[key]
+// IsToolConfirmed checks if user has answered for a destructive tool call (Yes or No)
+// keyed by the tool call ID, a batch of destructive calls in one assistant message
+// shares the same server and outer tool name, so that pair could not identify a single call
+func (s *SimpleAgentSession) IsToolConfirmed(toolCallID string) bool {
+	_, exists := s.confirmedTools[toolCallID]
 	return exists
 }
 
-// SetToolConfirmed records user's answer for a destructive tool
-func (s *SimpleAgentSession) SetToolConfirmed(serverName, toolName string, answer string) {
-	key := serverName + ":" + toolName
-	s.confirmedTools[key] = answer
+// SetToolConfirmed records user's answer for a destructive tool call
+func (s *SimpleAgentSession) SetToolConfirmed(toolCallID string, answer string) {
+	s.confirmedTools[toolCallID] = answer
 }
 
-func (s *SimpleAgentSession) ClearToolConfirmed(serverName, toolName string) {
-	// TODO: rethink the key format here. should make sure it's unique.
-	key := serverName + ":" + toolName
-	delete(s.confirmedTools, key)
+func (s *SimpleAgentSession) ClearToolConfirmed(toolCallID string) {
+	delete(s.confirmedTools, toolCallID)
 }
 
 // GetPendingMCPToolCall retrieves pending MCP tool call info
-func (s *SimpleAgentSession) GetPendingMCPToolCall(serverName, toolName string) *core.PendingMCPToolCall {
-	key := serverName + ":" + toolName
-	return s.pendingMCPCalls[key]
+func (s *SimpleAgentSession) GetPendingMCPToolCall(toolCallID string) *core.PendingMCPToolCall {
+	return s.pendingMCPCalls[toolCallID]
 }
 
 // SetPendingMCPToolCall saves pending MCP tool call info
-func (s *SimpleAgentSession) SetPendingMCPToolCall(serverName, toolName string, pending *core.PendingMCPToolCall) {
-	key := serverName + ":" + toolName
-	s.pendingMCPCalls[key] = pending
+func (s *SimpleAgentSession) SetPendingMCPToolCall(toolCallID string, pending *core.PendingMCPToolCall) {
+	s.pendingMCPCalls[toolCallID] = pending
 }
 
 // DeletePendingMCPToolCall deletes pending MCP tool call info after tool execution
-func (s *SimpleAgentSession) DeletePendingMCPToolCall(serverName, toolName string) {
-	key := serverName + ":" + toolName
-	delete(s.pendingMCPCalls, key)
+func (s *SimpleAgentSession) DeletePendingMCPToolCall(toolCallID string) {
+	delete(s.pendingMCPCalls, toolCallID)
 }
 
 func (s *SimpleSessionContext) GetModelProviders() []core.Provider {
@@ -373,7 +368,7 @@ func (s *SimpleAgentSession) SetLoadTools(tool core.Tool) {
 }
 
 func (s *SimpleAgentSession) DeleteMemory() {
-	// auto-add: resolve through ResolvePath so an absolute format is not made relative
+	// resolve through ResolvePath so an absolute format is not made relative
 	filePath := utils.ResolvePath(s.Config.RootPath, s.Config.MemoryFilePathFormat)
 	filename := fmt.Sprintf(filePath, s.GetID())
 	if err := os.Remove(filename); err != nil {
@@ -384,7 +379,7 @@ func (s *SimpleAgentSession) DeleteMemory() {
 
 func (s *SimpleAgentSession) SaveMemory(memory core.ReActMessage) *core.Diagnostic {
 	//  use RootPath instead of hardcoded relative path
-	// auto-add: resolve through ResolvePath so an absolute format is not made relative,
+	// resolve through ResolvePath so an absolute format is not made relative,
 	// and keep it in sync with SimpleAgent.RecoverConversation which reads the same file
 	filePath := utils.ResolvePath(s.Config.RootPath, s.Config.MemoryFilePathFormat)
 	filename := fmt.Sprintf(filePath, s.GetID())
@@ -460,13 +455,22 @@ func (s SimpleNormalResponse) GetSessionID() string {
 	return s.SessionID
 }
 
-// SimpleToolConfirmResponse is sent to the user when a destructive tool needs confirmation
+// ToolConfirmItem is one destructive tool call of a confirmation batch.
+// the frontend echoes toolCallID and its Yes/No answer back in one request.
+type ToolConfirmItem struct {
+	ToolCallID string `json:"toolCallID"` // identifies the pending call in the answer
+	ServerName string `json:"serverName"` // MCP server name, empty for a local tool
+	ToolName   string `json:"toolName"`   // outer tool name (e.g., "UseMCPServerTools")
+	MCPTool    string `json:"mcpTool"`    // inner MCP tool name, empty for a local tool
+	Message    string `json:"message"`    // confirmation message for this call
+}
+
+// SimpleToolConfirmResponse is sent to the user when destructive tools need confirmation
+// carries the whole batch instead of a single tool, every item is answered separately
 type SimpleToolConfirmResponse struct {
-	Response   core.AgentResponse `json:"response"`   // confirmation message from harness
-	ToolName   string             `json:"toolName"`   // outer tool name (e.g., "UseMCPServerTools")
-	ServerName string             `json:"serverName"` // MCP server name
-	MCPTool    string             `json:"mcpTool"`    // inner MCP tool name
-	SessionID  string             `json:"sessionID"`  // session ID
+	Response  core.AgentResponse `json:"response"`  // confirmation message from harness
+	Confirms  []ToolConfirmItem  `json:"confirms"`  // the batch waiting for the user answers
+	SessionID string             `json:"sessionID"` // session ID
 }
 
 func (r SimpleToolConfirmResponse) ToString() string {
@@ -529,7 +533,6 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 
 	// default answer if failed
 	defaultAnswer := SimpleHarnessInstance.GetDefaultAnswer()
-
 	finalAnswer := SimpleNormalResponse{
 		SessionID: s.GetID(),
 		Response:  defaultAnswer,
@@ -710,7 +713,7 @@ func (s *SimpleAgentSession) BeforeStop(config core.AgentCoreConfig) []core.Diag
 }
 
 // snapshotSubSessions copies SubSessions under the session channel lock.
-// auto-add: NewSubSession appends from the query goroutine while Stop ranges from another one.
+// NewSubSession appends from the query goroutine while Stop ranges from another one.
 // The copy is returned so the lock is not held across the nested StopSession calls.
 func (s *SimpleAgentSession) snapshotSubSessions() []*SimpleAgentSession {
 	if diag := s.Acquire(); diag == nil {
@@ -747,7 +750,7 @@ func (s *SimpleAgentSession) Stop(config core.AgentCoreConfig) []core.Diagnostic
 	}
 
 	// 2. close channels
-	// auto-add: mu is deliberately not closed. A closed mu makes every later Acquire panic
+	// mu is deliberately not closed. A closed mu makes every later Acquire panic
 	// with "send on closed channel" instead of returning a lock timeout diagnostic, and the
 	// shutdown signal is already carried by s.cancel below.
 	close(s.Question)

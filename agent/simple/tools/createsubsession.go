@@ -22,7 +22,7 @@ func init() {
 }
 
 // CreateSubSessionCall implements core.Tool interface for requesting a sub-session.
-// auto-add: this tool only declares the intent. The sub-session is created and driven by
+// this tool only declares the intent. The sub-session is created and driven by
 // SimpleHarness.RunSubSession, which core.ProcessQuestion calls when it intercepts this tool
 // by name, because this package cannot import agent/simple.
 type CreateSubSessionCall struct {
@@ -71,7 +71,7 @@ func (f CreateSubSessionCall) GetContext() core.Context {
 
 // Validate validates the tool arguments.
 // implements core.Tool interface.
-// auto-add: checks the query the sub-session has to work on. core.ProcessQuestion intercepts
+// checks the query the sub-session has to work on. core.ProcessQuestion intercepts
 // this tool and calls the harness instead of CallTool, so this only runs on a direct call.
 func (f CreateSubSessionCall) Validate(args map[string]any) *core.Diagnostic {
 	query, _ := args["query"].(string)
@@ -87,13 +87,13 @@ func (f CreateSubSessionCall) Validate(args map[string]any) *core.Diagnostic {
 }
 
 // IsDestructive implements core.Tool interface.
-// auto-add: requesting a sub-session changes nothing on its own.
+// requesting a sub-session changes nothing on its own.
 func (f CreateSubSessionCall) IsDestructive() bool {
 	return false
 }
 
 // GetRunner implements core.Tool interface.
-// auto-add: the sub-session is created and driven by SimpleHarness.RunSubSession, so this
+// the sub-session is created and driven by SimpleHarness.RunSubSession, so this
 // runner is never reached through the reAct loop. It reports that instead of pretending a
 // sub-session was created.
 func (f CreateSubSessionCall) GetRunner() func(args map[string]any) (string, *core.Diagnostic) {

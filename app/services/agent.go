@@ -1,6 +1,7 @@
 package services
 
 import (
+	"fmt"
 	"log"
 	"time"
 
@@ -18,10 +19,12 @@ type AskParams struct {
 	Type           core.QuestionType
 }
 
+// ToolConfirmAskParams carries a batch of user answers for the pending destructive tool calls.
+// replaces the single ToolName/ServerName pair, the whole batch is confirmed in one
+// request and every item is answered with its own Yes or No.
 type ToolConfirmAskParams struct {
 	AskParams
-	ToolName   string
-	ServerName string
+	Confirms []core.ToolConfirmAnswer
 }
 
 // AskResult contains the channels for receiving answers
@@ -32,37 +35,43 @@ type AskResult struct {
 }
 
 // Ask creates a question and sends it to the agent for processing
-func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) *AskResult {
+func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*AskResult, *core.Diagnostic) {
 	responseChan := make(chan core.Answer, 64)
 	hintChan := make(chan core.Answer, appConfig.RequestQueueLength)
 
 	var question core.Question
-	if askParams, ok := params.(*AskParams); ok {
-		// auto-add: SimpleQuestion now lives in agent/simple, so build it via its constructor
+
+	switch askType := params.(type) {
+	case *AskParams:
 		question = simple.NewSimpleQuestion(
-			askParams.Question,
-			askParams.SessionID,
-			askParams.Model,
+			askType.Question,
+			askType.SessionID,
+			askType.Model,
 			responseChan,
 			hintChan,
-			askParams.Stream,
-			askParams.EnableThinking,
-			askParams.Type,
+			askType.Stream,
+			askType.EnableThinking,
+			askType.Type,
 		)
-	} else if toolConfirmParams, ok := params.(*ToolConfirmAskParams); ok {
+	case *ToolConfirmAskParams:
 		question = &SimpleToolConfirmQuestion{
 			SimpleQuestion: *simple.NewSimpleQuestion(
-				toolConfirmParams.Question,
-				toolConfirmParams.SessionID,
-				toolConfirmParams.Model,
+				askType.Question,
+				askType.SessionID,
+				askType.Model,
 				responseChan,
 				hintChan,
-				toolConfirmParams.Stream,
-				toolConfirmParams.EnableThinking,
+				askType.Stream,
+				askType.EnableThinking,
 				core.QuestionTypeToolConfirm,
 			),
-			ToolName:   toolConfirmParams.ToolName,
-			ServerName: toolConfirmParams.ServerName,
+			Confirms: askType.Confirms,
+		}
+	default:
+		return nil, &core.Diagnostic{
+			Code:    core.MessageCodeSystemError,
+			Level:   core.SeverityError,
+			Message: fmt.Sprintf("invalid type for params: %T", params),
 		}
 	}
 
@@ -90,26 +99,39 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) *AskR
 		ResponseChan: responseChan,
 		HintChan:     hintChan,
 		Question:     question,
-	}
+	}, nil
 }
 
-// SimpleToolConfirmQuestion represents a user's confirmation for a destructive tool
-// auto-add: SimpleQuestion moved to agent/simple, so it is embedded from there now
+// SimpleToolConfirmQuestion represents the user's answers for a batch of destructive tool calls
+// SimpleQuestion moved to agent/simple, so it is embedded from there now
 type SimpleToolConfirmQuestion struct {
 	simple.SimpleQuestion
-	ToolName   string `json:"toolName"`   // outer tool name
-	ServerName string `json:"serverName"` // MCP server name
+	// Confirms carries one answer per pending destructive tool call
+	Confirms []core.ToolConfirmAnswer `json:"confirms"`
 }
 
 var _ core.Question = (*SimpleToolConfirmQuestion)(nil)
 var _ core.ToolConfirmable = (*SimpleToolConfirmQuestion)(nil)
 
-func (q *SimpleToolConfirmQuestion) GetType() core.QuestionType      { return core.QuestionTypeToolConfirm }
-func (q *SimpleToolConfirmQuestion) GetConfirmAnswer() string        { return q.GetQuery() }
-func (q *SimpleToolConfirmQuestion) GetConfirmToolName() string      { return q.ToolName }
-func (q *SimpleToolConfirmQuestion) GetConfirmMCPServerName() string { return q.ServerName }
-func (q *SimpleToolConfirmQuestion) ValiateConfirmAnswer() bool {
-	return (q.GetConfirmAnswer() == "Yes" || q.GetConfirmAnswer() == "No") && q.GetConfirmToolName() != ""
+func (q *SimpleToolConfirmQuestion) GetType() core.QuestionType { return core.QuestionTypeToolConfirm }
+func (q *SimpleToolConfirmQuestion) GetConfirmAnswers() []core.ToolConfirmAnswer {
+	return q.Confirms
+}
+
+// ValidateConfirmAnswers reports whether every item of the batch is answerable
+func (q *SimpleToolConfirmQuestion) ValidateConfirmAnswers() bool {
+	if len(q.Confirms) == 0 {
+		return false
+	}
+	for _, confirm := range q.Confirms {
+		if confirm.ToolCallID == "" {
+			return false
+		}
+		if confirm.Answer != "Yes" && confirm.Answer != "No" {
+			return false
+		}
+	}
+	return true
 }
 
 // SimpleAnswer implements core.Answer interface

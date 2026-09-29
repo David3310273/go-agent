@@ -1,6 +1,6 @@
 package core
 
-// auto-add: name of the tool that requests a sub-session. ProcessQuestion intercepts this
+// name of the tool that requests a sub-session. ProcessQuestion intercepts this
 // tool by name and delegates to Harness.RunSubSession instead of calling the tool runner,
 // because the tool package cannot import the agent package that drives the sub-session.
 const SubSessionToolName = "CreateSubSession"
