@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"log"
 	"time"
 )
 
@@ -18,10 +17,6 @@ type AgentServer interface {
 	SetAppConfig(AppConfig)
 	// get config
 	GetAppConfig() AppConfig
-	// set logger
-	SetLogger(*log.Logger)
-	// get logger
-	GetLogger() *log.Logger
 	// set router
 	SetRouter()
 	// start
@@ -30,10 +25,9 @@ type AgentServer interface {
 	Stop()
 }
 
-func InitAgentServer(server AgentServer, agent AgentCore, appConfig AppConfig, logger *log.Logger) AgentServer {
+func InitAgentServer(server AgentServer, agent AgentCore, appConfig AppConfig) AgentServer {
 	server.SetAppConfig(appConfig)
 	server.SetAgentCore(agent)
-	server.SetLogger(logger)
 	server.SetRouter()
 
 	return server
@@ -57,8 +51,8 @@ func StopAgentServer(server AgentServer) {
 
 	select {
 	case <-done:
-		server.GetLogger().Printf("Graceful shutdown completed successfully")
+		LogStd(LogLevelInfo, "graceful shutdown completed successfully")
 	case <-ctx.Done():
-		server.GetLogger().Printf("Graceful shutdown timeout after 30s, forcing exit...")
+		LogStd(LogLevelWarn, "graceful shutdown timeout after 30s, forcing exit...")
 	}
 }

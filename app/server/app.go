@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/David3310273/go-agent/core"
 	"github.com/gin-gonic/gin"
@@ -11,7 +10,6 @@ import (
 type SimpleAgentServer struct {
 	agent  core.AgentCore
 	Config core.AppConfig
-	Logger *log.Logger
 	Router *gin.Engine
 }
 
@@ -38,14 +36,6 @@ func (s SimpleAgentServer) GetAppConfig() core.AppConfig {
 	return s.Config
 }
 
-func (s *SimpleAgentServer) SetLogger(logger *log.Logger) {
-	s.Logger = logger
-}
-
-func (s SimpleAgentServer) GetLogger() *log.Logger {
-	return s.Logger
-}
-
 // SetRouter initializes the gin router
 func (s *SimpleAgentServer) SetRouter() {
 	s.Router = SetupRouter(&s.Config, s.agent)
@@ -57,19 +47,18 @@ func (s *SimpleAgentServer) Start() {
 		diagnostics := core.StartAgentCore(s.agent, s.Config)
 		if len(diagnostics) > 0 {
 			for _, d := range diagnostics {
-				//  only log errors, not warnings like system closed
 				if d.Level >= core.SeverityError {
-					s.Logger.Printf("StartAgentCore error: %s", d.ToString())
+					core.LogStd(core.LogLevelError, "StartAgentCore error: %s", d.ToString())
 				}
 			}
 		}
 	}()
 
 	addr := fmt.Sprintf(":%d", s.Config.Service.Port)
-	s.Logger.Printf("HTTP server listening on %s", addr)
+	core.LogStd(core.LogLevelInfo, "HTTP server listening on %s", addr)
 
 	if err := s.Router.Run(addr); err != nil {
-		s.Logger.Printf("HTTP server error: %v", err)
+		core.LogStd(core.LogLevelError, "HTTP server error: %v", err)
 	}
 }
 
@@ -81,5 +70,9 @@ func (s SimpleAgentServer) Stop() {
 // graceful quit, in agent layer
 func (s SimpleAgentServer) GracefulQuit() {
 	err := core.StopAgentCore(s.agent)
-	s.Logger.Printf("agent stopped error: %v", core.DiagnosticList(err).ToString())
+	if len(err) > 0 {
+		core.LogStd(core.LogLevelError, "agent %s stopped error: %v", s.GetAgentCore().GetID(), core.DiagnosticList(err).ToString())
+	} else {
+		core.LogStd(core.LogLevelInfo, "agent %s stopped", s.GetAgentCore().GetID())
+	}
 }

@@ -1,8 +1,6 @@
 package simple
 
 import (
-	"log"
-
 	"github.com/David3310273/go-agent/core"
 	knowledgebase "github.com/David3310273/go-agent/knowledgebase"
 	storage "github.com/David3310273/go-agent/knowledgebase/storage"
@@ -26,7 +24,7 @@ func NewSimpleKnowledgeBase(config core.KnowledgeBaseConfig) *storage.MilvusKnow
 		// load knowledgebase config and create embedder and chunker
 		kbConfig, err := knowledgebase.LoadConfig(rootPath)
 		if err != nil {
-			log.Printf("[KnowledgeBase] failed to load config: %v, embedder and chunker will be nil", err)
+			core.LogStd(core.LogLevelWarn, "knowledgebase config load failed: %v, embedder and chunker will be nil", err)
 		}
 
 		var embedder core.Embedder
@@ -37,12 +35,12 @@ func NewSimpleKnowledgeBase(config core.KnowledgeBaseConfig) *storage.MilvusKnow
 			if storageConfig != nil {
 				embedder, err = knowledgebase.CreateEmbedder(&storageConfig.Embedder)
 				if err != nil {
-					log.Printf("[KnowledgeBase] failed to create embedder: %v", err)
+					core.LogStd(core.LogLevelWarn, "knowledgebase embedder create failed: %v", err)
 				}
 
 				chunker, err = knowledgebase.CreateChunker(&storageConfig.Chunker)
 				if err != nil {
-					log.Printf("[KnowledgeBase] failed to create chunker: %v", err)
+					core.LogStd(core.LogLevelWarn, "knowledgebase chunker create failed: %v", err)
 				}
 			}
 		}

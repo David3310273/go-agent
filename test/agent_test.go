@@ -259,7 +259,6 @@ func TestStartAgentCore_Success(t *testing.T) {
 	gomock.InOrder(
 		mockAgent.EXPECT().LoadConfigs().Return(agentConfig),
 		mockAgent.EXPECT().SetID().Return(nil),
-		mockAgent.EXPECT().SetLogger(agentConfig.Agent).Return(nil),
 		mockAgent.EXPECT().SetHistory(agentConfig.Agent.History).Return(nil),
 		mockAgent.EXPECT().SetSkills(agentConfig.Agent.Skill),
 		mockAgent.EXPECT().SetPrompt(agentConfig.Agent.Prompt).Return(nil),
@@ -296,7 +295,6 @@ func TestStartAgentCore_SetIDError(t *testing.T) {
 	//  updated LoadConfigs to new no-arg signature
 	mockAgent.EXPECT().LoadConfigs().Return(agentConfig).AnyTimes()
 	mockAgent.EXPECT().SetID().Return(expectedErr).AnyTimes()
-	mockAgent.EXPECT().SetLogger(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetHistory(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetSkills(gomock.Any()).AnyTimes()
 	mockAgent.EXPECT().SetPrompt(gomock.Any()).Return(expectedErr).AnyTimes()

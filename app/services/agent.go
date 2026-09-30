@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/David3310273/go-agent/agent/simple"
@@ -93,7 +92,8 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 		}
 	}()
 
-	log.Printf("will process question %s in mode: enableThinking=%v, stream=%v", question.GetQuery(), question.GetEnableThinking(), question.GetStreaming())
+	core.LogStd(core.LogLevelDebug, "processing question: query_len=%d, enable_thinking=%v, stream=%v",
+		len(question.GetQuery()), question.GetEnableThinking(), question.GetStreaming())
 
 	return &AskResult{
 		ResponseChan: responseChan,

@@ -2,7 +2,6 @@ package tools
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"path"
 	"time"
@@ -48,7 +47,7 @@ func (f GetDateCall) GetSchema() core.ToolSchema {
 	//  use RootPath instead of hardcoded relative path
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "getdate: failed to read schema: %v", err)
 		return schema
 	}
 

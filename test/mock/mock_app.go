@@ -10,7 +10,6 @@
 package mock
 
 import (
-	log "log"
 	reflect "reflect"
 
 	core "github.com/David3310273/go-agent/core"
@@ -297,20 +296,6 @@ func (mr *MockAgentAppMockRecorder) GetAppConfig() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppConfig", reflect.TypeOf((*MockAgentApp)(nil).GetAppConfig))
 }
 
-// GetLogger mocks base method.
-func (m *MockAgentApp) GetLogger() *log.Logger {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLogger")
-	ret0, _ := ret[0].(*log.Logger)
-	return ret0
-}
-
-// GetLogger indicates an expected call of GetLogger.
-func (mr *MockAgentAppMockRecorder) GetLogger() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogger", reflect.TypeOf((*MockAgentApp)(nil).GetLogger))
-}
-
 // GetUserInput mocks base method.
 func (m *MockAgentApp) GetUserInput() string {
 	m.ctrl.T.Helper()
@@ -397,18 +382,6 @@ func (m *MockAgentApp) SetConfig(config core.I18nConfig) *core.Diagnostic {
 func (mr *MockAgentAppMockRecorder) SetConfig(config any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetConfig", reflect.TypeOf((*MockAgentApp)(nil).SetConfig), config)
-}
-
-// SetLogger mocks base method.
-func (m *MockAgentApp) SetLogger(arg0 *log.Logger) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetLogger", arg0)
-}
-
-// SetLogger indicates an expected call of SetLogger.
-func (mr *MockAgentAppMockRecorder) SetLogger(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLogger", reflect.TypeOf((*MockAgentApp)(nil).SetLogger), arg0)
 }
 
 // SetModelProviders mocks base method.

@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -49,7 +48,7 @@ func (f FileWriterCall) GetSchema() core.ToolSchema {
 
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "filewriter: failed to read schema: %v", err)
 		return schema
 	}
 

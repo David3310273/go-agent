@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path"
 
@@ -93,7 +92,7 @@ func (f UseMCPServerToolsCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
 		return schema
 	}
 	if err := json.Unmarshal(content, &schema); err != nil {
@@ -210,7 +209,7 @@ func (f SearchMCPResourcesCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
 		return schema
 	}
 	if err := json.Unmarshal(content, &schema); err != nil {
@@ -330,7 +329,7 @@ func (f SearchMCPPromptsCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
 		return schema
 	}
 	if err := json.Unmarshal(content, &schema); err != nil {
@@ -454,7 +453,7 @@ func (f DiscoverMCPServerCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
 		return schema
 	}
 	if err := json.Unmarshal(content, &schema); err != nil {
@@ -524,11 +523,11 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 		}
 
 		// 1. Get tools
-		log.Printf("[DiscoverMCPServer] Building tools for server: %s", serverName)
+		core.LogStd(core.LogLevelInfo, "mcp discover: building tools for server=%s", serverName)
 		tools := client.BuildTools(f.Session.GetContext())
-		log.Printf("[DiscoverMCPServer] Built %d tools", len(tools))
+		core.LogStd(core.LogLevelDebug, "mcp discover: built %d tools for server=%s", len(tools), serverName)
 		for name, tool := range tools {
-			log.Printf("[DiscoverMCPServer] Adding tool: %s, description: %s, input schema: %v, isDestructive: %v", name, tool.GetDescription(), tool.GetSchema().Function.Parameters, tool.IsDestructive())
+			core.LogStd(core.LogLevelDebug, "mcp discover: adding tool=%s, is_destructive=%v", name, tool.IsDestructive())
 			isDestructive := tool.IsDestructive()
 			definition.Tools = append(definition.Tools, core.MCPListToolResult{
 				Name:        name,
@@ -541,46 +540,44 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 		}
 
 		// 2. List prompts
-		log.Printf("[DiscoverMCPServer] Listing prompts for server: %s", serverName)
+		core.LogStd(core.LogLevelInfo, "mcp discover: listing prompts for server=%s", serverName)
 		promptResp, promptDiag := client.ListPrompts()
 		if promptDiag != nil {
-			log.Printf("[DiscoverMCPServer] ListPrompts diagnostic: %+v", promptDiag)
+			core.LogStd(core.LogLevelWarn, "mcp discover: list prompts diagnostic: %+v", promptDiag)
 		}
 		if promptDiag == nil || promptDiag.Level != core.SeverityError {
 			if promptResp.Result != nil {
 				resultJSON, _ := json.Marshal(promptResp.Result)
-				log.Printf("[DiscoverMCPServer] Prompts result JSON: %s", string(resultJSON))
 				var promptsResult core.MCPListPromptsResponse
 				if err := json.Unmarshal(resultJSON, &promptsResult); err != nil {
-					log.Printf("[DiscoverMCPServer] Failed to unmarshal prompts: %v", err)
+					core.LogStd(core.LogLevelWarn, "mcp discover: failed to unmarshal prompts: %v", err)
 				} else {
-					log.Printf("[DiscoverMCPServer] Parsed %d prompts", len(promptsResult.Prompts))
+					core.LogStd(core.LogLevelDebug, "mcp discover: parsed %d prompts for server=%s", len(promptsResult.Prompts), serverName)
 					definition.Prompts = promptsResult.Prompts
 				}
 			} else {
-				log.Printf("[DiscoverMCPServer] promptResp.Result is nil")
+				core.LogStd(core.LogLevelWarn, "mcp discover: prompt result is nil for server=%s", serverName)
 			}
 		}
 
 		// 3. List resources
-		log.Printf("[DiscoverMCPServer] Listing resources for server: %s", serverName)
+		core.LogStd(core.LogLevelInfo, "mcp discover: listing resources for server=%s", serverName)
 		resourceResp, resourceDiag := client.ListResources()
 		if resourceDiag != nil {
-			log.Printf("[DiscoverMCPServer] ListResources diagnostic: %+v", resourceDiag)
+			core.LogStd(core.LogLevelWarn, "mcp discover: list resources diagnostic: %+v", resourceDiag)
 		}
 		if resourceDiag == nil || resourceDiag.Level != core.SeverityError {
 			if resourceResp.Result != nil {
 				resultJSON, _ := json.Marshal(resourceResp.Result)
-				log.Printf("[DiscoverMCPServer] Resources result JSON: %s", string(resultJSON))
 				var resourcesResult core.MCPListResourcesResponse
 				if err := json.Unmarshal(resultJSON, &resourcesResult); err != nil {
-					log.Printf("[DiscoverMCPServer] Failed to unmarshal resources: %v", err)
+					core.LogStd(core.LogLevelWarn, "mcp discover: failed to unmarshal resources: %v", err)
 				} else {
-					log.Printf("[DiscoverMCPServer] Parsed %d resources", len(resourcesResult.Resources))
+					core.LogStd(core.LogLevelDebug, "mcp discover: parsed %d resources for server=%s", len(resourcesResult.Resources), serverName)
 					definition.Resources = append(definition.Resources, resourcesResult.Resources...)
 				}
 			} else {
-				log.Printf("[DiscoverMCPServer] resourceResp.Result is nil")
+				core.LogStd(core.LogLevelWarn, "mcp discover: resource result is nil for server=%s", serverName)
 			}
 		}
 
@@ -594,7 +591,7 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 			}
 		}
 
-		log.Printf("\n\n[MCP server]: definition of %s: %s\n", serverName, string(jsonResult))
+		core.LogStd(core.LogLevelDebug, "mcp discover: server=%s, definition_size=%d", serverName, len(jsonResult))
 
 		return string(jsonResult), &core.Diagnostic{
 			Level:   core.SeverityInfo,

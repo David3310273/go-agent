@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	"log"
 )
 
 type SessionStatus int
@@ -25,9 +24,6 @@ type Session interface {
 	GetStatus() SessionStatus
 	// set status of the session
 	SetStatus(status SessionStatus) *Diagnostic
-	// set logger
-	SetLogger(SessionConfig) *Diagnostic
-	GetLogger() *log.Logger
 	// inherit from agent
 	GetConfigs() SessionConfig
 	// get session context

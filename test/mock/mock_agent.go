@@ -10,7 +10,6 @@
 package mock
 
 import (
-	log "log"
 	reflect "reflect"
 
 	core "github.com/David3310273/go-agent/core"
@@ -687,20 +686,6 @@ func (mr *MockAgentCoreMockRecorder) GetKnowledgeBase() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKnowledgeBase", reflect.TypeOf((*MockAgentCore)(nil).GetKnowledgeBase))
 }
 
-// GetLogger mocks base method.
-func (m *MockAgentCore) GetLogger() *log.Logger {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLogger")
-	ret0, _ := ret[0].(*log.Logger)
-	return ret0
-}
-
-// GetLogger indicates an expected call of GetLogger.
-func (mr *MockAgentCoreMockRecorder) GetLogger() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogger", reflect.TypeOf((*MockAgentCore)(nil).GetLogger))
-}
-
 // GetModelProviders mocks base method.
 func (m *MockAgentCore) GetModelProviders() []core.Provider {
 	m.ctrl.T.Helper()
@@ -905,20 +890,6 @@ func (m *MockAgentCore) SetLanguage(arg0 core.LanguageType) {
 func (mr *MockAgentCoreMockRecorder) SetLanguage(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLanguage", reflect.TypeOf((*MockAgentCore)(nil).SetLanguage), arg0)
-}
-
-// SetLogger mocks base method.
-func (m *MockAgentCore) SetLogger(arg0 core.AgentConfig) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetLogger", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// SetLogger indicates an expected call of SetLogger.
-func (mr *MockAgentCoreMockRecorder) SetLogger(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLogger", reflect.TypeOf((*MockAgentCore)(nil).SetLogger), arg0)
 }
 
 // SetPrompt mocks base method.

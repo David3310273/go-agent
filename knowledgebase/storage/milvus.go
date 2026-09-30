@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"github.com/David3310273/go-agent/core"
 	"github.com/David3310273/go-agent/knowledgebase/loader"
@@ -114,7 +113,7 @@ func (kb *MilvusKnowledgebase[T]) Save(entities []T) *core.Diagnostic {
 	}
 
 	count, diag := milvus.MilvusClientInstance.Insert(context.Background(), kb.Options, entities)
-	log.Printf("count: %d", count)
+	core.LogStd(core.LogLevelDebug, "milvus insert: count=%d", count)
 	return diag
 }
 

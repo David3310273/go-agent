@@ -2,7 +2,6 @@ package controller
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -212,25 +211,26 @@ func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *ser
 			switch resp := hint.(type) {
 			case core.AgentResponse:
 				if len(resp.Choices) > 0 && resp.Choices[0].Message != nil && resp.Choices[0].Message.ReasoningContent != nil {
-					agent.GetLogger().Printf("\n\n[handleAsk][stream][thought] %s", *resp.Choices[0].Message.ReasoningContent)
+					core.LogDebug("", "\n\n[handleAsk][stream][thought] %s", *resp.Choices[0].Message.ReasoningContent)
 					c.SSEvent("thought", *resp.Choices[0].Message.ReasoningContent)
 				}
 			}
 			return true
 		case chunk, ok := <-result.ResponseChan:
 			if !ok {
-				log.Printf("[handleAsk][stream] responseChan closed, ending stream")
+				core.LogStd(core.LogLevelDebug, "response channel closed, ending stream")
 				return false
 			}
 			switch resp := chunk.(type) {
 			// event stream chunk, original response
 			case core.AgentResponse:
 				if len(resp.Choices) > 0 && resp.Choices[0].Message != nil && resp.Choices[0].Message.Content != "" {
-					log.Printf("[handleAsk][stream][chunk] %s", resp.Choices[0].Message.Content)
+					core.LogStd(core.LogLevelDebug, "stream chunk: %s", resp.Choices[0].Message.Content)
 					c.SSEvent("message", resp.Choices[0].Message.Content)
 				}
 			case simple.SimpleNormalResponse:
-				log.Printf("[handleAsk][stream] finished, sessionID=%s, usage=%+v", resp.SessionID, resp.Response.Usage)
+				core.LogStd(core.LogLevelInfo, "stream finished: session_id=%s, prompt_tokens=%d, completion_tokens=%d, total_tokens=%d",
+					resp.SessionID, resp.Response.Usage.PromptTokens, resp.Response.Usage.CompletionTokens, resp.Response.Usage.TotalTokens)
 				// send response message if available (e.g., tool already confirmed)
 				if resp.Response.Response != "" {
 					c.SSEvent("message", resp.Response.Response)
@@ -244,7 +244,7 @@ func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *ser
 			case simple.SimpleToolConfirmResponse:
 				// send tool confirmation event for the destructive tool batch
 				// the payload carries the whole batch, the frontend answers every item
-				log.Printf("[handleAsk][stream] tool confirm needed, count=%d, sessionID=%s", len(resp.Confirms), resp.SessionID)
+				core.LogStd(core.LogLevelInfo, "tool confirm needed: count=%d, session_id=%s", len(resp.Confirms), resp.SessionID)
 				c.SSEvent("tool_confirm", gin.H{
 					"type":      ResponseTypeToolConfirm,
 					"confirms":  resp.Confirms,
@@ -256,12 +256,12 @@ func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *ser
 			}
 			return true
 		case <-time.After(timeout):
-			log.Printf("[handleAsk][stream] timeout after %v", timeout)
+			core.LogStd(core.LogLevelWarn, "stream timeout after %v", timeout)
 			c.SSEvent("error", "request timeout")
 			return false
 		}
 	})
-	log.Printf("[handleAsk] streaming ended for question: %s", result.Question.GetQuery())
+	core.LogStd(core.LogLevelDebug, "streaming ended for question: %s", result.Question.GetQuery())
 }
 
 // handleNonStreamResponse handles non-streaming JSON response
@@ -272,7 +272,7 @@ func handleNonStreamResponse(c *gin.Context, result *services.AskResult, timeout
 			if resp, ok := hint.(core.AgentResponse); ok {
 				if len(resp.Choices) > 0 && resp.Choices[0].Message != nil {
 					if resp.Choices[0].Message.ReasoningContent != nil {
-						log.Printf("\n\n\n[Session][hint] thinking: %s", *resp.Choices[0].Message.ReasoningContent)
+						core.LogStd(core.LogLevelDebug, "hint thinking: %s", *resp.Choices[0].Message.ReasoningContent)
 					}
 				}
 			}

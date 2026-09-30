@@ -3,7 +3,6 @@ package core
 import (
 	json "encoding/json"
 	"fmt"
-	"log"
 	"slices"
 
 	// the tool calls of one assistant message run concurrently now
@@ -119,9 +118,6 @@ type AgentCore interface {
 	GetID() string
 	// set ID
 	SetID() *Diagnostic
-	// set logger
-	SetLogger(AgentConfig) *Diagnostic
-	GetLogger() *log.Logger
 	// set language type for answer
 	SetLanguage(LanguageType)
 	// get session config
@@ -198,12 +194,6 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 		diagnostics = append(diagnostics, *err)
 	}
 
-	// set logger
-	err = agent.SetLogger(agentConfigs.Agent)
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
-	}
-
 	// initialize context (history, skills, prompt, kb, tools, mcp clients)
 	contextDiagnostics := InitContext(agent, agentConfigs)
 	if len(contextDiagnostics) > 0 {
@@ -265,8 +255,7 @@ type preparedToolCall struct {
 }
 
 // prepareToolCalls resolves every tool call of one assistant message on the caller goroutine.
-// it looks the tool up by name, parses the arguments, keeps the skill name for the next
-// round and collects the destructive calls that still wait for a user answer. A destructive call
+// it looks the tool up by name, parses the arguments, and collects the destructive calls that still wait for a user answer. A destructive call
 // is never executed here, its tool response says a confirmation is pending and it comes back in
 // confirmCalls so the caller can ask for the whole batch at once.
 func prepareToolCalls(
@@ -274,10 +263,9 @@ func prepareToolCalls(
 	harness Harness,
 	toolCalls []ToolCall,
 	loadedTools *[]Tool,
-) ([]preparedToolCall, []ToolConfirmCall, string) {
+) ([]preparedToolCall, []ToolConfirmCall) {
 	prepared := make([]preparedToolCall, 0, len(toolCalls))
 	confirmCalls := []ToolConfirmCall{}
-	skillName := ""
 
 	for _, toolCall := range toolCalls {
 		item := preparedToolCall{toolCall: toolCall}
@@ -300,13 +288,6 @@ func prepareToolCalls(
 			item.result = "Error: invalid arguments format - " + err.Error()
 			prepared = append(prepared, item)
 			continue
-		}
-
-		// detect UseSkill call and extract skill name for next round
-		if toolCall.Function.Name == "UseSkill" {
-			if name, ok := item.args["name"].(string); ok {
-				skillName = name
-			}
 		}
 
 		// check if tool is destructive and needs user confirmation
@@ -343,7 +324,7 @@ func prepareToolCalls(
 		prepared = append(prepared, item)
 	}
 
-	return prepared, confirmCalls, skillName
+	return prepared, confirmCalls
 }
 
 // runToolCalls executes a prepared batch concurrently and returns one tool response message per
@@ -372,7 +353,7 @@ func runToolCalls(session Session, harness Harness, prepared []preparedToolCall,
 			// carry a tool response so every tool_call keeps its matching response
 			defer func() {
 				if recovered := recover(); recovered != nil {
-					log.Printf("runToolCalls: tool %s panicked: %v", prepared[idx].toolCall.Function.Name, recovered)
+					LogStd(LogLevelWarn, "[session=%s] tool panicked: name=%s, panic=%v", session.GetID(), prepared[idx].toolCall.Function.Name, recovered)
 					toolResultMessages[idx].Content = fmt.Sprintf("Error: tool panicked - %v", recovered)
 				}
 			}()
@@ -426,7 +407,6 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		return AgentResponse{Response: "This tool operation has already been confirmed and executed, do you want to execute it again?"}, nil
 	}
 
-	log.Printf("current message: %v", userMessage.ToString())
 	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
 
 	Emit(session, CommonEvent[ReActMessage]{
@@ -453,23 +433,12 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		return defaultAnswer, diagnostics
 	}
 
-	log.Printf("messages after harness: %v", messages.ToString())
-
 	loadedTools := session.GetLoadTools()
 	if len(*loadedTools) == 0 {
 		harness.LoadTools("", session)
 	}
 
-	var currentSkillName string
 	for i := 0; i < maxReActRounds; i++ {
-		// dynamically load tools based on skill from previous round
-		if currentSkillName != "" {
-			harness.LoadTools(currentSkillName, session)
-			currentSkillName = "" // reset after loading
-		}
-
-		log.Printf("init messages: %v", messages.ToString())
-
 		response, errs := AskQuestion(session, *messages, *loadedTools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
@@ -527,10 +496,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 
 				// resolve the batch on this goroutine, it reads the loaded tools and the session
 				// confirm state, and collects the destructive calls that wait for an answer
-				prepared, confirmCalls, skillName := prepareToolCalls(session, harness, toolCalls, loadedTools)
-				if skillName != "" {
-					currentSkillName = skillName
-				}
+				prepared, confirmCalls := prepareToolCalls(session, harness, toolCalls, loadedTools)
 
 				// 3. run the batch concurrently, then append the tool responses in tool call order
 				toolResultMessages := runToolCalls(session, harness, prepared, question.GetModelName())
@@ -583,7 +549,7 @@ func AskQuestion(session Session, messages []ReActMessage, tools []Tool, questio
 	modelName := question.GetModelName()
 
 	// debug log for providers
-	log.Printf("AskQuestion: providers count = %d, modelName = %s", len(providers), modelName)
+	LogDebug(LogLevelDebug, "[session=%s] AskQuestion: providers_count=%d, model=%s", session.GetID(), len(providers), modelName)
 
 	var modelProvider Provider
 	// use the first provider that has the model from request
@@ -604,7 +570,7 @@ func AskQuestion(session Session, messages []ReActMessage, tools []Tool, questio
 		return nil, diagnostics
 	}
 
-	session.GetLogger().Printf("AskQuestion: using provider = %s, model = %s", modelProvider.GetName(), modelName)
+	LogStd(LogLevelInfo, "AskQuestion: using provider = %s, model = %s", modelProvider.GetName(), modelName)
 	response, errFromLLM := modelProvider.Complete(messages, tools, modelName)
 	if len(errFromLLM) > 0 {
 		diagnostics = append(diagnostics, errFromLLM...)
@@ -696,7 +662,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		return AgentResponse{Response: "This tool operation has already been confirmed and executed, please send the new message if you want to execute it again."}, nil
 	}
 
-	log.Printf("current message: %v", userMessage.ToString())
+	LogStd(LogLevelDebug, "[session=%s] current message: role=%s, content_len=%d", session.GetID(), userMessage.Role, len(userMessage.Content))
 	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
 
 	Emit(session, CommonEvent[ReActMessage]{
@@ -729,14 +695,8 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		harness.LoadTools("", session)
 	}
 
-	var currentSkillName string
 	for i := 0; i < maxReActRounds; i++ {
-		// dynamically load tools based on skill from previous round
-		if currentSkillName != "" {
-			harness.LoadTools(currentSkillName, session)
-			currentSkillName = "" // reset after loading
-		}
-		log.Printf("init messages (stream): %v", messages.ToString())
+		LogStd(LogLevelDebug, "[session=%s] init messages (stream): count=%d", session.GetID(), len(*messages))
 
 		acc, errs := AskQuestionStream(session, *messages, *loadedTools, question)
 		if len(errs) > 0 {
@@ -793,10 +753,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 
 			// resolve the batch on this goroutine, it reads the loaded tools and the session
 			// confirm state, and collects the destructive calls that wait for an answer
-			prepared, confirmCalls, skillName := prepareToolCalls(session, harness, toolCalls, loadedTools)
-			if skillName != "" {
-				currentSkillName = skillName
-			}
+			prepared, confirmCalls := prepareToolCalls(session, harness, toolCalls, loadedTools)
 
 			// run the batch concurrently, then append the tool responses in tool call order
 			toolResultMessages := runToolCalls(session, harness, prepared, question.GetModelName())
@@ -844,7 +801,7 @@ func AskQuestionStream(session Session, messages []ReActMessage, tools []Tool, q
 	providers := session.GetContext().GetModelProviders()
 	modelName := question.GetModelName()
 
-	log.Printf("AskQuestionStream: providers count = %d, modelName = %s", len(providers), modelName)
+	LogStd(LogLevelDebug, "[session=%s] AskQuestionStream: providers_count=%d, model=%s", session.GetID(), len(providers), modelName)
 
 	var modelProvider Provider
 	// use the first provider that has the model from request
@@ -885,7 +842,7 @@ func AskQuestionStream(session Session, messages []ReActMessage, tools []Tool, q
 	}
 
 	if acc.content == "" && len(acc.toolCalls) == 0 {
-		log.Printf("[AskQuestionStream] stream produced no content, returning empty accumulator")
+		LogStd(LogLevelWarn, "[session=%s] stream produced no content, returning empty accumulator", session.GetID())
 	}
 
 	return acc, diagnostics

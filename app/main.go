@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"path"
@@ -35,9 +34,8 @@ func loadAppConfig(configPath string) (*core.AppConfig, error) {
 	return &config, nil
 }
 
-// initLogger creates and returns a logger instance
-func initLogger(appConfig *core.AppConfig) *log.Logger {
-	//  use RootPath instead of os.Getwd()
+// initLogger initialises the global structured logger singleton.
+func initLogger(appConfig *core.AppConfig) {
 	logPath := fmt.Sprintf(appConfig.LogPath, time.Now().Format(time.RFC3339))
 	logFile := path.Join(appConfig.RootPath, logPath)
 	logDir := path.Dir(logFile)
@@ -45,11 +43,10 @@ func initLogger(appConfig *core.AppConfig) *log.Logger {
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
 		err = os.MkdirAll(logDir, 0755)
 		if err != nil {
-			log.Fatalf("failed to create log directory: %v", err)
+			core.LogError("", "failed to create log directory: %v", err)
+			os.Exit(1)
 		}
 	}
-
-	return core.NewLogger(logFile)
 }
 
 // initAgent creates, configures and starts the agent
@@ -78,28 +75,30 @@ func main() {
 	// 1. load app config
 	cwd, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("failed to get working directory: %v", err)
+		core.LogError("", "failed to get working directory: %v", err)
+		os.Exit(1)
 	}
 
 	configPath := path.Join(cwd, "config.json")
 	appConfig, err := loadAppConfig(configPath)
 	if err != nil {
-		log.Fatalf("failed to load app config: %v", err)
+		core.LogError("", "failed to load app config: %v", err)
+		os.Exit(1)
 	}
 
 	// 2. init logger
-	logger := initLogger(appConfig)
-	logger.Printf("app starting, config loaded from %s", configPath)
+	initLogger(appConfig)
+	core.LogInfo("", "app starting, config loaded from %s", configPath)
 
 	// 3. init agent
 	agent, initErr := initAgent(appConfig.RootPath)
 	if initErr != nil {
-		log.Fatalf("failed to init agent: %v", initErr.ToString())
+		core.LogError("", "failed to init agent: %s", initErr.ToString())
+		os.Exit(1)
 	}
 	// 4. init server
 	server := simpleApp.SimpleAgentServer{}
-	server.SetLogger(logger)
-	core.InitAgentServer(&server, agent, *appConfig, logger)
+	core.InitAgentServer(&server, agent, *appConfig)
 
 	// 5. start server
 	sigChan := make(chan os.Signal, 1)
@@ -109,11 +108,11 @@ func main() {
 
 	// waiting for signal
 	sig := <-sigChan
-	logger.Printf("\nReceived signal: %v\n", sig)
+	core.LogInfo("", "received signal: %v", sig)
 
 	// graceful shutdown
 	core.StopAgentServer(&server)
 
 	time.Sleep(2 * time.Second)
-	logger.Printf("Graceful shutdown completed")
+	core.LogInfo("", "graceful shutdown completed")
 }

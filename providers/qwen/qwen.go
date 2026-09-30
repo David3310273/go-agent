@@ -3,7 +3,6 @@ package qwen
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"os"
 	"slices"
 	"time"
@@ -42,7 +41,7 @@ type SupportModelName string
 func NewQwenProvider(rootPath string) (*QwenProvider, *core.Diagnostic) {
 	// use rootPath instead of hardcoded relative path
 	filePath := path.Join(rootPath, "providers/qwen", ConfigFileName)
-	log.Printf("provider config path: %s", filePath)
+	core.LogStd(core.LogLevelDebug, "provider config path: %s", filePath)
 
 	var configs []byte
 	var err error
@@ -56,7 +55,7 @@ func NewQwenProvider(rootPath string) (*QwenProvider, *core.Diagnostic) {
 
 	var qwenConfig core.ModelConfig
 	if err := json.Unmarshal(configs, &qwenConfig); err != nil {
-		log.Printf("read file error: %v", err)
+		core.LogStd(core.LogLevelError, "provider config parse error: %v", err)
 		return nil, &core.Diagnostic{
 			Level:   core.SeverityError,
 			Code:    core.MessageCodeProviderCreateError,
@@ -290,7 +289,7 @@ func (q *QwenProvider) CompleteStream(messages []core.ReActMessage, tools []core
 		}
 
 		if err := stream.Err(); err != nil {
-			log.Printf("[CompleteStream] stream error: %s", err.Error())
+			core.LogStd(core.LogLevelError, "llm stream error: model=%s, error=%s", modelName, err.Error())
 		}
 	}()
 
@@ -329,7 +328,7 @@ func (q *QwenProvider) Complete(messages []core.ReActMessage, tools []core.Tool,
 	)
 
 	if err != nil {
-		log.Printf("[Complete]raw response err: %s", err.Error())
+		core.LogStd(core.LogLevelError, "llm call failed: model=%s, error=%s", modelName, err.Error())
 		return core.AgentResponse{}, []core.Diagnostic{
 			{
 				Level:   core.SeverityError,
@@ -339,13 +338,23 @@ func (q *QwenProvider) Complete(messages []core.ReActMessage, tools []core.Tool,
 		}
 	}
 
-	log.Printf("raw response: %s", chatCompletion.RawJSON())
-
 	// parse raw JSON to QwenResponse for proper field extraction
 	var qwenResp QwenResponse
 	if err := json.Unmarshal([]byte(chatCompletion.RawJSON()), &qwenResp); err != nil {
-		log.Printf("failed to parse qwen response: %v", err)
+		core.LogStd(core.LogLevelError, "llm parse response failed: model=%s, error=%v", modelName, err)
+		return core.AgentResponse{}, []core.Diagnostic{
+			{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeSystemError,
+				Message: "failed to parse llm response",
+				Data:    err.Error(),
+			},
+		}
 	}
+
+	// concise summary: model, tokens, finish_reason, content length
+	core.LogStd(core.LogLevelDebug, "llm call ok: model=%s, prompt_tokens=%d, completion_tokens=%d, total_tokens=%d, choices=%d",
+		modelName, qwenResp.Usage.PromptTokens, qwenResp.Usage.CompletionTokens, qwenResp.Usage.TotalTokens, len(qwenResp.Choices))
 
 	// convert QwenResponse to core.AgentResponse
 	response := q.convertResponse(&qwenResp)
