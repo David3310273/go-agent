@@ -6,14 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"time"
 
-	_ "github.com/David3310273/go-agent/agent/simple/tools" // import to register UseSkill, SearchKnowledgeBase
+	_ "github.com/David3310273/go-agent/agent/simple/tools"
 	"github.com/David3310273/go-agent/agent/simple/utils"
 	"github.com/David3310273/go-agent/core"
 	uuid "github.com/gofrs/uuid/v5"
@@ -25,8 +24,7 @@ const (
 )
 
 // creates all registered providers from the core providerregistry
-//
-//	rootPath parameter for resolving provider config file paths
+// rootPath parameter for resolving provider config file paths
 func CreateProviders(rootPath string, agentConfig core.AgentConfig) []core.Provider {
 	providers := []core.Provider{}
 	for _, agentProviderName := range agentConfig.QuestionProvider {
@@ -36,7 +34,7 @@ func CreateProviders(rootPath string, agentConfig core.AgentConfig) []core.Provi
 			}
 			provider, err := factory(rootPath)
 			if err != nil {
-				log.Printf("failed to create provider %s: %s", name, err.Message)
+				core.LogWarn("", "failed to create provider: name=%s, error=%s", name, err.Message)
 				continue
 			}
 			providers = append(providers, provider)
@@ -61,9 +59,6 @@ type SimpleAgent struct {
 	eventChans      map[string]chan core.Event[any]
 	eventHandlers   map[string]func(core.Event[any]) core.Diagnostic
 	eventBufferSize int
-
-	// logger
-	Logger *log.Logger
 
 	// start time
 	startUpTime time.Time
@@ -194,35 +189,6 @@ func (a *SimpleAgent) LoadConfigs() core.AgentCoreConfig {
 	return a.Configs
 }
 
-// Logger
-
-func (a *SimpleAgent) GetLogger() *log.Logger {
-	return a.Logger
-}
-
-func (a *SimpleAgent) SetLogger(config core.AgentConfig) *core.Diagnostic {
-	//  use RootPath for log directory instead of relative path
-	// resolve through ResolvePath so an absolute LogPath is not made relative
-	realPath := utils.ResolvePath(a.RootPath, config.LogPath)
-	folder := path.Dir(realPath)
-
-	if _, err := os.Stat(folder); os.IsNotExist(err) {
-		err = os.MkdirAll(folder, 0755)
-		if err != nil {
-			return &core.Diagnostic{
-				Level: core.SeverityError,
-				Code:  core.MessageCodeConfigFileFormatError,
-			}
-		}
-	}
-
-	logPath := path.Join(fmt.Sprintf(realPath, a.GetID()))
-	log.Printf("set agent log path: %s", logPath)
-	a.Logger = core.NewLogger(logPath)
-
-	return nil
-}
-
 // EventManager
 /*
 	- Event handler is hard to be uniformed because of different param type and count, so define this in each module
@@ -282,7 +248,7 @@ func (a *SimpleAgent) BeforeStart(config core.AgentCoreConfig) []core.Diagnostic
 
 func (a *SimpleAgent) Start(config core.AgentCoreConfig) []core.Diagnostic {
 	// get input from question, listen session output outside
-	a.Logger.Printf("Agent %s started", a.GetID())
+	core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "agent started: id=%s", a.GetID())
 	// emit start event for benchmark
 	core.Emit(a, core.CommonEvent[AgentEventTimeData]{
 		SourceType: core.AgentEventStart,
@@ -437,10 +403,10 @@ func (a *SimpleAgent) RecoverConversation(sessionID string) *core.Conversation {
 // get session, if not exist and forceCreate is true, create a new one
 func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	if session, ok := a.sessions[sessionID]; ok {
-		log.Printf("session %s found, will enter conversation", sessionID)
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "session found, reusing: session=%s", sessionID)
 		return session, nil
 	} else if forceCreate {
-		log.Printf("session %s not found, will create new one", sessionID)
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "session not found, creating: session=%s", sessionID)
 
 		memories := a.RecoverConversation(sessionID)
 		session := NewAgentSession(a, sessionID, memories)

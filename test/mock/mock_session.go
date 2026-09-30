@@ -11,7 +11,6 @@ package mock
 
 import (
 	context "context"
-	log "log"
 	reflect "reflect"
 
 	core "github.com/David3310273/go-agent/core"
@@ -228,20 +227,6 @@ func (mr *MockSessionMockRecorder) GetID() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetID", reflect.TypeOf((*MockSession)(nil).GetID))
 }
 
-// GetLogger mocks base method.
-func (m *MockSession) GetLogger() *log.Logger {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetLogger")
-	ret0, _ := ret[0].(*log.Logger)
-	return ret0
-}
-
-// GetLogger indicates an expected call of GetLogger.
-func (mr *MockSessionMockRecorder) GetLogger() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLogger", reflect.TypeOf((*MockSession)(nil).GetLogger))
-}
-
 // GetLoadTools mocks base method.
 func (m *MockSession) GetLoadTools() *[]core.Tool {
 	m.ctrl.T.Helper()
@@ -414,20 +399,6 @@ func (m *MockSession) SetLoadTools(tool core.Tool) {
 func (mr *MockSessionMockRecorder) SetLoadTools(tool any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLoadTools", reflect.TypeOf((*MockSession)(nil).SetLoadTools), tool)
-}
-
-// SetLogger mocks base method.
-func (m *MockSession) SetLogger(arg0 core.SessionConfig) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetLogger", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// SetLogger indicates an expected call of SetLogger.
-func (mr *MockSessionMockRecorder) SetLogger(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLogger", reflect.TypeOf((*MockSession)(nil).SetLogger), arg0)
 }
 
 // SetPendingMCPToolCall mocks base method.

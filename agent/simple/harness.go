@@ -2,7 +2,6 @@ package simple
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	// the confirmed destructive calls of one batch run concurrently
@@ -47,7 +46,6 @@ func (h SimpleHarness) GenerateFinalPrompt(context core.Context, maxSize int) st
 	if skillDefs := context.GetSkills(); len(skillDefs) > 0 {
 		prompt.WriteString("\n\n# Available Skills\n")
 		for _, skill := range skillDefs {
-			log.Printf("Found skills name: %s, tools: %v", skill.Name, skill.Tools)
 			fmt.Fprintf(&prompt, "- name: **%s**\n", skill.Name)
 			fmt.Fprintf(&prompt, "- description: %s\n", skill.Description)
 		}
@@ -222,7 +220,7 @@ func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Qu
 		confirmMessages := make([]string, 0, len(answers))
 		for _, answer := range answers {
 			if pending := session.GetPendingMCPToolCall(answer.ToolCallID); pending == nil {
-				log.Printf("HandleUserQuestion: no pending tool call %s, skipped", answer.ToolCallID)
+				core.LogStd(core.LogLevelWarn, "[session=%s] HandleUserQuestion: no pending tool call found: call=%s", session.GetID(), answer.ToolCallID)
 				continue
 			}
 
@@ -272,7 +270,7 @@ func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core
 	for idx, answer := range answers {
 		pending := session.GetPendingMCPToolCall(answer.ToolCallID)
 		if pending == nil {
-			log.Printf("HandleUserToolConfirm: no pending tool call found for %s, skipped", answer.ToolCallID)
+			core.LogStd(core.LogLevelWarn, "[session=%s] HandleUserToolConfirm: no pending tool call found: call=%s", session.GetID(), answer.ToolCallID)
 			continue
 		}
 		pendings[idx] = pending
@@ -295,7 +293,7 @@ func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core
 			// carry a tool response so the tool_call stays matched
 			defer func() {
 				if recovered := recover(); recovered != nil {
-					log.Printf("HandleUserToolConfirm: tool %s panicked: %v", pending.Tool.GetName(), recovered)
+					core.LogStd(core.LogLevelError, "[session=%s] HandleUserToolConfirm: tool panicked: name=%s, panic=%v", session.GetID(), pending.Tool.GetName(), recovered)
 					toolResultMessages[idx] = core.ReActMessage{
 						Role:       core.RoleTool,
 						Content:    fmt.Sprintf("Error: tool execution failed for %s with args %v - %v", pending.ToolCallID, pending.Args, recovered),
@@ -342,7 +340,7 @@ func (h SimpleHarness) IsSessionCancelled(session core.Session, toolCalls []core
 	ctx := session.GetQueryCtx()
 	select {
 	case <-ctx.Done():
-		log.Printf("IsSessionCancelled: session %s cancelled by user", session.GetID())
+		core.LogStd(core.LogLevelInfo, "[session=%s] cancelled by user", session.GetID())
 		messages := session.GetConversation()
 		if len(toolCalls) == 0 {
 			cancelMessage := core.ReActMessage{
@@ -442,7 +440,7 @@ func (h SimpleHarness) RunSubSession(session core.Session, args map[string]any, 
 			// CreateTool returns nil for an unregistered name, a nil tool in the
 			// list would break the reAct loop when it looks the tool up by name
 			if tool == nil {
-				log.Printf("RunSubSession: tool %s is not registered, skipped", toolName)
+				core.LogStd(core.LogLevelWarn, "[session=%s] RunSubSession: tool not registered: name=%s", session.GetID(), toolName)
 				continue
 			}
 			tools = append(tools, tool)
@@ -464,7 +462,7 @@ func (h SimpleHarness) RunSubSession(session core.Session, args map[string]any, 
 		return "", runError(fmt.Sprintf("unexpected sub-session type %T", subSession))
 	}
 
-	log.Printf("RunSubSession: session %s created sub-session %s", session.GetID(), sub.GetID())
+	core.LogStd(core.LogLevelInfo, "[session=%s] RunSubSession: created sub-session=%s", session.GetID(), sub.GetID())
 
 	// the sub-session thinking goes to the standard output. core.ProcessQuestion pushes
 	// the reasoning only when the question carries a hint channel, so give it one and drain it

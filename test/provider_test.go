@@ -3,8 +3,6 @@ package test
 
 import (
 	"context"
-	"io"
-	"log"
 
 	// auto-add: the tool call batch tests assert the concurrency and the ordering of a batch
 	"fmt"
@@ -311,7 +309,7 @@ func TestAskQuestion_Success(t *testing.T) {
 	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"test-model"}})
 	mockQuestion.EXPECT().GetModelName().Return("test-model")
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
-	mockSession.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0))
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
 	mockProvider.EXPECT().GetName().Return("qwen")
 	mockProvider.EXPECT().Complete(messages, tools, "test-model").Return(nil, nil)
@@ -338,7 +336,8 @@ func TestAskQuestion_UnknownProvider(t *testing.T) {
 	tools := []core.Tool{}
 
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
-	mockSession.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0))
+
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
 	mockQuestion.EXPECT().GetModelName().Return("test-model")
 	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"test-model"}})
@@ -368,6 +367,7 @@ func TestAskQuestion_NoProviders(t *testing.T) {
 	tools := []core.Tool{}
 
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{})
 	mockQuestion.EXPECT().GetModelName().Return("test-model")
 
@@ -399,7 +399,7 @@ func TestAskQuestion_WithDiagnostics(t *testing.T) {
 
 	mockQuestion.EXPECT().GetModelName().Return("test-model")
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
-	mockSession.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0))
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider})
 	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"test-model"}})
 	mockProvider.EXPECT().GetName().Return("qwen")
@@ -435,6 +435,7 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
@@ -449,7 +450,6 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
-	mockSession.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0)).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
@@ -532,8 +532,8 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockSession.EXPECT().GetPendingMCPToolCall(gomock.Any()).Return(nil).AnyTimes()
 	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
-	mockSession.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0)).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
@@ -627,6 +627,7 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
@@ -642,7 +643,6 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
-	mockSession.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0)).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
@@ -739,6 +739,7 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
 	mockSession.EXPECT().GetConversation().Return(&initialConversation).AnyTimes()
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockSession.EXPECT().GetQueryCtx().Return(context.Background()).AnyTimes()
 	mockSession.EXPECT().CancelQuery().AnyTimes()
 	mockSession.EXPECT().GetLoadTools().Return(&[]core.Tool{}).AnyTimes()
@@ -750,7 +751,6 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
-	mockSession.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0)).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
@@ -841,6 +841,7 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	}
 
 	mockSession.EXPECT().GetConfigs().Return(config).AnyTimes()
+	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockSession.EXPECT().GetContext().Return(mockContext).AnyTimes()
 	mockContext.EXPECT().GetModelProviders().Return([]core.Provider{mockProvider}).AnyTimes()
 	initialConversation := core.Conversation{{Role: core.RoleUser, Content: "test"}}
@@ -856,7 +857,6 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
-	mockSession.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0)).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
@@ -943,7 +943,7 @@ func newToolCallBatchFixture(ctrl *gomock.Controller, loadedTools []core.Tool, r
 	fixture.session.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
 	fixture.session.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
 	fixture.session.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
-	fixture.session.EXPECT().GetLogger().Return(log.New(io.Discard, "", 0)).AnyTimes()
+	fixture.session.EXPECT().GetID().Return("test-session-id").AnyTimes()
 
 	fixture.mockContext.EXPECT().GetModelProviders().Return([]core.Provider{fixture.provider}).AnyTimes()
 	fixture.mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()

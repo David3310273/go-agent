@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -50,7 +49,7 @@ func (f UseSkillCall) GetSchema() core.ToolSchema {
 
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "useskill: failed to read schema: %v", err)
 		return schema
 	}
 
@@ -129,19 +128,21 @@ func (f UseSkillCall) GetRunner() func(args map[string]any) (string, *core.Diagn
 
 		// build response with skill info and tool list with descriptions
 		var response strings.Builder
-		fmt.Fprintf(&response, "Skill: %s\n", skillDef.Name)
-		fmt.Fprintf(&response, "Description: %s\n", skillDef.Description)
-		fmt.Fprintf(&response, "\nTools to execute (with descriptions):\n")
+		core.LogStd(core.LogLevelInfo, "Skill: %s\n", skillDef.Name)
+		core.LogStd(core.LogLevelInfo, "Description: %s\n", skillDef.Description)
+		core.LogStd(core.LogLevelInfo, "\nTools to execute (with descriptions):\n")
 		for _, toolName := range skillDef.Tools {
 			// use GetTool to get tool instance, then call GetDescription.
 			tool := core.GetTool(toolName, f.RootPath, f.Session)
 			if tool != nil {
+				// register tool to session's loaded tools
+				f.Session.SetLoadTools(tool)
 				fmt.Fprintf(&response, "- **%s**: %s\n", toolName, tool.GetDescription())
 			}
 		}
 		fmt.Fprintf(&response, "\nPlease call these tools with appropriate parameters.")
 
-		log.Printf("\n\n[Skill use]: the specification of skill %s is: %s\n", skillDef.Name, response.String())
+		core.LogStd(core.LogLevelDebug, "skill loaded: name=%s, desc=%s", skillDef.Name, skillDef.Description)
 
 		return response.String(), &core.Diagnostic{
 			Level:   core.SeverityInfo,

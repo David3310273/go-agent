@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"strings"
+	"time"
 
 	"github.com/David3310273/go-agent/agent/simple/utils"
 	"github.com/David3310273/go-agent/core"
@@ -100,7 +100,7 @@ func (m *MCPToolWrapper) GetRunner() func(args map[string]any) (string, *core.Di
 		// call the tool via MCP using the client reference
 		_, result, err := client.CallTool(toolName, args)
 		if err != nil {
-			log.Printf("tool %s call failed: %v", m.Name, err)
+			core.LogStd(core.LogLevelError, "mcp tool call failed: tool=%s, error=%v", m.Name, err)
 			return "", &core.Diagnostic{
 				Code:    core.MessageCodeToolRunError,
 				Level:   core.SeverityError,
@@ -162,7 +162,7 @@ func (m *MCPRemoteUtil) BuildTools(context core.Context) map[string]core.Tool {
 	// use sendRequest to get SSE support
 	resp, diag := m.sendRequest(core.MCPMethodToolsList, nil)
 	if diag != nil {
-		log.Printf("%s failed: %v", core.MCPMethodToolsList, diag.Message)
+		core.LogStd(core.LogLevelError, "%s failed: %s", core.MCPMethodToolsList, diag.Message)
 		return nil
 	}
 
@@ -170,7 +170,7 @@ func (m *MCPRemoteUtil) BuildTools(context core.Context) map[string]core.Tool {
 	resultBytes, _ := json.Marshal(resp.Result)
 	var toolsResult core.MCPListToolsResponse
 	if err := json.Unmarshal(resultBytes, &toolsResult); err != nil {
-		log.Printf("failed to parse tools result: %v", err)
+		core.LogStd(core.LogLevelError, "failed to parse tools list result: %v", err)
 		return nil
 	}
 
@@ -189,7 +189,7 @@ func (m *MCPRemoteUtil) BuildTools(context core.Context) map[string]core.Tool {
 
 	// cache the built tools
 	m.tools = toolsMap
-	log.Printf("built and cached %d tools from MCP server", len(toolsMap))
+	core.LogStd(core.LogLevelInfo, "built and cached %d tools from mcp server", len(toolsMap))
 	return toolsMap
 }
 
@@ -347,8 +347,8 @@ func parseSSEResponse(body []byte) []byte {
 }
 
 // sendRequest sends a request to MCP server with the given method and params.
-// uses utils.SendRequest, generic helper for all MCP requests
-// now returns MCPServerResponse to parse the result
+// uses utils.SendRequest, generic helper for all MCP requests.
+// logs only a concise summary with method name, status, latency, and body sizes.
 func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any) (*core.MCPServerResponse, *core.Diagnostic) {
 	// build JSON-RPC request body
 	body := map[string]any{
@@ -367,16 +367,15 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 		Method:  "POST",
 	}
 
-	// log request body and headers before sending
 	bodyJSON, _ := json.Marshal(body)
-	log.Printf("[MCP] %s request body: %s", jsonrpcMethod, string(bodyJSON))
-	log.Printf("[MCP] %s request headers: %v", jsonrpcMethod, request.Headers)
+	startTime := time.Now()
 
 	// send request
 	config := utils.HTTPConfig{URL: m.getURL()}
 	resp, err := utils.SendRequest(config, request)
 	if err != nil {
-		log.Printf("%s failed: %v", jsonrpcMethod, err)
+		core.LogStd(core.LogLevelError, "mcp request failed: method=%s, server=%s, error=%v, latency=%dms",
+			jsonrpcMethod, m.Config.Name, err, time.Since(startTime).Milliseconds())
 		return nil, &core.Diagnostic{
 			Code:    core.MessageCodeSystemError,
 			Level:   core.SeverityError,
@@ -386,10 +385,11 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 	}
 	defer resp.Body.Close()
 
-	// read response body for debugging
+	// read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("%s: failed to read response body: %v", jsonrpcMethod, err)
+		core.LogStd(core.LogLevelError, "mcp read response body failed: method=%s, server=%s, error=%v",
+			jsonrpcMethod, m.Config.Name, err)
 		return nil, &core.Diagnostic{
 			Code:    core.MessageCodeSystemError,
 			Level:   core.SeverityError,
@@ -397,9 +397,8 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 			Data:    err.Error(),
 		}
 	}
-	log.Printf("[MCP] %s response status: %d", jsonrpcMethod, resp.StatusCode)
-	log.Printf("[MCP] %s response content-type: %s", jsonrpcMethod, resp.Header.Get("Content-Type"))
-	log.Printf("[MCP] %s response body: %s", jsonrpcMethod, string(respBody))
+
+	latency := time.Since(startTime).Milliseconds()
 
 	// parse response based on content-type
 	contentType := resp.Header.Get("Content-Type")
@@ -409,6 +408,7 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 		// parse SSE format
 		jsonBody = parseSSEResponse(respBody)
 		if jsonBody == nil {
+			core.LogStd(core.LogLevelError, "mcp sse parse failed: method=%s, server=%s", jsonrpcMethod, m.Config.Name)
 			return nil, &core.Diagnostic{
 				Code:    core.MessageCodeSystemError,
 				Level:   core.SeverityError,
@@ -424,7 +424,8 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 	// parse response body
 	var serverResp core.MCPServerResponse
 	if err := json.Unmarshal(jsonBody, &serverResp); err != nil {
-		log.Printf("%s: failed to decode response: %v", jsonrpcMethod, err)
+		core.LogStd(core.LogLevelError, "mcp decode response failed: method=%s, server=%s, error=%v",
+			jsonrpcMethod, m.Config.Name, err)
 		return nil, &core.Diagnostic{
 			Code:    core.MessageCodeSystemError,
 			Level:   core.SeverityError,
@@ -433,7 +434,14 @@ func (m *MCPRemoteUtil) sendRequest(jsonrpcMethod string, params map[string]any)
 		}
 	}
 
-	log.Printf("%s completed successfully", jsonrpcMethod)
+	// concise summary: method, status, latency, body sizes, includes key params if present
+	if params != nil {
+		core.LogStd(core.LogLevelDebug, "mcp call: server=%s, method=%s, status=%d, latency=%dms, req=%dB, resp=%dB",
+			m.Config.Name, jsonrpcMethod, resp.StatusCode, latency, len(bodyJSON), len(respBody))
+	} else {
+		core.LogStd(core.LogLevelDebug, "mcp call: server=%s, method=%s, status=%d, latency=%dms, req=%dB, resp=%dB",
+			m.Config.Name, jsonrpcMethod, resp.StatusCode, latency, len(bodyJSON), len(respBody))
+	}
 	return &serverResp, nil
 }
 

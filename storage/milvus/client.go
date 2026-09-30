@@ -40,7 +40,7 @@ func Init(rootPath string) {
 	MilvusClientInstance = &MilvusStorage{}
 	core.InitStorageClient(MilvusClientInstance, rootPath)
 
-	fmt.Printf("[Milvus] init done: Client=%v\n", MilvusClientInstance.Client)
+	core.LogStd(core.LogLevelInfo, "[Milvus] init done: Client=%v\n", MilvusClientInstance.Client)
 }
 
 // SetConfig implements core.Storage interface
@@ -48,18 +48,18 @@ func (m *MilvusStorage) SetConfig(rootPath string) {
 	configPath := path.Join(rootPath, MilvusStoragePath)
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		fmt.Printf("[Milvus] failed to read config file %s: %v\n", configPath, err)
+		core.LogStd(core.LogLevelError, "[Milvus] failed to read config file %s: %v\n", configPath, err)
 		return
 	}
 
 	var cfg Config
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		fmt.Printf("[Milvus] failed to parse config file: %v\n", err)
+		core.LogStd(core.LogLevelError, "[Milvus] failed to parse config file: %v\n", err)
 		return
 	}
 
 	m.Client = NewMilvusClient(cfg.Endpoint, cfg.APIKey)
-	fmt.Printf("[Milvus] client initialized with endpoint: %s\n", cfg.Endpoint)
+	core.LogStd(core.LogLevelInfo, "[Milvus] client initialized with endpoint: %s\n", cfg.Endpoint)
 }
 
 // Stop closes the Milvus client connection.

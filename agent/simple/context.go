@@ -1,7 +1,6 @@
 package simple
 
 import (
-	"log"
 	"os"
 	"path"
 
@@ -68,14 +67,13 @@ func (a *SimpleAgentContext) SetPrompt(prompt core.PromptConfig) *core.Diagnosti
 	for _, filename := range prompt.Paths {
 		// use RootPath instead of hardcoded relative path
 		realPath := path.Join(prompt.RootPath, SimpleAgentPath, filename)
-		log.Printf("real prompt path: %s", realPath)
 		tempPrompt, err := os.ReadFile(realPath)
 		if err != nil {
-			log.Printf("failed to load prompt: %s", realPath)
+			core.LogStd(core.LogLevelWarn, "failed to load prompt: path=%s", realPath)
 		} else {
 			hasAdded := SimpleHarnessInstance.AddPrompt(&a.Prompt, tempPrompt, prompt.BufferSizeInKB*1024)
 			if !hasAdded {
-				log.Printf("cannot load whole prompt %s because buffer is full, will truncate in here...", realPath)
+				core.LogStd(core.LogLevelWarn, "prompt buffer full, truncating: path=%s", realPath)
 				break
 			}
 		}
@@ -168,7 +166,7 @@ func (a *SimpleAgentContext) SetMCPClient(configs []core.MCPConfig) *core.Diagno
 
 		// store the client
 		a.MCPClients[config.Name] = client
-		log.Printf("MCP client for %s created", config.Name)
+		core.LogStd(core.LogLevelInfo, "mcp client created: server=%s", config.Name)
 	}
 
 	return nil

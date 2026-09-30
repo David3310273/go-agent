@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path"
@@ -75,7 +74,7 @@ func NewOpenAIEmbedder(rootPath string) (*OpenAIEmbedder, *core.Diagnostic) {
 	}
 
 	if err := json.Unmarshal(configData, &embedderConfig); err != nil {
-		log.Printf("failed to unmarshal config file: %v", err)
+		core.LogStd(core.LogLevelError, "embedder config unmarshal failed: %v", err)
 		return nil, &core.Diagnostic{
 			Level:   core.SeverityError,
 			Code:    core.MessageCodeEmbedderConfigError,

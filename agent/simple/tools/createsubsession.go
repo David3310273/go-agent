@@ -2,7 +2,6 @@ package tools
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"path"
 
@@ -46,12 +45,12 @@ func (f CreateSubSessionCall) GetSchema() core.ToolSchema {
 	// use RootPath instead of hardcoded relative path
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "createsubsession: failed to read schema: %v", err)
 		return schema
 	}
 
 	if err := json.Unmarshal(content, &schema); err != nil {
-		log.Printf("GetSchema: failed to unmarshal schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "createsubsession: failed to unmarshal schema: %v", err)
 		return schema
 	}
 

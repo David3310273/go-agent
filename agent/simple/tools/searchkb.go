@@ -2,7 +2,6 @@ package tools
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"path"
 
@@ -46,7 +45,7 @@ func (f SearchKnowledgebaseCall) GetSchema() core.ToolSchema {
 	// use RootPath instead of hardcoded relative path
 	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
 	if err != nil {
-		log.Printf("GetSchema: failed to read schema file: %v", err)
+		core.LogStd(core.LogLevelWarn, "searchkb: failed to read schema: %v", err)
 		return schema
 	}
 
@@ -134,7 +133,7 @@ func (f SearchKnowledgebaseCall) GetRunner() func(args map[string]any) (string, 
 
 			searchResults, diag := milvusKB.Search(keyword, topK, "")
 			if diag != nil {
-				log.Printf("SearchKnowledgeBase: search error: %v", diag.Message)
+				core.LogStd(core.LogLevelError, "searchkb: search error: %v", diag.Message)
 				continue
 			}
 

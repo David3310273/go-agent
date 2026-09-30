@@ -2,7 +2,6 @@ package components
 
 import (
 	"context"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -19,7 +18,7 @@ func RegisterToolsToServer(server *mcp.Server, config *MCPConfig) {
 		// session is nil for MCP, root path is passed explicitly
 		tool := core.GetTool(toolName, config.RootPath, nil)
 		if tool == nil {
-			log.Printf("[MCP] tool not found: %s", toolName)
+			core.LogStd(core.LogLevelWarn, "mcp tool not found: %s", toolName)
 			continue
 		}
 
@@ -45,7 +44,7 @@ func RegisterToolsToServer(server *mcp.Server, config *MCPConfig) {
 		handler := MCPAdapter(tool)
 		mcp.AddTool(server, mcpTool, handler)
 
-		log.Printf("[MCP] registered tool: %s", mcpToolName)
+		core.LogStd(core.LogLevelInfo, "mcp registered tool: %s", mcpToolName)
 	}
 }
 
@@ -60,7 +59,7 @@ func RegisterPromptsToServer(server *mcp.Server, config *MCPConfig) {
 		// read prompt file content
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			log.Printf("[MCP] failed to read prompt file %s: %v", fullPath, err)
+			core.LogStd(core.LogLevelWarn, "mcp failed to read prompt file: path=%s, error=%v", fullPath, err)
 			continue
 		}
 
@@ -99,7 +98,7 @@ func RegisterPromptsToServer(server *mcp.Server, config *MCPConfig) {
 			}, nil
 		})
 
-		log.Printf("[MCP] registered prompt: %s", promptName)
+		core.LogStd(core.LogLevelInfo, "mcp registered prompt: %s", promptName)
 	}
 }
 
@@ -113,7 +112,7 @@ func RegisterResourcesToServer(server *mcp.Server, config *MCPConfig) {
 		// read resource file content
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			log.Printf("[MCP] failed to read resource file %s: %v", fullPath, err)
+			core.LogStd(core.LogLevelWarn, "mcp failed to read resource file: path=%s, error=%v", fullPath, err)
 			continue
 		}
 
@@ -142,6 +141,6 @@ func RegisterResourcesToServer(server *mcp.Server, config *MCPConfig) {
 			}, nil
 		})
 
-		log.Printf("[MCP] registered resource: %s (%s)", resourceName, resourceURI)
+		core.LogStd(core.LogLevelInfo, "mcp registered resource: %s (%s)", resourceName, resourceURI)
 	}
 }
