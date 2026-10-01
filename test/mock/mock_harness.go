@@ -16,6 +16,321 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockPromptBuilder is a mock of PromptBuilder interface.
+type MockPromptBuilder struct {
+	ctrl     *gomock.Controller
+	recorder *MockPromptBuilderMockRecorder
+	isgomock struct{}
+}
+
+// MockPromptBuilderMockRecorder is the mock recorder for MockPromptBuilder.
+type MockPromptBuilderMockRecorder struct {
+	mock *MockPromptBuilder
+}
+
+// NewMockPromptBuilder creates a new mock instance.
+func NewMockPromptBuilder(ctrl *gomock.Controller) *MockPromptBuilder {
+	mock := &MockPromptBuilder{ctrl: ctrl}
+	mock.recorder = &MockPromptBuilderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPromptBuilder) EXPECT() *MockPromptBuilderMockRecorder {
+	return m.recorder
+}
+
+// AddAgentHistory mocks base method.
+func (m *MockPromptBuilder) AddAgentHistory(agentHistory *[]byte, maxSize int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddAgentHistory", agentHistory, maxSize)
+}
+
+// AddAgentHistory indicates an expected call of AddAgentHistory.
+func (mr *MockPromptBuilderMockRecorder) AddAgentHistory(agentHistory, maxSize any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAgentHistory", reflect.TypeOf((*MockPromptBuilder)(nil).AddAgentHistory), agentHistory, maxSize)
+}
+
+// AddPrompt mocks base method.
+func (m *MockPromptBuilder) AddPrompt(systemPrompt *[]byte, document []byte, maxSize int) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddPrompt", systemPrompt, document, maxSize)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// AddPrompt indicates an expected call of AddPrompt.
+func (mr *MockPromptBuilderMockRecorder) AddPrompt(systemPrompt, document, maxSize any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPrompt", reflect.TypeOf((*MockPromptBuilder)(nil).AddPrompt), systemPrompt, document, maxSize)
+}
+
+// GenerateFinalPrompt mocks base method.
+func (m *MockPromptBuilder) GenerateFinalPrompt(context core.Context, maxSize int) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GenerateFinalPrompt", context, maxSize)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GenerateFinalPrompt indicates an expected call of GenerateFinalPrompt.
+func (mr *MockPromptBuilderMockRecorder) GenerateFinalPrompt(context, maxSize any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateFinalPrompt", reflect.TypeOf((*MockPromptBuilder)(nil).GenerateFinalPrompt), context, maxSize)
+}
+
+// MockMessageManager is a mock of MessageManager interface.
+type MockMessageManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockMessageManagerMockRecorder
+	isgomock struct{}
+}
+
+// MockMessageManagerMockRecorder is the mock recorder for MockMessageManager.
+type MockMessageManagerMockRecorder struct {
+	mock *MockMessageManager
+}
+
+// NewMockMessageManager creates a new mock instance.
+func NewMockMessageManager(ctrl *gomock.Controller) *MockMessageManager {
+	mock := &MockMessageManager{ctrl: ctrl}
+	mock.recorder = &MockMessageManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMessageManager) EXPECT() *MockMessageManagerMockRecorder {
+	return m.recorder
+}
+
+// GetCancelledAnswer mocks base method.
+func (m *MockMessageManager) GetCancelledAnswer() core.AgentResponse {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCancelledAnswer")
+	ret0, _ := ret[0].(core.AgentResponse)
+	return ret0
+}
+
+// GetCancelledAnswer indicates an expected call of GetCancelledAnswer.
+func (mr *MockMessageManagerMockRecorder) GetCancelledAnswer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCancelledAnswer", reflect.TypeOf((*MockMessageManager)(nil).GetCancelledAnswer))
+}
+
+// GetCurrRoundKnowledges mocks base method.
+func (m *MockMessageManager) GetCurrRoundKnowledges(question core.Question) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCurrRoundKnowledges", question)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetCurrRoundKnowledges indicates an expected call of GetCurrRoundKnowledges.
+func (mr *MockMessageManagerMockRecorder) GetCurrRoundKnowledges(question any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCurrRoundKnowledges", reflect.TypeOf((*MockMessageManager)(nil).GetCurrRoundKnowledges), question)
+}
+
+// GetDefaultAnswer mocks base method.
+func (m *MockMessageManager) GetDefaultAnswer() core.AgentResponse {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetDefaultAnswer")
+	ret0, _ := ret[0].(core.AgentResponse)
+	return ret0
+}
+
+// GetDefaultAnswer indicates an expected call of GetDefaultAnswer.
+func (mr *MockMessageManagerMockRecorder) GetDefaultAnswer() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultAnswer", reflect.TypeOf((*MockMessageManager)(nil).GetDefaultAnswer))
+}
+
+// HandleUserQuestion mocks base method.
+func (m *MockMessageManager) HandleUserQuestion(session core.Session, question core.Question) (*core.ReActMessage, core.Diagnostic) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HandleUserQuestion", session, question)
+	ret0, _ := ret[0].(*core.ReActMessage)
+	ret1, _ := ret[1].(core.Diagnostic)
+	return ret0, ret1
+}
+
+// HandleUserQuestion indicates an expected call of HandleUserQuestion.
+func (mr *MockMessageManagerMockRecorder) HandleUserQuestion(session, question any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleUserQuestion", reflect.TypeOf((*MockMessageManager)(nil).HandleUserQuestion), session, question)
+}
+
+// SetCurrRoundMessages mocks base method.
+func (m *MockMessageManager) SetCurrRoundMessages(messages *core.Conversation, message core.ReActMessage, windowSize, skip int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetCurrRoundMessages", messages, message, windowSize, skip)
+}
+
+// SetCurrRoundMessages indicates an expected call of SetCurrRoundMessages.
+func (mr *MockMessageManagerMockRecorder) SetCurrRoundMessages(messages, message, windowSize, skip any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCurrRoundMessages", reflect.TypeOf((*MockMessageManager)(nil).SetCurrRoundMessages), messages, message, windowSize, skip)
+}
+
+// SetNextRoundMessages mocks base method.
+func (m *MockMessageManager) SetNextRoundMessages(question *core.Question, messages *core.Conversation) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetNextRoundMessages", question, messages)
+}
+
+// SetNextRoundMessages indicates an expected call of SetNextRoundMessages.
+func (mr *MockMessageManagerMockRecorder) SetNextRoundMessages(question, messages any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetNextRoundMessages", reflect.TypeOf((*MockMessageManager)(nil).SetNextRoundMessages), question, messages)
+}
+
+// MockToolRunner is a mock of ToolRunner interface.
+type MockToolRunner struct {
+	ctrl     *gomock.Controller
+	recorder *MockToolRunnerMockRecorder
+	isgomock struct{}
+}
+
+// MockToolRunnerMockRecorder is the mock recorder for MockToolRunner.
+type MockToolRunnerMockRecorder struct {
+	mock *MockToolRunner
+}
+
+// NewMockToolRunner creates a new mock instance.
+func NewMockToolRunner(ctrl *gomock.Controller) *MockToolRunner {
+	mock := &MockToolRunner{ctrl: ctrl}
+	mock.recorder = &MockToolRunnerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockToolRunner) EXPECT() *MockToolRunnerMockRecorder {
+	return m.recorder
+}
+
+// LoadTools mocks base method.
+func (m *MockToolRunner) LoadTools(skillName string, session core.Session) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "LoadTools", skillName, session)
+}
+
+// LoadTools indicates an expected call of LoadTools.
+func (mr *MockToolRunnerMockRecorder) LoadTools(skillName, session any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadTools", reflect.TypeOf((*MockToolRunner)(nil).LoadTools), skillName, session)
+}
+
+// RunSubSession mocks base method.
+func (m *MockToolRunner) RunSubSession(session core.Session, args map[string]any, model string) (string, *core.Diagnostic) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RunSubSession", session, args, model)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(*core.Diagnostic)
+	return ret0, ret1
+}
+
+// RunSubSession indicates an expected call of RunSubSession.
+func (mr *MockToolRunnerMockRecorder) RunSubSession(session, args, model any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunSubSession", reflect.TypeOf((*MockToolRunner)(nil).RunSubSession), session, args, model)
+}
+
+// RunToolCall mocks base method.
+func (m *MockToolRunner) RunToolCall(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RunToolCall", session, toolCall, targetTool, args, model)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(*core.Diagnostic)
+	return ret0, ret1
+}
+
+// RunToolCall indicates an expected call of RunToolCall.
+func (mr *MockToolRunnerMockRecorder) RunToolCall(session, toolCall, targetTool, args, model any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RunToolCall", reflect.TypeOf((*MockToolRunner)(nil).RunToolCall), session, toolCall, targetTool, args, model)
+}
+
+// MockConfirmHandler is a mock of ConfirmHandler interface.
+type MockConfirmHandler struct {
+	ctrl     *gomock.Controller
+	recorder *MockConfirmHandlerMockRecorder
+	isgomock struct{}
+}
+
+// MockConfirmHandlerMockRecorder is the mock recorder for MockConfirmHandler.
+type MockConfirmHandlerMockRecorder struct {
+	mock *MockConfirmHandler
+}
+
+// NewMockConfirmHandler creates a new mock instance.
+func NewMockConfirmHandler(ctrl *gomock.Controller) *MockConfirmHandler {
+	mock := &MockConfirmHandler{ctrl: ctrl}
+	mock.recorder = &MockConfirmHandlerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockConfirmHandler) EXPECT() *MockConfirmHandlerMockRecorder {
+	return m.recorder
+}
+
+// GenerateToolConfirmResponse mocks base method.
+func (m *MockConfirmHandler) GenerateToolConfirmResponse(session core.Session, calls []core.ToolConfirmCall, usage core.Usage) core.Answer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GenerateToolConfirmResponse", session, calls, usage)
+	ret0, _ := ret[0].(core.Answer)
+	return ret0
+}
+
+// GenerateToolConfirmResponse indicates an expected call of GenerateToolConfirmResponse.
+func (mr *MockConfirmHandlerMockRecorder) GenerateToolConfirmResponse(session, calls, usage any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateToolConfirmResponse", reflect.TypeOf((*MockConfirmHandler)(nil).GenerateToolConfirmResponse), session, calls, usage)
+}
+
+// GetConfirmDestructiveToolAnswer mocks base method.
+func (m *MockConfirmHandler) GetConfirmDestructiveToolAnswer(toolName string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfirmDestructiveToolAnswer", toolName)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetConfirmDestructiveToolAnswer indicates an expected call of GetConfirmDestructiveToolAnswer.
+func (mr *MockConfirmHandlerMockRecorder) GetConfirmDestructiveToolAnswer(toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmDestructiveToolAnswer", reflect.TypeOf((*MockConfirmHandler)(nil).GetConfirmDestructiveToolAnswer), toolName)
+}
+
+// GetUserToolConfirmMessage mocks base method.
+func (m *MockConfirmHandler) GetUserToolConfirmMessage(toolName string) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserToolConfirmMessage", toolName)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetUserToolConfirmMessage indicates an expected call of GetUserToolConfirmMessage.
+func (mr *MockConfirmHandlerMockRecorder) GetUserToolConfirmMessage(toolName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserToolConfirmMessage", reflect.TypeOf((*MockConfirmHandler)(nil).GetUserToolConfirmMessage), toolName)
+}
+
+// HandleUserToolConfirm mocks base method.
+func (m *MockConfirmHandler) HandleUserToolConfirm(session core.Session, question core.Question) []core.ReActMessage {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "HandleUserToolConfirm", session, question)
+	ret0, _ := ret[0].([]core.ReActMessage)
+	return ret0
+}
+
+// HandleUserToolConfirm indicates an expected call of HandleUserToolConfirm.
+func (mr *MockConfirmHandlerMockRecorder) HandleUserToolConfirm(session, question any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleUserToolConfirm", reflect.TypeOf((*MockConfirmHandler)(nil).HandleUserToolConfirm), session, question)
+}
+
 // MockHarness is a mock of Harness interface.
 type MockHarness struct {
 	ctrl     *gomock.Controller
@@ -94,18 +409,18 @@ func (mr *MockHarnessMockRecorder) GenerateToolConfirmResponse(session, calls, u
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GenerateToolConfirmResponse", reflect.TypeOf((*MockHarness)(nil).GenerateToolConfirmResponse), session, calls, usage)
 }
 
-// GetConfirmDestructiveToolResult mocks base method.
-func (m *MockHarness) GetConfirmDestructiveToolResult(toolName string) string {
+// GetCancelledAnswer mocks base method.
+func (m *MockHarness) GetCancelledAnswer() core.AgentResponse {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConfirmDestructiveToolResult", toolName)
-	ret0, _ := ret[0].(string)
+	ret := m.ctrl.Call(m, "GetCancelledAnswer")
+	ret0, _ := ret[0].(core.AgentResponse)
 	return ret0
 }
 
-// GetConfirmDestructiveToolResult indicates an expected call of GetConfirmDestructiveToolResult.
-func (mr *MockHarnessMockRecorder) GetConfirmDestructiveToolResult(toolName any) *gomock.Call {
+// GetCancelledAnswer indicates an expected call of GetCancelledAnswer.
+func (mr *MockHarnessMockRecorder) GetCancelledAnswer() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmDestructiveToolResult", reflect.TypeOf((*MockHarness)(nil).GetConfirmDestructiveToolResult), toolName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCancelledAnswer", reflect.TypeOf((*MockHarness)(nil).GetCancelledAnswer))
 }
 
 // GetConfirmDestructiveToolAnswer mocks base method.
@@ -193,20 +508,6 @@ func (mr *MockHarnessMockRecorder) HandleUserToolConfirm(session, question any) 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleUserToolConfirm", reflect.TypeOf((*MockHarness)(nil).HandleUserToolConfirm), session, question)
 }
 
-// IsSessionCancelled mocks base method.
-func (m *MockHarness) IsSessionCancelled(session core.Session, toolCalls []core.ToolCall) bool {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsSessionCancelled", session, toolCalls)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// IsSessionCancelled indicates an expected call of IsSessionCancelled.
-func (mr *MockHarnessMockRecorder) IsSessionCancelled(session, toolCalls any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSessionCancelled", reflect.TypeOf((*MockHarness)(nil).IsSessionCancelled), session, toolCalls)
-}
-
 // LoadTools mocks base method.
 func (m *MockHarness) LoadTools(skillName string, session core.Session) {
 	m.ctrl.T.Helper()
@@ -259,18 +560,6 @@ func (m *MockHarness) SetCurrRoundMessages(messages *core.Conversation, message 
 func (mr *MockHarnessMockRecorder) SetCurrRoundMessages(messages, message, windowSize, skip any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCurrRoundMessages", reflect.TypeOf((*MockHarness)(nil).SetCurrRoundMessages), messages, message, windowSize, skip)
-}
-
-// SetFinalQuery mocks base method.
-func (m *MockHarness) SetFinalQuery(question *core.Question, knowledge, splitter string) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetFinalQuery", question, knowledge, splitter)
-}
-
-// SetFinalQuery indicates an expected call of SetFinalQuery.
-func (mr *MockHarnessMockRecorder) SetFinalQuery(question, knowledge, splitter any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetFinalQuery", reflect.TypeOf((*MockHarness)(nil).SetFinalQuery), question, knowledge, splitter)
 }
 
 // SetNextRoundMessages mocks base method.

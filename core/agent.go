@@ -373,6 +373,42 @@ func runToolCalls(session Session, harness Harness, prepared []preparedToolCall,
 	return toolResultMessages
 }
 
+func watchCancel(session Session, toolCalls []ToolCall) bool {
+	ctx := session.GetQueryCtx()
+	select {
+	case <-ctx.Done():
+		LogStd(LogLevelInfo, "[session=%s] cancelled by user", session.GetID())
+		messages := session.GetConversation()
+		if len(toolCalls) == 0 {
+			cancelMessage := ReActMessage{
+				Role:    RoleTool,
+				Content: "Operation has been canceled by user",
+			}
+			*messages = append(*messages, cancelMessage)
+			Emit(session, CommonEvent[ReActMessage]{
+				SourceType: SessionHistory,
+				Data:       cancelMessage,
+			})
+		} else {
+			for _, toolCall := range toolCalls {
+				cancelMessage := ReActMessage{
+					Role:       RoleTool,
+					Content:    fmt.Sprintf("Tool call %s cancelled by user", toolCall.Function.Name),
+					ToolCallID: toolCall.ID,
+				}
+				*messages = append(*messages, cancelMessage)
+				Emit(session, CommonEvent[ReActMessage]{
+					SourceType: SessionHistory,
+					Data:       cancelMessage,
+				})
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
 // ProcessQuestion is the reAct loop of AskQuestion
 func ProcessQuestion(session Session, question Question, harness Harness) (Answer, []Diagnostic) {
 	config := session.GetConfigs()
@@ -396,6 +432,11 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 
 	// use harness to get default answer for fallback
 	defaultAnswer := harness.GetDefaultAnswer()
+	// check if query has been cancelled at the start of each round
+	if watchCancel(session, nil) {
+		cancelledMessage := harness.GetCancelledAnswer()
+		return cancelledMessage, diagnostics
+	}
 
 	// harness constructs user message from question (handles both normal and confirm types)
 	userMessage, handleDiag := harness.HandleUserQuestion(session, question)
@@ -426,11 +467,6 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 				Data:       toolResultMessage,
 			})
 		}
-	}
-
-	// check if session has been cancelled before entering reAct loop
-	if harness.IsSessionCancelled(session, nil) {
-		return defaultAnswer, diagnostics
 	}
 
 	loadedTools := session.GetLoadTools()
@@ -490,8 +526,9 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 				toolCalls := *operation.Message.ToolCalls
 
 				// check if session has been cancelled, once for the whole batch
-				if harness.IsSessionCancelled(session, toolCalls) {
-					return defaultAnswer, diagnostics
+				if watchCancel(session, toolCalls) {
+					cancelledMessage := harness.GetCancelledAnswer()
+					return cancelledMessage, diagnostics
 				}
 
 				// resolve the batch on this goroutine, it reads the loaded tools and the session
@@ -651,6 +688,11 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 
 	// use harness to get default answer for fallback
 	defaultAnswer := harness.GetDefaultAnswer()
+	// check if query has been cancelled at the start of each round
+	if watchCancel(session, nil) {
+		cancelledMessage := harness.GetCancelledAnswer()
+		return cancelledMessage, diagnostics
+	}
 
 	// harness constructs user message from question (handles both normal and confirm types)
 	userMessage, handleDiag := harness.HandleUserQuestion(session, question)
@@ -683,11 +725,6 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 				Data:       toolResultMessage,
 			})
 		}
-	}
-
-	// check if session has been cancelled before entering reAct loop
-	if harness.IsSessionCancelled(session, nil) {
-		return defaultAnswer, diagnostics
 	}
 
 	loadedTools := session.GetLoadTools()
@@ -747,8 +784,9 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 			toolCalls := acc.toolCalls
 
 			// check if session has been cancelled, once for the whole batch
-			if harness.IsSessionCancelled(session, toolCalls) {
-				return defaultAnswer, diagnostics
+			if watchCancel(session, toolCalls) {
+				cancelledMessage := harness.GetCancelledAnswer()
+				return cancelledMessage, diagnostics
 			}
 
 			// resolve the batch on this goroutine, it reads the loaded tools and the session

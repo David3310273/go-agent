@@ -36,6 +36,7 @@ type MessageManager interface {
 	HandleUserQuestion(session Session, question Question) (*ReActMessage, Diagnostic)
 	// GetDefaultAnswer returns the default answer when agent fails to produce a valid response
 	GetDefaultAnswer() AgentResponse
+	GetCancelledAnswer() AgentResponse
 }
 
 // ToolRunner handles tool loading and execution.
@@ -73,7 +74,4 @@ type Harness interface {
 	MessageManager
 	ToolRunner
 	ConfirmHandler
-
-	// IsSessionCancelled checks if the session has been cancelled.
-	IsSessionCancelled(session Session, toolCalls []ToolCall) bool
 }

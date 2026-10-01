@@ -470,8 +470,8 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
+
 	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	mockHarness.EXPECT().IsSessionCancelled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	// auto-add: the reAct loop runs a tool call through the harness now, delegate back to CallTool
 	// so the mocked tool runner is still the one being exercised
 	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -553,7 +553,6 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	mockHarness.EXPECT().IsSessionCancelled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	mockHarness.EXPECT().GetConfirmDestructiveToolAnswer(gomock.Any()).Return("").AnyTimes()
 	// auto-add: the reAct loop runs a tool call through the harness now, delegate back to CallTool
 	// so the mocked tool runner is still the one being exercised
@@ -661,7 +660,6 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	mockHarness.EXPECT().IsSessionCancelled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
 			return core.CallTool(targetTool, args)
@@ -771,7 +769,6 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	mockHarness.EXPECT().IsSessionCancelled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	// auto-add: the reAct loop runs a tool call through the harness now, delegate back to CallTool
 	// so the mocked tool runner is still the one being exercised
 	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
@@ -877,7 +874,6 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	mockHarness.EXPECT().IsSessionCancelled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	mockHarness.EXPECT().GetConfirmDestructiveToolAnswer(gomock.Any()).Return("").AnyTimes()
 	// auto-add: the reAct loop runs a tool call through the harness now, delegate back to CallTool
 	// so the mocked tool runner is still the one being exercised
@@ -972,7 +968,6 @@ func newToolCallBatchFixture(ctrl *gomock.Controller, loadedTools []core.Tool, r
 	fixture.harness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
 	fixture.harness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).
 		Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	fixture.harness.EXPECT().IsSessionCancelled(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
 	// the reAct loop runs a tool call through the harness, delegate back to CallTool so the mocked
 	// tool runner is still the one being exercised
 	fixture.harness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).

@@ -90,7 +90,7 @@ func HandleCancel(c *gin.Context, agent *simple.SimpleAgent) {
 		return
 	}
 
-	// cancel current query processing (triggers queryCtx.Done())
+	// async cancel current query processing (triggers queryCtx.Done())
 	session.CancelQuery()
 
 	c.JSON(http.StatusOK, CancelResponse{
