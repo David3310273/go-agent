@@ -132,6 +132,12 @@ func (h SimpleHarness) GetCurrRoundKnowledges(question core.Question) string {
 func (h SimpleHarness) SetNextRoundMessages(question *core.Question, messages *core.Conversation) {
 }
 
+func (h SimpleHarness) GetCancelledAnswer() core.AgentResponse {
+	return core.AgentResponse{
+		Response: "You have cancelled the conversation. Please tell me what you want to do next.",
+	}
+}
+
 // special message management
 func (h SimpleHarness) GetDefaultAnswer() core.AgentResponse {
 	return core.AgentResponse{
@@ -330,46 +336,6 @@ func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core
 	}
 
 	return confirmedMessages
-}
-
-// IsSessionCancelled checks if the session has been cancelled. If cancelled, it builds cancel
-// messages and appends them to the conversation, then returns true. Otherwise returns false.
-// if toolCalls is empty, builds a single generic cancel message. If toolCalls is
-// non-empty, builds one cancel message per tool call.
-func (h SimpleHarness) IsSessionCancelled(session core.Session, toolCalls []core.ToolCall) bool {
-	ctx := session.GetQueryCtx()
-	select {
-	case <-ctx.Done():
-		core.LogStd(core.LogLevelInfo, "[session=%s] cancelled by user", session.GetID())
-		messages := session.GetConversation()
-		if len(toolCalls) == 0 {
-			cancelMessage := core.ReActMessage{
-				Role:    core.RoleTool,
-				Content: "Operation has been canceled by user",
-			}
-			*messages = append(*messages, cancelMessage)
-			core.Emit(session, core.CommonEvent[core.ReActMessage]{
-				SourceType: core.SessionHistory,
-				Data:       cancelMessage,
-			})
-		} else {
-			for _, toolCall := range toolCalls {
-				cancelMessage := core.ReActMessage{
-					Role:       core.RoleTool,
-					Content:    fmt.Sprintf("Tool call %s cancelled by user", toolCall.Function.Name),
-					ToolCallID: toolCall.ID,
-				}
-				*messages = append(*messages, cancelMessage)
-				core.Emit(session, core.CommonEvent[core.ReActMessage]{
-					SourceType: core.SessionHistory,
-					Data:       cancelMessage,
-				})
-			}
-		}
-		return true
-	default:
-		return false
-	}
 }
 
 // RunToolCall executes one tool call already resolved by the reAct loop and returns the text that
