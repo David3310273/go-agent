@@ -184,10 +184,6 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 	// load all configs
 	agentConfigs := agent.LoadConfigs()
 
-	for i := range agentConfigs.Tool {
-		agentConfigs.Tool[i].RootPath = appConfigs.RootPath
-	}
-
 	// set ID
 	err := agent.SetID()
 	if err != nil {
@@ -616,7 +612,7 @@ func AskQuestion(session Session, messages []ReActMessage, tools []Tool, questio
 	return response, diagnostics
 }
 
-// accumulator for streaming response chunks
+// collector for streaming response chunks
 type streamAccumulator struct {
 	content          string
 	toolCalls        []ToolCall
@@ -625,7 +621,7 @@ type streamAccumulator struct {
 	usage            Usage
 }
 
-// merge a streaming chunk into the accumulator
+// merge a streaming chunk into the collector
 func (acc *streamAccumulator) addChunk(answer Answer) {
 	resp, ok := answer.(AgentResponse)
 	if !ok {

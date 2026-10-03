@@ -48,6 +48,14 @@ func (m *MCPToolWrapper) IsDestructive() bool {
 	return m.isDestructive
 }
 
+func (m *MCPToolWrapper) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (m *MCPToolWrapper) GetSandbox() core.Sandbox {
+	return nil
+}
+
 // GetName returns tool name
 func (m *MCPToolWrapper) GetName() string {
 	return m.Name

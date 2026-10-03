@@ -1,0 +1,5 @@
+{
+    "name": "UseMCPPrompts",
+    "schema": "usemcp_prompts.schema.json",
+    "description": "Use MCP server prompts to access remote prompts"
+}

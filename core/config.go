@@ -115,6 +115,23 @@ type MCPConfig struct {
 	Description     string `json:"description"`
 }
 
+type SandBoxType int
+
+const (
+	SandBoxLocal     SandBoxType = 1
+	SandBoxContainer SandBoxType = 2
+	SandBoxVM        SandBoxType = 3
+)
+
+type SandBoxConfig struct {
+	// root path: inject param
+	RootPath string
+	// type
+	Type SandBoxType `json:"type"`
+	// configs
+	Config map[string]any `json:"config,omitempty"`
+}
+
 type ToolConfig struct {
 	// name
 	Name string `json:"name"`
@@ -124,6 +141,10 @@ type ToolConfig struct {
 	Description string `json:"description"`
 	//  project root path, propagated at runtime for resolving tool resource files
 	RootPath string
+	// sandbox config
+	Sandbox *SandBoxConfig `json:"sandbox"`
+	// is destructive tool
+	IsDestructive bool `json:"isDestructive"`
 }
 
 type BenchmarkerConfig struct {

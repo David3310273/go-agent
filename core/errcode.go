@@ -90,4 +90,7 @@ const (
 	// 10xx: embedder error
 	// embedder error codes.
 	MessageCodeEmbedderConfigError MessageCode = 1000
+	// 11xx: sandbox error
+	MessageCodeInitSandboxError MessageCode = 1100
+	MessageCodeNoSandboxInited  MessageCode = 1101
 )

@@ -1,0 +1,5 @@
+{
+    "name": "UseSkill",
+    "schema": "useskill.schema.json",
+    "description": "load skill in agent when you want to do something"
+}

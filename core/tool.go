@@ -43,16 +43,34 @@ type Tool interface {
 	GetContext() Context
 	// is destructive
 	IsDestructive() bool
+	// to be excuted in sandbox
+	// MUST return Success or Failed for reAct to work.
+	ToShellScript(args map[string]any) string
+	// get sandbox runtime env
+	GetSandbox() Sandbox
 }
 
 // CallTool validates and executes a tool with given args.
 // changed to return result string + diagnostic.
-func CallTool(tool Tool, args map[string]any) (string, *Diagnostic) {
+func CallTool(tool Tool, args map[string]any, inSandbox bool) (string, *Diagnostic) {
 	if diag := tool.Validate(args); diag != nil {
 		return "", diag
 	}
-	runner := tool.GetRunner()
-	return runner(args)
+
+	notMCPTool := tool.GetName() != "UseMCPServerTools"
+	sandbox := tool.GetSandbox()
+	LogStd(LogLevelInfo, "call tool %s, in sandbox: %v", tool.GetName(), notMCPTool && inSandbox && sandbox != nil)
+
+	if notMCPTool && inSandbox && sandbox != nil {
+		cmd := sandbox.DryRun(tool, args)
+		LogStd(LogLevelInfo, "run cmd in sandbox: %s", cmd)
+		return sandbox.Run(tool, args)
+	} else {
+		// no sandbox
+		LogStd(LogLevelWarn, "Tool %s is running without sandbox. This might be unsafe.", tool.GetName())
+		runner := tool.GetRunner()
+		return runner(args)
+	}
 }
 
 // ToolFactory is a function that creates a Tool instance.

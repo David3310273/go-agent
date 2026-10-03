@@ -209,6 +209,7 @@ func (q *QwenProvider) CompleteStream(messages []core.ReActMessage, tools []core
 
 	ch := make(chan core.Answer, 32)
 
+	// producer goroutine
 	go func() {
 		defer close(ch)
 		defer cancel()

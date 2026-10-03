@@ -234,9 +234,16 @@ func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Qu
 			session.SetToolConfirmed(answer.ToolCallID, answer.Answer)
 
 			// simple confirmation message - the tools are executed directly by HandleUserToolConfirm
-			confirmMessages = append(confirmMessages, fmt.Sprintf(
-				"The user's answer about the tool call %s (%s from mcp server %s) is: %s",
-				answer.ToolCallID, answer.ToolName, answer.ServerName, answer.Answer))
+			if answer.ServerName != "" {
+				confirmMessages = append(confirmMessages, fmt.Sprintf(
+					"The user's answer about the tool call %s (%s from mcp server %s) is: %s",
+					answer.ToolCallID, answer.ToolName, answer.ServerName, answer.Answer))
+			} else {
+				confirmMessages = append(confirmMessages, fmt.Sprintf(
+					"The user's answer about the tool call %s (%s from local) is: %s",
+					answer.ToolCallID, answer.ToolName, answer.Answer))
+			}
+
 		}
 
 		if len(confirmMessages) == 0 {
@@ -308,7 +315,8 @@ func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core
 				}
 			}()
 
-			result, diag := core.CallTool(pending.Tool, pending.Args)
+			// confirmed destructive tool calls run in sandbox
+			result, diag := core.CallTool(pending.Tool, pending.Args, true)
 			content := result
 			if diag != nil && diag.Level == core.SeverityError {
 				content = diag.Message
@@ -358,7 +366,7 @@ func (h SimpleHarness) RunToolCall(
 		return h.RunSubSession(session, args, model)
 	}
 
-	return core.CallTool(targetTool, args)
+	return core.CallTool(targetTool, args, true)
 }
 
 // RunSubSession creates a one-shot sub-session and drives it through the sub-session's own
