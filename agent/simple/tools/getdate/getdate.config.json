@@ -1,0 +1,8 @@
+{
+    "name": "GetDate",
+    "schema": "getdate.schema.json",
+    "description": "Get the current date and time",
+    "sandbox": {
+        "type": 1
+    }
+}

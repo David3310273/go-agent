@@ -476,7 +476,7 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	// so the mocked tool runner is still the one being exercised
 	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
-			return core.CallTool(targetTool, args)
+			return core.CallTool(targetTool, args, false)
 		}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
@@ -558,7 +558,7 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	// so the mocked tool runner is still the one being exercised
 	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
-			return core.CallTool(targetTool, args)
+			return core.CallTool(targetTool, args, false)
 		}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(expectedAnswer, nil)
@@ -662,12 +662,13 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
 	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
-			return core.CallTool(targetTool, args)
+			return core.CallTool(targetTool, args, false)
 		}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool").AnyTimes()
 	mockTool.EXPECT().Validate(gomock.Any()).Return(nil).AnyTimes()
+	mockTool.EXPECT().GetSandbox().Return(nil).AnyTimes()
 	mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) { return "Success", nil }).AnyTimes()
 	mockTool.EXPECT().IsDestructive().Return(false).AnyTimes()
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(finalResponse, nil)
@@ -773,7 +774,7 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	// so the mocked tool runner is still the one being exercised
 	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
-			return core.CallTool(targetTool, args)
+			return core.CallTool(targetTool, args, false)
 		}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(firstResponse, nil)
@@ -879,7 +880,7 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	// so the mocked tool runner is still the one being exercised
 	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
-			return core.CallTool(targetTool, args)
+			return core.CallTool(targetTool, args, false)
 		}).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(firstResponse, nil)
@@ -972,7 +973,7 @@ func newToolCallBatchFixture(ctrl *gomock.Controller, loadedTools []core.Tool, r
 	// tool runner is still the one being exercised
 	fixture.harness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
-			return core.CallTool(targetTool, args)
+			return core.CallTool(targetTool, args, false)
 		}).AnyTimes()
 
 	return fixture
@@ -1033,6 +1034,7 @@ func TestProcessQuestion_ToolCallBatch_RunsConcurrently(t *testing.T) {
 	mockTool.EXPECT().GetName().Return("test_tool").AnyTimes()
 	mockTool.EXPECT().IsDestructive().Return(false).AnyTimes()
 	mockTool.EXPECT().Validate(gomock.Any()).Return(nil).AnyTimes()
+	mockTool.EXPECT().GetSandbox().Return(nil).AnyTimes()
 	mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
 		current := atomic.AddInt32(&running, 1)
 		for {
@@ -1107,12 +1109,14 @@ func TestProcessQuestion_DestructiveBatch_ConfirmsWholeBatch(t *testing.T) {
 	mockDestructiveTool := testmock.NewMockTool(ctrl)
 	mockDestructiveTool.EXPECT().GetName().Return("destructive_tool").AnyTimes()
 	mockDestructiveTool.EXPECT().IsDestructive().Return(true).AnyTimes()
+	mockDestructiveTool.EXPECT().GetSandbox().Return(nil).AnyTimes()
 
 	var normalRuns int32
 	mockTool := testmock.NewMockTool(ctrl)
 	mockTool.EXPECT().GetName().Return("test_tool").AnyTimes()
 	mockTool.EXPECT().IsDestructive().Return(false).AnyTimes()
 	mockTool.EXPECT().Validate(gomock.Any()).Return(nil).AnyTimes()
+	mockTool.EXPECT().GetSandbox().Return(nil).AnyTimes()
 	mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
 		atomic.AddInt32(&normalRuns, 1)
 		return "normal result", nil

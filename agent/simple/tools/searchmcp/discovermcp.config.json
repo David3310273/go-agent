@@ -1,0 +1,5 @@
+{
+    "name": "DiscoverMCPServer",
+    "schema": "discovermcp.schema.json",
+    "description": "Discover MCP server and list available tools, resources, and prompts"
+}

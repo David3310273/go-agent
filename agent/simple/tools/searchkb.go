@@ -13,9 +13,10 @@ func init() {
 	// register SearchKnowledgebaseCall tool factory
 	// updated to accept Session instead of Context.
 	core.RegisterTool("SearchKnowledgeBase", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, SearchKnowledgebaseSchemaPath, "searchkb.config.json")
 		return SearchKnowledgebaseCall{
-			Name:     "SearchKnowledgeBase",
-			Schema:   "searchkb.schema.json",
+			Name:     config.Name,
+			Schema:   config.Schema,
 			RootPath: rootPath,
 			Session:  session,
 		}
@@ -43,7 +44,7 @@ func (f SearchKnowledgebaseCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 
 	// use RootPath instead of hardcoded relative path
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.RootPath, SearchKnowledgebaseSchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "searchkb: failed to read schema: %v", err)
 		return schema
@@ -84,6 +85,14 @@ func (f SearchKnowledgebaseCall) Validate(args map[string]any) *core.Diagnostic 
 
 func (f SearchKnowledgebaseCall) IsDestructive() bool {
 	return false
+}
+
+func (f SearchKnowledgebaseCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f SearchKnowledgebaseCall) GetSandbox() core.Sandbox {
+	return nil
 }
 
 // SearchResult represents a single search result from knowledge base.

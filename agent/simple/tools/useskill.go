@@ -10,17 +10,14 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
-const (
-	SchemaPath = "agent/simple/tools"
-)
-
 func init() {
 	// register UseSkillCall tool factory
 	// updated to accept Session instead of Context.
 	core.RegisterTool("UseSkill", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, UseSkillSchemaPath, "useskill.config.json")
 		return UseSkillCall{
-			Name:     "UseSkill",
-			Schema:   "useskill.schema.json",
+			Name:     config.Name,
+			Schema:   config.Schema,
 			RootPath: rootPath,
 			Session:  session,
 		}
@@ -47,7 +44,7 @@ func (f UseSkillCall) GetName() string {
 func (f UseSkillCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.RootPath, UseSkillSchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "useskill: failed to read schema: %v", err)
 		return schema
@@ -62,6 +59,14 @@ func (f UseSkillCall) GetSchema() core.ToolSchema {
 
 func (f UseSkillCall) IsDestructive() bool {
 	return false
+}
+
+func (f UseSkillCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f UseSkillCall) GetSandbox() core.Sandbox {
+	return nil
 }
 
 // GetDescription returns the tool description from schema

@@ -1,0 +1,5 @@
+{
+    "name": "SearchKnowledgeBase",
+    "schema": "searchkb.schema.json",
+    "description": "search knowledge base for the knowledge about technology or algorithms field, get rid of results whose confidence is lower than 0.5 before return to user"
+}

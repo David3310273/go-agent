@@ -117,6 +117,34 @@ func TestMockTool_GetRunner(t *testing.T) {
 	}
 }
 
+func TestMockTool_GetSandbox_ReturnsNil(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTool := testmock.NewMockTool(ctrl)
+	mockTool.EXPECT().GetSandbox().Return(nil)
+
+	sandbox := mockTool.GetSandbox()
+	if sandbox != nil {
+		t.Errorf("expected nil sandbox, got %v", sandbox)
+	}
+}
+
+func TestMockTool_GetSandbox_ReturnsSandbox(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockTool := testmock.NewMockTool(ctrl)
+	mockSandbox := testmock.NewMockSandbox(ctrl)
+
+	mockTool.EXPECT().GetSandbox().Return(mockSandbox)
+
+	sandbox := mockTool.GetSandbox()
+	if sandbox == nil {
+		t.Error("expected sandbox, got nil")
+	}
+}
+
 // =============================================================================
 // CallTool function tests
 // =============================================================================
@@ -128,14 +156,14 @@ func TestCallTool_Success(t *testing.T) {
 	mockTool := testmock.NewMockTool(ctrl)
 	args := map[string]any{"path": "/tmp/test.txt", "content": "hello"}
 
-	gomock.InOrder(
-		mockTool.EXPECT().Validate(args).Return(nil),
-		mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
-			return "Success", nil
-		}),
-	)
+	mockTool.EXPECT().Validate(args).Return(nil)
+	mockTool.EXPECT().GetName().Return("TestTool").AnyTimes()
+	mockTool.EXPECT().GetSandbox().Return(nil)
+	mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
+		return "Success", nil
+	})
 
-	result, diag := core.CallTool(mockTool, args)
+	result, diag := core.CallTool(mockTool, args, false)
 	if diag != nil {
 		t.Errorf("expected nil diagnostic, got %v", diag)
 	}
@@ -158,7 +186,7 @@ func TestCallTool_ValidateError(t *testing.T) {
 
 	mockTool.EXPECT().Validate(args).Return(expectedErr)
 
-	result, diag := core.CallTool(mockTool, args)
+	result, diag := core.CallTool(mockTool, args, false)
 	if diag == nil {
 		t.Error("expected error, got nil")
 	}
@@ -182,14 +210,14 @@ func TestCallTool_RunError(t *testing.T) {
 		Message: "failed to write file",
 	}
 
-	gomock.InOrder(
-		mockTool.EXPECT().Validate(args).Return(nil),
-		mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
-			return "", expectedErr
-		}),
-	)
+	mockTool.EXPECT().Validate(args).Return(nil)
+	mockTool.EXPECT().GetName().Return("TestTool").AnyTimes()
+	mockTool.EXPECT().GetSandbox().Return(nil)
+	mockTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
+		return "", expectedErr
+	})
 
-	result, diag := core.CallTool(mockTool, args)
+	result, diag := core.CallTool(mockTool, args, false)
 	if diag == nil {
 		t.Error("expected error, got nil")
 	}

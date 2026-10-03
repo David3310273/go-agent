@@ -1,0 +1,5 @@
+{
+    "name": "CreateSubSession",
+    "schema": "createsubsession.schema.json",
+    "description": "Create a sub-session for handling complex or independent tasks that require separate context and memory. For example, search knowledge base for the knowledge about technology or algorithms field."
+}

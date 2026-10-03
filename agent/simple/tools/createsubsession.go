@@ -12,10 +12,9 @@ func init() {
 	// register CreateSubSession tool factory
 	core.RegisterTool(core.SubSessionToolName, func(rootPath string, session core.Session) core.Tool {
 		return CreateSubSessionCall{
-			Name:     core.SubSessionToolName,
-			Schema:   "createsubsession.schema.json",
 			RootPath: rootPath,
 			Session:  session,
+			Schema:   "createsubsession.schema.json",
 		}
 	})
 }
@@ -43,7 +42,7 @@ func (f CreateSubSessionCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 
 	// use RootPath instead of hardcoded relative path
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.RootPath, CreateSubsessionSchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "createsubsession: failed to read schema: %v", err)
 		return schema
@@ -89,6 +88,14 @@ func (f CreateSubSessionCall) Validate(args map[string]any) *core.Diagnostic {
 // requesting a sub-session changes nothing on its own.
 func (f CreateSubSessionCall) IsDestructive() bool {
 	return false
+}
+
+func (f CreateSubSessionCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f CreateSubSessionCall) GetSandbox() core.Sandbox {
+	return nil
 }
 
 // GetRunner implements core.Tool interface.

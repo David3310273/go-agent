@@ -134,6 +134,20 @@ func (mr *MockToolMockRecorder) GetDescription() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDescription", reflect.TypeOf((*MockTool)(nil).GetDescription))
 }
 
+// GetSandbox mocks base method.
+func (m *MockTool) GetSandbox() core.Sandbox {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSandbox")
+	ret0, _ := ret[0].(core.Sandbox)
+	return ret0
+}
+
+// GetSandbox indicates an expected call of GetSandbox.
+func (mr *MockToolMockRecorder) GetSandbox() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSandbox", reflect.TypeOf((*MockTool)(nil).GetSandbox))
+}
+
 // GetName mocks base method.
 func (m *MockTool) GetName() string {
 	m.ctrl.T.Helper()
@@ -188,6 +202,20 @@ func (m *MockTool) IsDestructive() bool {
 func (mr *MockToolMockRecorder) IsDestructive() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsDestructive", reflect.TypeOf((*MockTool)(nil).IsDestructive))
+}
+
+// ToShellScript mocks base method.
+func (m *MockTool) ToShellScript(args map[string]any) string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ToShellScript", args)
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ToShellScript indicates an expected call of ToShellScript.
+func (mr *MockToolMockRecorder) ToShellScript(args any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToShellScript", reflect.TypeOf((*MockTool)(nil).ToShellScript), args)
 }
 
 // Validate mocks base method.

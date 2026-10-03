@@ -1,0 +1,5 @@
+{
+    "name": "UseMCPServerTools",
+    "schema": "usemcp_tools.schema.json",
+    "description": "Use MCP server tools to execute remote tools"
+}

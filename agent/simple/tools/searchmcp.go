@@ -26,9 +26,10 @@ type MCPListResourcesResult struct {
 func init() {
 	// register UseMCPServerTools tool factory
 	core.RegisterTool("UseMCPServerTools", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, SearchMCPResourcesSchemaPath, "usemcp_tools.config.json")
 		return UseMCPServerToolsCall{
-			Name:     "UseMCPServerTools",
-			Schema:   "usemcp_tools.schema.json",
+			Name:     config.Name,
+			Schema:   config.Schema,
 			RootPath: rootPath,
 			Session:  session,
 		}
@@ -36,9 +37,10 @@ func init() {
 
 	// register SearchMCPResources tool factory
 	core.RegisterTool("UseMCPResources", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, SearchMCPResourcesSchemaPath, "usemcp_resources.config.json")
 		return SearchMCPResourcesCall{
-			Name:     "SearchMCPResources",
-			Schema:   "usemcp_resources.schema.json",
+			Name:     config.Name,
+			Schema:   config.Schema,
 			RootPath: rootPath,
 			Session:  session,
 		}
@@ -46,9 +48,10 @@ func init() {
 
 	// register SearchMCPPrompts tool factory
 	core.RegisterTool("UseMCPPrompts", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, SearchMCPResourcesSchemaPath, "usemcp_prompts.config.json")
 		return SearchMCPPromptsCall{
-			Name:     "SearchMCPPrompts",
-			Schema:   "usemcp_prompts.schema.json",
+			Name:     config.Name,
+			Schema:   config.Schema,
 			RootPath: rootPath,
 			Session:  session,
 		}
@@ -56,9 +59,10 @@ func init() {
 
 	// register DiscoverMCPServer tool factory
 	core.RegisterTool("DiscoverMCPServer", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, SearchMCPResourcesSchemaPath, "discovermcp.config.json")
 		return DiscoverMCPServerCall{
-			Name:     "DiscoverMCPServer",
-			Schema:   "discovermcp.schema.json",
+			Name:     config.Name,
+			Schema:   config.Schema,
 			RootPath: rootPath,
 			Session:  session,
 		}
@@ -84,13 +88,21 @@ func (f UseMCPServerToolsCall) IsDestructive() bool {
 	return false
 }
 
+func (f UseMCPServerToolsCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f UseMCPServerToolsCall) GetSandbox() core.Sandbox {
+	return nil
+}
+
 func (f UseMCPServerToolsCall) GetName() string {
 	return f.GetSchema().Function.Name
 }
 
 func (f UseMCPServerToolsCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.RootPath, SearchMCPResourcesSchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
 		return schema
@@ -207,7 +219,7 @@ func (f SearchMCPResourcesCall) GetName() string {
 
 func (f SearchMCPResourcesCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.RootPath, SearchMCPResourcesSchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
 		return schema
@@ -228,6 +240,14 @@ func (f SearchMCPResourcesCall) GetContext() core.Context {
 
 func (f SearchMCPResourcesCall) IsDestructive() bool {
 	return false
+}
+
+func (f SearchMCPResourcesCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f SearchMCPResourcesCall) GetSandbox() core.Sandbox {
+	return nil
 }
 
 func (f SearchMCPResourcesCall) Validate(args map[string]any) *core.Diagnostic {
@@ -327,7 +347,7 @@ func (f SearchMCPPromptsCall) GetName() string {
 
 func (f SearchMCPPromptsCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.RootPath, SearchMCPResourcesSchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
 		return schema
@@ -348,6 +368,14 @@ func (f SearchMCPPromptsCall) GetContext() core.Context {
 
 func (f SearchMCPPromptsCall) IsDestructive() bool {
 	return false
+}
+
+func (f SearchMCPPromptsCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f SearchMCPPromptsCall) GetSandbox() core.Sandbox {
+	return nil
 }
 
 func (f SearchMCPPromptsCall) Validate(args map[string]any) *core.Diagnostic {
@@ -449,9 +477,17 @@ func (f DiscoverMCPServerCall) IsDestructive() bool {
 	return false
 }
 
+func (f DiscoverMCPServerCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f DiscoverMCPServerCall) GetSandbox() core.Sandbox {
+	return nil
+}
+
 func (f DiscoverMCPServerCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.RootPath, SearchMCPResourcesSchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
 		return schema

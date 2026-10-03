@@ -1,0 +1,5 @@
+{
+    "name": "UseMCPResources",
+    "schema": "usemcp_resources.schema.json",
+    "description": "Use MCP server resources to access remote resources"
+}

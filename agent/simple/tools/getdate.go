@@ -7,16 +7,23 @@ import (
 	"time"
 
 	"github.com/David3310273/go-agent/core"
+	"github.com/David3310273/go-agent/sandbox"
 )
+
+var _ core.Tool = (*GetDateCall)(nil)
 
 func init() {
 	// register GetDateCall tool factory
 	core.RegisterTool("GetDate", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, GetDateSchemaPath, "getdate.config.json")
+		config.Sandbox.RootPath = rootPath
 		return GetDateCall{
-			Name:     "getdate",
-			Schema:   "getdate.schema.json",
-			RootPath: rootPath,
-			Session:  session,
+			Name:          config.Name,
+			Schema:        config.Schema,
+			RootPath:      rootPath,
+			Session:       session,
+			SandboxConfig: config.Sandbox,
+			IsDangerous:   false,
 		}
 	})
 }
@@ -28,7 +35,9 @@ type GetDateCall struct {
 	//  project root path for resolving schema file path
 	RootPath string
 	// session for accessing runtime resources.
-	Session core.Session
+	Session       core.Session
+	SandboxConfig *core.SandBoxConfig
+	IsDangerous   bool
 }
 
 // GetName returns the function name from schema for matching with LLM tool calls
@@ -41,11 +50,21 @@ func (f GetDateCall) IsDestructive() bool {
 }
 
 func (f GetDateCall) ToShellScript(args map[string]any) string {
-	return ""
+	return "date"
 }
 
 func (f GetDateCall) GetSandbox() core.Sandbox {
-	return nil
+	if f.SandboxConfig == nil {
+		return nil
+	}
+
+	localSandbox := sandbox.NewLocalSandbox(*f.SandboxConfig)
+	if err := core.InitSandbox(localSandbox); err != nil {
+		core.LogStd(core.LogLevelWarn, "getdate: failed to init sandbox %#v: %v", localSandbox, err)
+		return nil
+	}
+
+	return localSandbox
 }
 
 // implement core.Tool interface, returns provider-agnostic ToolSchema
@@ -53,7 +72,7 @@ func (f GetDateCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 
 	//  use RootPath instead of hardcoded relative path
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.RootPath, GetDateSchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "getdate: failed to read schema: %v", err)
 		return schema
