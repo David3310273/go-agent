@@ -13,6 +13,7 @@ import (
 	simpleApp "github.com/David3310273/go-agent/app/server"
 	"github.com/David3310273/go-agent/core"
 	_ "github.com/David3310273/go-agent/providers/qwen"
+	_ "github.com/David3310273/go-agent/sandbox"
 )
 
 // AppConfig represents the app-level configuration from config.json

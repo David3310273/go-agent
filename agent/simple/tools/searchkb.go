@@ -91,7 +91,7 @@ func (f SearchKnowledgebaseCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f SearchKnowledgebaseCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f SearchKnowledgebaseCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 

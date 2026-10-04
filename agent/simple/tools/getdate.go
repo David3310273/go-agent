@@ -52,7 +52,7 @@ func (f GetDateCall) ToShellScript(args map[string]any) string {
 	return "date"
 }
 
-func (f GetDateCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f GetDateCall) GetSandboxEnv() core.SandboxSpec {
 	if f.SandboxConfig == nil {
 		return core.SandboxSpec{}
 	}

@@ -47,7 +47,7 @@ type Tool interface {
 	// MUST return Success or Failed for reAct to work.
 	ToShellScript(args map[string]any) string
 	// get sandbox runtime env
-	GetAvailableSandboxEnv() SandboxSpec
+	GetSandboxEnv() SandboxSpec
 }
 
 // CallTool validates and executes a tool with given args and sandbox

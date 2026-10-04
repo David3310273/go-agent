@@ -94,7 +94,7 @@ func (f CreateSubSessionCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f CreateSubSessionCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f CreateSubSessionCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 

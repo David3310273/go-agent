@@ -81,7 +81,7 @@ func (f FileWriterCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f FileWriterCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f FileWriterCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 

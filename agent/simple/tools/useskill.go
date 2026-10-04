@@ -65,7 +65,7 @@ func (f UseSkillCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f UseSkillCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f UseSkillCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 
@@ -144,7 +144,7 @@ func (f UseSkillCall) GetRunner() func(args map[string]any) (string, *core.Diagn
 				f.Session.SetLoadTools(tool)
 				fmt.Fprintf(&response, "- **%s**: %s\n", toolName, tool.GetDescription())
 				// add sandbox spec in skill
-				supportSandbox := tool.GetAvailableSandboxEnv()
+				supportSandbox := tool.GetSandboxEnv()
 				if supportSandbox.Type != "" {
 					fmt.Fprintf(&response, "- - **supported runtime environment sandbox**: type: %s, image name: %s, vm name: %s\n", supportSandbox.Type, supportSandbox.ImageName, supportSandbox.VMName)
 				}
