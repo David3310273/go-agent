@@ -11,146 +11,14 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
-// MCPToolWrapper represents a tool provided by MCP server
-type MCPToolWrapper struct {
-	Name          string         `json:"name"`
-	Description   string         `json:"description"`
-	Schema        map[string]any `json:"params,omitempty"`
-	isDestructive bool
-	context       core.Context // agent session runtime context
-}
-
 // MCPRemoteUtil provides utilities for interacting with MCP server
 type MCPRemoteUtil struct {
 	Config *core.MCPConfig
-	tools  map[string]core.Tool // cached MCPToolWrapper instances, name -> tool
+	tools  []core.MCPListToolResult // cached tool definitions from tools/list
 }
 
 // interface assertions
-var _ core.Tool = (*MCPToolWrapper)(nil)
 var _ core.MCPAccessible = (*MCPRemoteUtil)(nil)
-
-// MCPToolWrapper implements core.Tool interface
-
-// GetSchema returns tool schema in provider-agnostic format
-func (m *MCPToolWrapper) GetSchema() core.ToolSchema {
-	return core.ToolSchema{
-		Type: "function",
-		Function: core.FunctionSchema{
-			Name:        m.Name,
-			Description: m.Description,
-			Parameters:  m.Schema,
-		},
-	}
-}
-
-func (m *MCPToolWrapper) IsDestructive() bool {
-	return m.isDestructive
-}
-
-func (m *MCPToolWrapper) ToShellScript(args map[string]any) string {
-	return ""
-}
-
-func (m *MCPToolWrapper) GetAvailableSandboxEnv() core.SandboxSpec {
-	return core.SandboxSpec{}
-}
-
-// GetName returns tool name
-func (m *MCPToolWrapper) GetName() string {
-	return m.Name
-}
-
-// GetDescription returns tool description
-func (m *MCPToolWrapper) GetDescription() string {
-	return m.Description
-}
-
-// Validate validates tool arguments
-// validates serverName and toolName are present
-func (m *MCPToolWrapper) Validate(args map[string]any) *core.Diagnostic {
-	if serverName, ok := args["serverName"].(string); !ok || serverName == "" {
-		return &core.Diagnostic{
-			Code:    core.MessageCodeToolValidateError,
-			Level:   core.SeverityError,
-			Message: "serverName is required",
-		}
-	}
-	if toolName, ok := args["toolName"].(string); !ok || toolName == "" {
-		return &core.Diagnostic{
-			Code:    core.MessageCodeToolValidateError,
-			Level:   core.SeverityError,
-			Message: "toolName is required",
-		}
-	}
-	return nil
-}
-
-// GetRunner returns the runner function that executes the tool.
-// parses serverName and toolName from args, gets client from context
-func (m *MCPToolWrapper) GetRunner() func(args map[string]any) (string, *core.Diagnostic) {
-	return func(args map[string]any) (string, *core.Diagnostic) {
-		// parse serverName and toolName from args
-		serverName, _ := args["serverName"].(string)
-		toolName, _ := args["toolName"].(string)
-
-		// get MCP client from context by server name
-		mcpClients := m.context.GetMCPClients()
-		client, exists := mcpClients[serverName]
-		if !exists {
-			return "", &core.Diagnostic{
-				Code:    core.MessageCodeToolRunError,
-				Level:   core.SeverityError,
-				Message: fmt.Sprintf("MCP server not found: %s", serverName),
-			}
-		}
-
-		// call the tool via MCP using the client reference
-		_, result, err := client.CallTool(toolName, args)
-		if err != nil {
-			core.LogStd(core.LogLevelError, "mcp tool call failed: tool=%s, error=%v", m.Name, err)
-			return "", &core.Diagnostic{
-				Code:    core.MessageCodeToolRunError,
-				Level:   core.SeverityError,
-				Message: fmt.Sprintf("tool %s call failed", m.Name),
-				Data:    err.Error(),
-			}
-		}
-
-		// parse content from result
-		// MCP tool result typically has "content" field
-		if resultMap, ok := result.(map[string]any); ok {
-			if content, exists := resultMap["content"]; exists {
-				// content can be a string or an array
-				switch c := content.(type) {
-				case string:
-					return c, nil
-				case []any:
-					// extract text from content array
-					var texts []string
-					for _, item := range c {
-						if itemMap, ok := item.(map[string]any); ok {
-							if text, exists := itemMap["text"]; exists {
-								if textStr, ok := text.(string); ok {
-									texts = append(texts, textStr)
-								}
-							}
-						}
-					}
-					return strings.Join(texts, "\n"), nil
-				}
-			}
-		}
-
-		// fallback: return empty string
-		return "", nil
-	}
-}
-
-// GetContext returns agent session runtime context
-func (m *MCPToolWrapper) GetContext() core.Context {
-	return m.context
-}
 
 // MCPRemoteUtil implements core.MCPAccessible interface
 
@@ -164,14 +32,13 @@ func (m *MCPRemoteUtil) SetConfig(config *core.MCPConfig) {
 	m.Config = config
 }
 
-// BuildTools fetches tools from MCP server and builds Tool instances.
-// combines list and build, returns cached MCPToolWrapper instances
-func (m *MCPRemoteUtil) BuildTools(context core.Context) map[string]core.Tool {
+// ListTools fetches tools from MCP server and returns tool definitions.
+func (m *MCPRemoteUtil) ListTools() ([]core.MCPListToolResult, *core.Diagnostic) {
 	// use sendRequest to get SSE support
 	resp, diag := m.sendRequest(core.MCPMethodToolsList, nil)
 	if diag != nil {
 		core.LogStd(core.LogLevelError, "%s failed: %s", core.MCPMethodToolsList, diag.Message)
-		return nil
+		return nil, diag
 	}
 
 	// directly parse Result into MCPListToolsResponse
@@ -179,26 +46,18 @@ func (m *MCPRemoteUtil) BuildTools(context core.Context) map[string]core.Tool {
 	var toolsResult core.MCPListToolsResponse
 	if err := json.Unmarshal(resultBytes, &toolsResult); err != nil {
 		core.LogStd(core.LogLevelError, "failed to parse tools list result: %v", err)
-		return nil
-	}
-
-	// build MCPToolWrapper instances
-	toolsMap := make(map[string]core.Tool)
-	for _, toolInfo := range toolsResult.Tools {
-		mcpTool := &MCPToolWrapper{
-			Name:          toolInfo.Name,
-			Description:   toolInfo.Description,
-			Schema:        toolInfo.InputSchema,
-			isDestructive: toolInfo.IsDestructive(),
-			context:       context,
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeSystemError,
+			Message: "failed to parse tools list result",
+			Data:    err.Error(),
 		}
-		toolsMap[toolInfo.Name] = mcpTool
 	}
 
-	// cache the built tools
-	m.tools = toolsMap
-	core.LogStd(core.LogLevelInfo, "built and cached %d tools from mcp server", len(toolsMap))
-	return toolsMap
+	// cache the tools
+	m.tools = toolsResult.Tools
+	core.LogStd(core.LogLevelInfo, "fetched and cached %d tools from mcp server", len(m.tools))
+	return m.tools, nil
 }
 
 // ListPrompts lists available prompts from MCP server.

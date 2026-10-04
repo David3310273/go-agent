@@ -92,7 +92,7 @@ func (f UseMCPServerToolsCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f UseMCPServerToolsCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f UseMCPServerToolsCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 
@@ -246,7 +246,7 @@ func (f SearchMCPResourcesCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f SearchMCPResourcesCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f SearchMCPResourcesCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 
@@ -374,7 +374,7 @@ func (f SearchMCPPromptsCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f SearchMCPPromptsCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f SearchMCPPromptsCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 
@@ -481,7 +481,7 @@ func (f DiscoverMCPServerCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f DiscoverMCPServerCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f DiscoverMCPServerCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 
@@ -559,20 +559,15 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 		}
 
 		// 1. Get tools
-		core.LogStd(core.LogLevelInfo, "mcp discover: building tools for server=%s", serverName)
-		tools := client.BuildTools(f.Session.GetContext())
-		core.LogStd(core.LogLevelDebug, "mcp discover: built %d tools for server=%s", len(tools), serverName)
-		for name, tool := range tools {
-			core.LogStd(core.LogLevelDebug, "mcp discover: adding tool=%s, is_destructive=%v", name, tool.IsDestructive())
-			isDestructive := tool.IsDestructive()
-			definition.Tools = append(definition.Tools, core.MCPListToolResult{
-				Name:        name,
-				Description: tool.GetDescription(),
-				InputSchema: tool.GetSchema().Function.Parameters,
-				Annotations: &core.MCPToolAnnotations{
-					DestructiveHint: &isDestructive,
-				},
-			})
+		core.LogStd(core.LogLevelInfo, "mcp discover: listing tools for server=%s", serverName)
+		tools, toolsDiag := client.ListTools()
+		if toolsDiag != nil {
+			core.LogStd(core.LogLevelWarn, "mcp discover: list tools diagnostic: %+v", toolsDiag)
+		}
+		core.LogStd(core.LogLevelDebug, "mcp discover: fetched %d tools for server=%s", len(tools), serverName)
+		for _, tool := range tools {
+			core.LogStd(core.LogLevelDebug, "mcp discover: adding tool=%s, is_destructive=%v", tool.Name, tool.IsDestructive())
+			definition.Tools = append(definition.Tools, tool)
 		}
 
 		// 2. List prompts

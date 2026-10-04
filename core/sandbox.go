@@ -81,7 +81,7 @@ func InitSandbox(sandbox Sandbox) *Diagnostic {
 // It compares the tool's available sandbox env with the sandbox spec from args.
 // Only creates sandbox when both types match.
 func BuildSandboxForToolCall(rootPath string, tool Tool, args map[string]any) (Sandbox, *Diagnostic) {
-	toolSandboxSpec := tool.GetAvailableSandboxEnv()
+	toolSandboxSpec := tool.GetSandboxEnv()
 	if toolSandboxSpec.Type == "" {
 		return nil, nil
 	}

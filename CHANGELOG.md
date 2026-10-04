@@ -18,7 +18,7 @@ feature:
 final fixes before new feature:
 
 - tide knowledgebase to make it easier to add new document
-- support multiple sandboxes for one tool
+- support customize sandbox for one tool
 
 ## v1.0.5: 2026-10-04
 

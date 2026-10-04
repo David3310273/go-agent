@@ -44,7 +44,7 @@ func (f GetDateCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f GetDateCall) GetAvailableSandboxEnv() core.SandboxSpec {
+func (f GetDateCall) GetSandboxEnv() core.SandboxSpec {
 	return core.SandboxSpec{}
 }
 

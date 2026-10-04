@@ -31,7 +31,7 @@ type MCPError struct {
 	Data    any    `json:"data,omitempty"`
 }
 
-// MCPToolWrapperInfo represents a tool from MCP server
+// MCPListToolResult represents a tool from MCP server
 type MCPListToolResult struct {
 	Name        string              `json:"name"`
 	Description string              `json:"description"`
@@ -107,7 +107,7 @@ type MCPCallToolResult struct {
 type MCPAccessible interface {
 	GetConfig() *MCPConfig
 	SetConfig(config *MCPConfig)
-	BuildTools(context Context) map[string]Tool
+	ListTools() ([]MCPListToolResult, *Diagnostic)
 	CallTool(name string, args map[string]any) (string, any, error)
 	ListPrompts() (MCPServerResponse, *Diagnostic)
 	GetPrompt(name string) (string, *Diagnostic)
