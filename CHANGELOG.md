@@ -1,6 +1,26 @@
 # Changelog
 
-## v1.0.5
+## v1.1.0: (coming soon...)
+
+feature:
+
+- add command line for simple agent, such as:
+  - add skill
+  - add knowledge base
+  - add user prompt
+  - add mcp server
+  - ask question and show thoughts
+
+- move related doc to app folder to make agent more like bare cores
+
+## v1.0.6
+
+final fixes before new feature:
+
+- tide knowledgebase to make it easier to add new document
+- support multiple sandboxes for one tool
+
+## v1.0.5: 2026-10-04
 
 fix:
 
