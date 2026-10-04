@@ -12,7 +12,8 @@ import (
 // returns ToolHandlerFor[map[string]any, any] for MCP registration.
 func MCPAdapter(tool core.Tool) func(context.Context, *mcp.CallToolRequest, map[string]any) (*mcp.CallToolResult, any, error) {
 	return func(ctx context.Context, req *mcp.CallToolRequest, args map[string]any) (*mcp.CallToolResult, any, error) {
-		result, diag := core.CallTool(tool, args, tool.IsDestructive())
+		// for mcp, don't need sandbox
+		result, diag := core.CallTool(tool, args, nil)
 		if diag != nil && diag.Level == core.SeverityError {
 			return nil, diag, fmt.Errorf("%s", diag.Message)
 		}

@@ -115,12 +115,12 @@ type MCPConfig struct {
 	Description     string `json:"description"`
 }
 
-type SandBoxType int
+type SandBoxType string
 
 const (
-	SandBoxLocal     SandBoxType = 1
-	SandBoxContainer SandBoxType = 2
-	SandBoxVM        SandBoxType = 3
+	SandBoxLocal     SandBoxType = "local"
+	SandBoxContainer SandBoxType = "container"
+	SandBoxVM        SandBoxType = "vm"
 )
 
 type SandBoxConfig struct {

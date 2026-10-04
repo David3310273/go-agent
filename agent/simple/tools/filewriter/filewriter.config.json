@@ -4,6 +4,6 @@
     "description": "Write or overwrite a file with the given content",
     "isDestructive": true,
     "sandbox": {
-        "type": 1
+        "type": "local"
     }
 }

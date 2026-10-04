@@ -15,6 +15,18 @@ type LocalSandbox struct {
 
 var _ core.Sandbox = (*LocalSandbox)(nil)
 
+// register LocalSandbox factory so core can create instances by spec
+func init() {
+	core.RegisterSandboxFactory(core.SandBoxLocal, func(rootPath string, spec core.SandboxSpec) (core.Sandbox, *core.Diagnostic) {
+		sandbox := NewLocalSandbox(core.SandBoxConfig{
+			RootPath: rootPath,
+			Type:     core.SandBoxLocal,
+		})
+
+		return sandbox.WithStub([]string{"bash", "-c"}), nil
+	})
+}
+
 func NewLocalSandbox(config core.SandBoxConfig) *LocalSandbox {
 	return &LocalSandbox{
 		RootPath:    config.RootPath,
@@ -25,7 +37,6 @@ func NewLocalSandbox(config core.SandBoxConfig) *LocalSandbox {
 
 // For local sandbox, connect doesn't connect to anything. Like mock sandbox.
 func (s *LocalSandbox) Connect() error {
-	s.WithStub([]string{"bash", "-c"})
 	return nil
 }
 
@@ -46,6 +57,13 @@ func (s *LocalSandbox) DryRun(tool core.Tool, args map[string]any) string {
 
 	finalCmd := append(base, cmd)
 	return strings.Join(finalCmd, " ")
+}
+
+func (s *LocalSandbox) ToDescription() core.SandboxSpec {
+	return core.SandboxSpec{
+		Type:    core.SandBoxLocal,
+		BaseCmd: strings.Join(s.stub, " "),
+	}
 }
 
 // Run executes the tool in the sandbox

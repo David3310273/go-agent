@@ -94,8 +94,8 @@ func (f CreateSubSessionCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f CreateSubSessionCall) GetSandbox() core.Sandbox {
-	return nil
+func (f CreateSubSessionCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 // GetRunner implements core.Tool interface.

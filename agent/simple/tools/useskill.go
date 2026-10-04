@@ -65,8 +65,8 @@ func (f UseSkillCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f UseSkillCall) GetSandbox() core.Sandbox {
-	return nil
+func (f UseSkillCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 // GetDescription returns the tool description from schema
@@ -143,6 +143,11 @@ func (f UseSkillCall) GetRunner() func(args map[string]any) (string, *core.Diagn
 				// register tool to session's loaded tools
 				f.Session.SetLoadTools(tool)
 				fmt.Fprintf(&response, "- **%s**: %s\n", toolName, tool.GetDescription())
+				// add sandbox spec in skill
+				supportSandbox := tool.GetAvailableSandboxEnv()
+				if supportSandbox.Type != "" {
+					fmt.Fprintf(&response, "- - **supported runtime environment sandbox**: type: %s, image name: %s, vm name: %s\n", supportSandbox.Type, supportSandbox.ImageName, supportSandbox.VMName)
+				}
 			}
 		}
 		fmt.Fprintf(&response, "\nPlease call these tools with appropriate parameters.")

@@ -81,8 +81,8 @@ func (f FileWriterCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f FileWriterCall) GetSandbox() core.Sandbox {
-	return nil
+func (f FileWriterCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 // Validate validates the tool configuration

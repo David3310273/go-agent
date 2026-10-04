@@ -40,6 +40,7 @@ func logLine(outputPath string, level string, format string, args ...any) {
 		}
 		logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Llongfile)
 		logger.Output(4, coloredMsg)
+		return
 	} else {
 		// create directory if not exists
 		dir := filepath.Dir(outputPath)

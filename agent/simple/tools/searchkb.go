@@ -91,8 +91,8 @@ func (f SearchKnowledgebaseCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f SearchKnowledgebaseCall) GetSandbox() core.Sandbox {
-	return nil
+func (f SearchKnowledgebaseCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 // SearchResult represents a single search result from knowledge base.

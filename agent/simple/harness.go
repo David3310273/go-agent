@@ -316,7 +316,12 @@ func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core
 			}()
 
 			// confirmed destructive tool calls run in sandbox
-			result, diag := core.CallTool(pending.Tool, pending.Args, true)
+			sandbox, diag := core.BuildSandboxForToolCall(session.GetConfigs().RootPath, pending.Tool, pending.Args)
+			if diag != nil {
+				core.LogStd(core.LogLevelWarn, "[session=%s] HandleUserToolConfirm: failed to build sandbox, err: %v", session.GetID(), diag.Message)
+			}
+
+			result, diag := core.CallTool(pending.Tool, pending.Args, sandbox)
 			content := result
 			if diag != nil && diag.Level == core.SeverityError {
 				content = diag.Message
@@ -366,7 +371,12 @@ func (h SimpleHarness) RunToolCall(
 		return h.RunSubSession(session, args, model)
 	}
 
-	return core.CallTool(targetTool, args, true)
+	sandbox, diag := core.BuildSandboxForToolCall(session.GetConfigs().RootPath, targetTool, args)
+	if diag != nil {
+		core.LogStd(core.LogLevelWarn, "[session=%s] RunToolCall: failed to build sandbox, err: %v", session.GetID(), diag.Message)
+	}
+
+	return core.CallTool(targetTool, args, sandbox)
 }
 
 // RunSubSession creates a one-shot sub-session and drives it through the sub-session's own
