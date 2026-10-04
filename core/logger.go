@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/fatih/color"
 )
 
 // log level constants
@@ -15,19 +17,36 @@ const (
 	LogLevelError = "ERROR"
 )
 
+// log color definitions
+var (
+	warnColor  = color.New(color.FgHiYellow)
+	errorColor = color.New(color.FgHiRed)
+)
+
 func logLine(outputPath string, level string, format string, args ...any) {
 	msg := fmt.Sprintf("[%s] %s", level, fmt.Sprintf(format, args...))
 
 	var logger *log.Logger
 	if outputPath == "" {
+		// stdout: apply colors for warn/error
+		var coloredMsg string
+		switch level {
+		case LogLevelWarn:
+			coloredMsg = warnColor.SprintFunc()(msg)
+		case LogLevelError:
+			coloredMsg = errorColor.SprintFunc()(msg)
+		default:
+			coloredMsg = msg
+		}
 		logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Llongfile)
+		logger.Output(4, coloredMsg)
 	} else {
 		// create directory if not exists
 		dir := filepath.Dir(outputPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			logger = log.New(os.Stdout, "", log.Ldate|log.Ltime|log.Lmicroseconds|log.Llongfile)
 			logger.Printf("[WARN] failed to create log directory %s, fallback to stdout: %v", dir, err)
-			logger.Output(3, msg)
+			logger.Output(4, msg)
 			return
 		}
 
@@ -41,7 +60,7 @@ func logLine(outputPath string, level string, format string, args ...any) {
 		}
 	}
 
-	logger.Output(3, msg)
+	logger.Output(4, msg)
 }
 
 // LogDebug writes a [DEBUG] log. outputPath="" for stdout, or a file path.
@@ -66,8 +85,7 @@ func LogError(outputPath string, format string, args ...any) {
 
 // ---- legacy ----
 
-// LogStd is kept for gradual migration.
-// Deprecated: use LogDebug/LogInfo/LogWarn/LogError with outputPath.
+// LogStd is for system log.
 func LogStd(levelTag, format string, args ...any) {
 	switch levelTag {
 	case LogLevelDebug:
