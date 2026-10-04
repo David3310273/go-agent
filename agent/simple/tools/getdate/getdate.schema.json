@@ -5,7 +5,26 @@
     "description": "get system current date and time.",
     "parameters": {
       "type": "object",
-      "properties": {},
+      "properties": {
+        "sandbox": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["local", "docker", "vm"]
+            },
+            "imageName": {
+              "type": "string",
+              "description": "the docker image name if sandbox type is docker"
+            },
+            "vmName": {
+              "type": "string",
+              "description": "the vm host name if sandbox type is vm"
+            }
+          },
+          "required": ["type"]
+        }
+      },
       "required": []
     }
   }

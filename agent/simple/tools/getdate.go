@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/David3310273/go-agent/core"
-	"github.com/David3310273/go-agent/sandbox"
 )
 
 var _ core.Tool = (*GetDateCall)(nil)
@@ -53,18 +52,15 @@ func (f GetDateCall) ToShellScript(args map[string]any) string {
 	return "date"
 }
 
-func (f GetDateCall) GetSandbox() core.Sandbox {
+func (f GetDateCall) GetAvailableSandboxEnv() core.SandboxSpec {
 	if f.SandboxConfig == nil {
-		return nil
+		return core.SandboxSpec{}
 	}
 
-	localSandbox := sandbox.NewLocalSandbox(*f.SandboxConfig)
-	if err := core.InitSandbox(localSandbox); err != nil {
-		core.LogStd(core.LogLevelWarn, "getdate: failed to init sandbox %#v: %v", localSandbox, err)
-		return nil
+	return core.SandboxSpec{
+		Type:    f.SandboxConfig.Type,
+		BaseCmd: "",
 	}
-
-	return localSandbox
 }
 
 // implement core.Tool interface, returns provider-agnostic ToolSchema

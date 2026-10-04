@@ -44,8 +44,8 @@ func (f GetDateCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f GetDateCall) GetSandbox() core.Sandbox {
-	return nil
+func (f GetDateCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 // implement core.Tool interface, returns provider-agnostic ToolSchema

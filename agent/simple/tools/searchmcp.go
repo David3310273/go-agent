@@ -92,8 +92,8 @@ func (f UseMCPServerToolsCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f UseMCPServerToolsCall) GetSandbox() core.Sandbox {
-	return nil
+func (f UseMCPServerToolsCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 func (f UseMCPServerToolsCall) GetName() string {
@@ -246,8 +246,8 @@ func (f SearchMCPResourcesCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f SearchMCPResourcesCall) GetSandbox() core.Sandbox {
-	return nil
+func (f SearchMCPResourcesCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 func (f SearchMCPResourcesCall) Validate(args map[string]any) *core.Diagnostic {
@@ -374,8 +374,8 @@ func (f SearchMCPPromptsCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f SearchMCPPromptsCall) GetSandbox() core.Sandbox {
-	return nil
+func (f SearchMCPPromptsCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 func (f SearchMCPPromptsCall) Validate(args map[string]any) *core.Diagnostic {
@@ -481,8 +481,8 @@ func (f DiscoverMCPServerCall) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (f DiscoverMCPServerCall) GetSandbox() core.Sandbox {
-	return nil
+func (f DiscoverMCPServerCall) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 func (f DiscoverMCPServerCall) GetSchema() core.ToolSchema {

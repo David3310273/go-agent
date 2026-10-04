@@ -47,21 +47,21 @@ type Tool interface {
 	// MUST return Success or Failed for reAct to work.
 	ToShellScript(args map[string]any) string
 	// get sandbox runtime env
-	GetSandbox() Sandbox
+	GetAvailableSandboxEnv() SandboxSpec
 }
 
-// CallTool validates and executes a tool with given args.
-// changed to return result string + diagnostic.
-func CallTool(tool Tool, args map[string]any, inSandbox bool) (string, *Diagnostic) {
+// CallTool validates and executes a tool with given args and sandbox
+func CallTool(tool Tool, args map[string]any, sandbox Sandbox) (string, *Diagnostic) {
 	if diag := tool.Validate(args); diag != nil {
 		return "", diag
 	}
 
 	notMCPTool := tool.GetName() != "UseMCPServerTools"
-	sandbox := tool.GetSandbox()
-	LogStd(LogLevelInfo, "call tool %s, in sandbox: %v", tool.GetName(), notMCPTool && inSandbox && sandbox != nil)
+	inSandbox := sandbox != nil
 
-	if notMCPTool && inSandbox && sandbox != nil {
+	LogStd(LogLevelInfo, "call tool %s, in sandbox: %v", tool.GetName(), notMCPTool && inSandbox)
+
+	if notMCPTool && inSandbox {
 		cmd := sandbox.DryRun(tool, args)
 		LogStd(LogLevelInfo, "run cmd in sandbox: %s", cmd)
 		return sandbox.Run(tool, args)

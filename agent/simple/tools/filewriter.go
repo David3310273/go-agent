@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/David3310273/go-agent/core"
-	"github.com/David3310273/go-agent/sandbox"
 )
 
 const (
@@ -86,18 +85,15 @@ func (f FileWriterCall) ToShellScript(args map[string]any) string {
 	return cmd
 }
 
-func (f FileWriterCall) GetSandbox() core.Sandbox {
+func (f FileWriterCall) GetAvailableSandboxEnv() core.SandboxSpec {
 	if f.SandboxConfig == nil {
-		return nil
+		return core.SandboxSpec{}
 	}
 
-	localSandbox := sandbox.NewLocalSandbox(*f.SandboxConfig)
-	if err := core.InitSandbox(localSandbox); err != nil {
-		core.LogStd(core.LogLevelWarn, "filewriter: failed to init sandbox %#v: %v", localSandbox, err)
-		return nil
+	return core.SandboxSpec{
+		Type:    f.SandboxConfig.Type,
+		BaseCmd: "",
 	}
-
-	return localSandbox
 }
 
 // Validate validates the tool configuration

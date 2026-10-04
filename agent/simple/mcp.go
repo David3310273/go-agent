@@ -52,8 +52,8 @@ func (m *MCPToolWrapper) ToShellScript(args map[string]any) string {
 	return ""
 }
 
-func (m *MCPToolWrapper) GetSandbox() core.Sandbox {
-	return nil
+func (m *MCPToolWrapper) GetAvailableSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
 }
 
 // GetName returns tool name
