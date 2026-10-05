@@ -191,3 +191,13 @@ func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int, filter string) (
 
 	return readables, nil
 }
+
+// HasCollection checks if a collection exists in Milvus.
+func (kb *MilvusKnowledgebase[T]) HasCollection() (bool, *core.Diagnostic) {
+	return milvus.MilvusClientInstance.HasCollection(context.Background(), kb.Options)
+}
+
+// CreateCollection creates a new collection in Milvus.
+func (kb *MilvusKnowledgebase[T]) CreateCollection(req milvus.CreateCollectionRequest) *core.Diagnostic {
+	return milvus.MilvusClientInstance.CreateCollection(context.Background(), req)
+}

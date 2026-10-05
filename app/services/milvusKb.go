@@ -96,6 +96,32 @@ type MilvusKnowledgeGetResponse struct {
 	Results []core.Readable `json:"results"`
 }
 
+// MilvusKnowledgeHasCollectionRequest represents the request for checking collection existence
+type MilvusKnowledgeHasCollectionRequest struct {
+	StorageType StorageType `json:"storageType"`
+	DBName      string      `json:"dbName,omitempty"`
+	Collection  string      `json:"collection"`
+}
+
+// MilvusKnowledgeHasCollectionResponse represents the response for checking collection existence
+type MilvusKnowledgeHasCollectionResponse struct {
+	Has bool `json:"has"`
+}
+
+// MilvusKnowledgeCreateCollectionRequest represents the request for creating a collection
+type MilvusKnowledgeCreateCollectionRequest struct {
+	StorageType StorageType              `json:"storageType"`
+	DBName      string                   `json:"dbName,omitempty"`
+	Collection  string                   `json:"collection"`
+	Description string                   `json:"description,omitempty"`
+	Schema      *milvus.CollectionSchema `json:"schema,omitempty"`
+}
+
+// MilvusKnowledgeCreateCollectionResponse represents the response for creating a collection
+type MilvusKnowledgeCreateCollectionResponse struct {
+	Success bool `json:"success"`
+}
+
 // CreateMilvusKnowledge processes document and stores chunks into milvus knowledge base
 // calls KnowledgeBase.Process to handle document, then Save to store entities.
 func (s *MilvusKnowledgeService) CreateMilvusKnowledge(req *MilvusKnowledgeCreateRequest) (*MilvusKnowledgeCreateResponse, *core.Diagnostic) {
@@ -295,4 +321,55 @@ func buildFilterString(contentType, filename string) string {
 	}
 
 	return strings.Join(conditions, " and ")
+}
+
+// HasCollection checks if a collection exists in Milvus.
+func (s *MilvusKnowledgeService) HasCollection(req *MilvusKnowledgeHasCollectionRequest) (*MilvusKnowledgeHasCollectionResponse, *core.Diagnostic) {
+	if s.kb == nil {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "knowledge base not initialized",
+		}
+	}
+
+	opts := s.kb.GetOptions()
+	if req.DBName != "" {
+		opts.DBName = req.DBName
+	}
+	if req.Collection != "" {
+		opts.Collection = req.Collection
+	}
+
+	has, diag := s.kb.HasCollection()
+	if diag != nil {
+		return nil, diag
+	}
+
+	return &MilvusKnowledgeHasCollectionResponse{Has: has}, nil
+}
+
+// CreateCollection creates a new collection in Milvus.
+func (s *MilvusKnowledgeService) CreateCollection(req *MilvusKnowledgeCreateCollectionRequest) (*MilvusKnowledgeCreateCollectionResponse, *core.Diagnostic) {
+	if s.kb == nil {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "knowledge base not initialized",
+		}
+	}
+
+	createReq := milvus.CreateCollectionRequest{
+		DBName:         req.DBName,
+		CollectionName: req.Collection,
+		Description:    req.Description,
+		Schema:         req.Schema,
+	}
+
+	diag := s.kb.CreateCollection(createReq)
+	if diag != nil {
+		return nil, diag
+	}
+
+	return &MilvusKnowledgeCreateCollectionResponse{Success: true}, nil
 }

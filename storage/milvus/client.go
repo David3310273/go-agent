@@ -312,13 +312,6 @@ func (c *MilvusClient) Insert(ctx context.Context, req InsertRequest) (*InsertRe
 	return &insertResp, nil
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 // MilvusSearchRequest is the request body for search operation.
 type MilvusSearchRequest struct {
 	DBName         string        `json:"dbName,omitempty"`
@@ -390,6 +383,134 @@ func (c *MilvusClient) Delete(ctx context.Context, req DeleteRequest) error {
 
 	if milvusResp.Code != 0 {
 		return fmt.Errorf("milvus error %d: %s", milvusResp.Code, milvusResp.Message)
+	}
+
+	return nil
+}
+
+// HasCollectionRequest is the request body for has collection operation.
+type HasCollectionRequest struct {
+	DBName         string `json:"dbName,omitempty"`
+	CollectionName string `json:"collectionName"`
+}
+
+// HasCollectionResponse is the response body for has collection operation.
+type HasCollectionResponse struct {
+	Has bool `json:"has"`
+}
+
+// HasCollection checks if a collection exists.
+func (c *MilvusClient) HasCollection(ctx context.Context, req HasCollectionRequest) (*HasCollectionResponse, error) {
+	respBody, err := c.doRequest(ctx, http.MethodPost, "/v2/vectordb/collections/has", req)
+	if err != nil {
+		return nil, err
+	}
+
+	var milvusResp MilvusResponse
+	if err := json.Unmarshal(respBody, &milvusResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if milvusResp.Code != 0 {
+		return nil, fmt.Errorf("milvus error %d: %s", milvusResp.Code, milvusResp.Message)
+	}
+
+	var hasResp HasCollectionResponse
+	if err := json.Unmarshal(milvusResp.Data, &hasResp); err != nil {
+		return nil, fmt.Errorf("failed to parse has collection response: %w", err)
+	}
+
+	return &hasResp, nil
+}
+
+// CreateCollectionRequest is the request body for create collection operation.
+type CreateCollectionRequest struct {
+	DBName         string            `json:"dbName,omitempty"`
+	CollectionName string            `json:"collectionName"`
+	Description    string            `json:"description,omitempty"`
+	Schema         *CollectionSchema `json:"schema,omitempty"`
+}
+
+// CollectionSchema defines the schema of a collection.
+type CollectionSchema struct {
+	AutoID              bool          `json:"autoId"`
+	EnabledDynamicField bool          `json:"enabledDynamicField,omitempty"`
+	Fields              []FieldSchema `json:"fields"`
+}
+
+// FieldSchema defines a field in the collection.
+type FieldSchema struct {
+	FieldName         string         `json:"fieldName"`
+	DataType          string         `json:"dataType"`
+	IsPrimary         bool           `json:"isPrimary,omitempty"`
+	Description       string         `json:"description,omitempty"`
+	ElementTypeParams map[string]any `json:"elementTypeParams,omitempty"`
+	TypeParams        map[string]any `json:"typeParams,omitempty"`
+}
+
+// CreateCollection creates a new collection.
+func (c *MilvusClient) CreateCollection(ctx context.Context, req CreateCollectionRequest) error {
+	respBody, err := c.doRequest(ctx, http.MethodPost, "/v2/vectordb/collections/create", req)
+	if err != nil {
+		return err
+	}
+
+	var milvusResp MilvusResponse
+	if err := json.Unmarshal(respBody, &milvusResp); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if milvusResp.Code != 0 {
+		return fmt.Errorf("milvus error %d: %s", milvusResp.Code, milvusResp.Message)
+	}
+
+	return nil
+}
+
+// HasCollection checks if a collection exists in Milvus.
+func (m *MilvusStorage) HasCollection(ctx context.Context, opts MilvusOptions) (bool, *core.Diagnostic) {
+	if m.Client == nil {
+		return false, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "milvus client not initialized",
+		}
+	}
+
+	req := HasCollectionRequest{
+		DBName:         opts.DBName,
+		CollectionName: opts.Collection,
+	}
+
+	resp, err := m.Client.HasCollection(ctx, req)
+	if err != nil {
+		return false, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "failed to check collection: " + err.Error(),
+		}
+	}
+
+	return resp.Has, nil
+}
+
+// CreateCollection creates a new collection in Milvus.
+func (m *MilvusStorage) CreateCollection(ctx context.Context, req CreateCollectionRequest) *core.Diagnostic {
+	if m.Client == nil {
+		return &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "milvus client not initialized",
+		}
+	}
+
+	err := m.Client.CreateCollection(ctx, req)
+	if err != nil {
+		return &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "failed to create collection: " + err.Error(),
+		}
 	}
 
 	return nil
