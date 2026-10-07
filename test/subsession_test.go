@@ -579,7 +579,7 @@ func TestCreateSubSessionTool_DeclaresIntentOnly(t *testing.T) {
 	}
 
 	// the runner must not create a sub-session, the harness owns that
-	result, diag := core.CallTool(tool, map[string]any{"query": "do the sub task"}, false)
+	result, diag := core.CallTool(tool, map[string]any{"query": "do the sub task"}, nil)
 	if diag == nil || diag.Level != core.SeverityError {
 		t.Errorf("expected the runner to report that the harness handles it, got %q and %v", result, diag)
 	}

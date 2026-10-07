@@ -13,7 +13,7 @@ feature:
 
 - move related doc to app folder to make agent more like bare cores
 
-## v1.0.6
+## v1.0.6: 2026-10-10
 
 final fixes before new feature:
 
