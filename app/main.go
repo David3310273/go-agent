@@ -58,11 +58,6 @@ func initAgent(rootPath string) (*simple.SimpleAgent, *core.Diagnostic) {
 		return nil, diag
 	}
 
-	// set agent ID
-	if diag := agent.SetID(); diag != nil {
-		return nil, diag
-	}
-
 	// create providers from registry and set on agent before start
 	providers := simple.CreateProviders(rootPath, agent.Configs.Agent)
 	if diag := agent.SetProviders(providers); diag != nil {

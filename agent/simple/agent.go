@@ -146,6 +146,11 @@ func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
 		cancel: cancel,
 	}
 
+	diag := agent.SetID()
+	if diag != nil {
+		return nil, diag
+	}
+
 	return agent, nil
 }
 
@@ -187,6 +192,10 @@ func (a *SimpleAgent) GetRootPath() string {
 
 func (a *SimpleAgent) LoadConfigs() core.AgentCoreConfig {
 	return a.Configs
+}
+
+func (a *SimpleAgent) GetQuestionChan() chan core.Question {
+	return a.Question
 }
 
 // EventManager
@@ -248,7 +257,8 @@ func (a *SimpleAgent) BeforeStart(config core.AgentCoreConfig) []core.Diagnostic
 
 func (a *SimpleAgent) Start(config core.AgentCoreConfig) []core.Diagnostic {
 	// get input from question, listen session output outside
-	core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "agent started: id=%s", a.GetID())
+	relativePath := fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))
+	core.LogInfo(utils.ResolvePath(a.RootPath, relativePath), "agent started: id=%s", a.GetID())
 	// emit start event for benchmark
 	core.Emit(a, core.CommonEvent[AgentEventTimeData]{
 		SourceType: core.AgentEventStart,
@@ -403,10 +413,10 @@ func (a *SimpleAgent) RecoverConversation(sessionID string) *core.Conversation {
 // get session, if not exist and forceCreate is true, create a new one
 func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	if session, ok := a.sessions[sessionID]; ok {
-		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "session found, reusing: session=%s", sessionID)
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "session found, reusing: session=%s", sessionID)
 		return session, nil
 	} else if forceCreate {
-		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "session not found, creating: session=%s", sessionID)
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "session not found, creating: session=%s", sessionID)
 
 		memories := a.RecoverConversation(sessionID)
 		session := NewAgentSession(a, sessionID, memories)

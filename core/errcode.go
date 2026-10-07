@@ -81,6 +81,7 @@ const (
 	MessageCodeAgentCoreConfigError   MessageCode = 700
 	MessageCodeInvalidResponseFromLLM MessageCode = 701
 	MessageCodeErrorFromLLM           MessageCode = 702
+	MessageCodeInvalidQuestion        MessageCode = 703
 	// 8xx: kb error
 	MessageCodeDocNotFound MessageCode = 800
 	// 9xx: storage error
@@ -93,4 +94,8 @@ const (
 	// 11xx: sandbox error
 	MessageCodeInitSandboxError MessageCode = 1100
 	MessageCodeNoSandboxInited  MessageCode = 1101
+	// 12xx: command app error
+	MessageCodeInvalidOption  MessageCode = 1200
+	MessageCodeCommandTimeout MessageCode = 1201
+	MessageCodeInvalidCommand MessageCode = 1202
 )

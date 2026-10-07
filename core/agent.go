@@ -126,6 +126,8 @@ type AgentCore interface {
 	LoadConfigs() AgentCoreConfig
 	// get root path
 	GetRootPath() string
+	// get question chan
+	GetQuestionChan() chan Question
 }
 
 type AgentStatus int
