@@ -1,9 +1,25 @@
 package core
 
-// TODO: support command line in the future
-type CommandAccessible interface {
-	// command parser
-	Parse(string) (any, []Diagnostic)
+// command line interface, take interface param as input
+type Command interface {
 	// return help message
-	GetHelp() string
+	GetHelp() map[string]string
+	// with option
+	WithOption(string, string) Command
+	// get base
+	GetBase() string
+	// run
+	Run(*AgentCore, Question) *Diagnostic
+}
+
+type CommandParser interface {
+	Parse(string) (Command, []Diagnostic)
+}
+
+// command app for agent
+type AgentCommandApp interface {
+	UI
+	CommandParser
+	UserManager
+	I18n
 }
