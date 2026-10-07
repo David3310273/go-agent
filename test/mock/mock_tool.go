@@ -134,20 +134,6 @@ func (mr *MockToolMockRecorder) GetDescription() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDescription", reflect.TypeOf((*MockTool)(nil).GetDescription))
 }
 
-// GetSandbox mocks base method.
-func (m *MockTool) GetSandbox() core.Sandbox {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSandbox")
-	ret0, _ := ret[0].(core.Sandbox)
-	return ret0
-}
-
-// GetSandbox indicates an expected call of GetSandbox.
-func (mr *MockToolMockRecorder) GetSandbox() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSandbox", reflect.TypeOf((*MockTool)(nil).GetSandbox))
-}
-
 // GetName mocks base method.
 func (m *MockTool) GetName() string {
 	m.ctrl.T.Helper()
@@ -174,6 +160,20 @@ func (m *MockTool) GetRunner() func(map[string]any) (string, *core.Diagnostic) {
 func (mr *MockToolMockRecorder) GetRunner() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRunner", reflect.TypeOf((*MockTool)(nil).GetRunner))
+}
+
+// GetSandboxEnv mocks base method.
+func (m *MockTool) GetSandboxEnv() core.SandboxSpec {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSandboxEnv")
+	ret0, _ := ret[0].(core.SandboxSpec)
+	return ret0
+}
+
+// GetSandboxEnv indicates an expected call of GetSandboxEnv.
+func (mr *MockToolMockRecorder) GetSandboxEnv() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSandboxEnv", reflect.TypeOf((*MockTool)(nil).GetSandboxEnv))
 }
 
 // GetSchema mocks base method.

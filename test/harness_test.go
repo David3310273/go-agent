@@ -63,7 +63,7 @@ func TestHandleUserToolConfirm_RunsApprovedBatchConcurrently(t *testing.T) {
 	approvedTool := testmock.NewMockTool(ctrl)
 	approvedTool.EXPECT().GetName().Return("approved_tool").AnyTimes()
 	approvedTool.EXPECT().Validate(gomock.Any()).Return(nil).AnyTimes()
-	approvedTool.EXPECT().GetSandbox().Return(nil).AnyTimes()
+	approvedTool.EXPECT().GetSandboxEnv().Return(core.SandboxSpec{}).AnyTimes()
 	approvedTool.EXPECT().GetRunner().Return(func(args map[string]any) (string, *core.Diagnostic) {
 		current := atomic.AddInt32(&running, 1)
 		for {
