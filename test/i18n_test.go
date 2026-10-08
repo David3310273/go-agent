@@ -21,11 +21,11 @@ func TestMockI18n_Translate(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockI18n := testmock.NewMockI18n(ctrl)
-	mockI18n.EXPECT().Translate("hello", gomock.Eq(core.LanguageType("Chinese"))).Return("你好")
+	mockI18n.EXPECT().Translate(core.MessageCodeSuccess, gomock.Eq(core.LanguageType(core.Language_ZH))).Return("成功")
 
-	result := mockI18n.Translate("hello", core.LanguageType("Chinese"))
-	if result != "你好" {
-		t.Errorf("expected '你好', got %s", result)
+	result := mockI18n.Translate(core.MessageCodeSuccess, core.Language_ZH)
+	if result != "成功" {
+		t.Errorf("expected '成功', got %s", result)
 	}
 }
 
@@ -34,50 +34,10 @@ func TestMockI18n_Translate_English(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockI18n := testmock.NewMockI18n(ctrl)
-	mockI18n.EXPECT().Translate("你好", gomock.Eq(core.LanguageType("English"))).Return("hello")
+	mockI18n.EXPECT().Translate(core.MessageCodeSystemError, gomock.Eq(core.LanguageType(core.Language_EN))).Return("System Error")
 
-	result := mockI18n.Translate("你好", core.LanguageType("English"))
-	if result != "hello" {
-		t.Errorf("expected 'hello', got %s", result)
-	}
-}
-
-func TestMockI18n_SetConfig(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockI18n := testmock.NewMockI18n(ctrl)
-	config := core.I18nConfig{
-		DefaultLanguage: "English",
-		FilePath:        "/path/to/i18n.json",
-	}
-
-	mockI18n.EXPECT().SetConfig(config).Return(nil)
-
-	err := mockI18n.SetConfig(config)
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
-	}
-}
-
-func TestMockI18n_SetConfig_Error(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockI18n := testmock.NewMockI18n(ctrl)
-	config := core.I18nConfig{
-		FilePath: "/invalid/path",
-	}
-	expectedErr := &core.Diagnostic{
-		Level:   core.SeverityError,
-		Code:    core.MessageCodeConfigFileNotFound,
-		Message: "i18n file not found",
-	}
-
-	mockI18n.EXPECT().SetConfig(config).Return(expectedErr)
-
-	err := mockI18n.SetConfig(config)
-	if err == nil {
-		t.Error("expected error, got nil")
+	result := mockI18n.Translate(core.MessageCodeSystemError, core.Language_EN)
+	if result != "System Error" {
+		t.Errorf("expected 'System Error', got %s", result)
 	}
 }

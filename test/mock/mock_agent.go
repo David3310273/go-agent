@@ -68,48 +68,6 @@ func (mr *MockQuestionMockRecorder) GetHintChan() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHintChan", reflect.TypeOf((*MockQuestion)(nil).GetHintChan))
 }
 
-// auto-add: GetType mocks base method.
-func (m *MockQuestion) GetType() core.QuestionType {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetType")
-	ret0, _ := ret[0].(core.QuestionType)
-	return ret0
-}
-
-// auto-add: GetType indicates an expected call of GetType.
-func (mr *MockQuestionMockRecorder) GetType() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetType", reflect.TypeOf((*MockQuestion)(nil).GetType))
-}
-
-// auto-add: GetConfirmToolName mocks base method.
-func (m *MockQuestion) GetConfirmToolName() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConfirmToolName")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// auto-add: GetConfirmToolName indicates an expected call of GetConfirmToolName.
-func (mr *MockQuestionMockRecorder) GetConfirmToolName() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmToolName", reflect.TypeOf((*MockQuestion)(nil).GetConfirmToolName))
-}
-
-// auto-add: GetConfirmAnswer mocks base method.
-func (m *MockQuestion) GetConfirmAnswer() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetConfirmAnswer")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// auto-add: GetConfirmAnswer indicates an expected call of GetConfirmAnswer.
-func (mr *MockQuestionMockRecorder) GetConfirmAnswer() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmAnswer", reflect.TypeOf((*MockQuestion)(nil).GetConfirmAnswer))
-}
-
 // GetID mocks base method.
 func (m *MockQuestion) GetID() string {
 	m.ctrl.T.Helper()
@@ -136,20 +94,6 @@ func (m *MockQuestion) GetModelName() string {
 func (mr *MockQuestionMockRecorder) GetModelName() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetModelName", reflect.TypeOf((*MockQuestion)(nil).GetModelName))
-}
-
-// GetProviderName mocks base method.
-func (m *MockQuestion) GetProviderName() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetProviderName")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// GetProviderName indicates an expected call of GetProviderName.
-func (mr *MockQuestionMockRecorder) GetProviderName() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProviderName", reflect.TypeOf((*MockQuestion)(nil).GetProviderName))
 }
 
 // GetQuery mocks base method.
@@ -222,6 +166,20 @@ func (mr *MockQuestionMockRecorder) GetStreaming() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStreaming", reflect.TypeOf((*MockQuestion)(nil).GetStreaming))
 }
 
+// GetType mocks base method.
+func (m *MockQuestion) GetType() core.QuestionType {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetType")
+	ret0, _ := ret[0].(core.QuestionType)
+	return ret0
+}
+
+// GetType indicates an expected call of GetType.
+func (mr *MockQuestionMockRecorder) GetType() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetType", reflect.TypeOf((*MockQuestion)(nil).GetType))
+}
+
 // SetQuery mocks base method.
 func (m *MockQuestion) SetQuery(arg0 string) {
 	m.ctrl.T.Helper()
@@ -246,6 +204,58 @@ func (m *MockQuestion) ToString() string {
 func (mr *MockQuestionMockRecorder) ToString() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToString", reflect.TypeOf((*MockQuestion)(nil).ToString))
+}
+
+// MockToolConfirmable is a mock of ToolConfirmable interface.
+type MockToolConfirmable struct {
+	ctrl     *gomock.Controller
+	recorder *MockToolConfirmableMockRecorder
+	isgomock struct{}
+}
+
+// MockToolConfirmableMockRecorder is the mock recorder for MockToolConfirmable.
+type MockToolConfirmableMockRecorder struct {
+	mock *MockToolConfirmable
+}
+
+// NewMockToolConfirmable creates a new mock instance.
+func NewMockToolConfirmable(ctrl *gomock.Controller) *MockToolConfirmable {
+	mock := &MockToolConfirmable{ctrl: ctrl}
+	mock.recorder = &MockToolConfirmableMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockToolConfirmable) EXPECT() *MockToolConfirmableMockRecorder {
+	return m.recorder
+}
+
+// GetConfirmAnswers mocks base method.
+func (m *MockToolConfirmable) GetConfirmAnswers() []core.ToolConfirmAnswer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConfirmAnswers")
+	ret0, _ := ret[0].([]core.ToolConfirmAnswer)
+	return ret0
+}
+
+// GetConfirmAnswers indicates an expected call of GetConfirmAnswers.
+func (mr *MockToolConfirmableMockRecorder) GetConfirmAnswers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfirmAnswers", reflect.TypeOf((*MockToolConfirmable)(nil).GetConfirmAnswers))
+}
+
+// ValidateConfirmAnswers mocks base method.
+func (m *MockToolConfirmable) ValidateConfirmAnswers() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateConfirmAnswers")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// ValidateConfirmAnswers indicates an expected call of ValidateConfirmAnswers.
+func (mr *MockToolConfirmableMockRecorder) ValidateConfirmAnswers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateConfirmAnswers", reflect.TypeOf((*MockToolConfirmable)(nil).ValidateConfirmAnswers))
 }
 
 // MockAnswer is a mock of Answer interface.
@@ -401,59 +411,59 @@ func (m *MockWorkFlow) EXPECT() *MockWorkFlowMockRecorder {
 }
 
 // BeforeStart mocks base method.
-func (m *MockWorkFlow) BeforeStart(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockWorkFlow) BeforeStart() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeforeStart", arg0)
+	ret := m.ctrl.Call(m, "BeforeStart")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // BeforeStart indicates an expected call of BeforeStart.
-func (mr *MockWorkFlowMockRecorder) BeforeStart(arg0 any) *gomock.Call {
+func (mr *MockWorkFlowMockRecorder) BeforeStart() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStart", reflect.TypeOf((*MockWorkFlow)(nil).BeforeStart), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStart", reflect.TypeOf((*MockWorkFlow)(nil).BeforeStart))
 }
 
 // BeforeStop mocks base method.
-func (m *MockWorkFlow) BeforeStop(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockWorkFlow) BeforeStop() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeforeStop", arg0)
+	ret := m.ctrl.Call(m, "BeforeStop")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // BeforeStop indicates an expected call of BeforeStop.
-func (mr *MockWorkFlowMockRecorder) BeforeStop(arg0 any) *gomock.Call {
+func (mr *MockWorkFlowMockRecorder) BeforeStop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockWorkFlow)(nil).BeforeStop), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockWorkFlow)(nil).BeforeStop))
 }
 
 // Start mocks base method.
-func (m *MockWorkFlow) Start(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockWorkFlow) Start() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start", arg0)
+	ret := m.ctrl.Call(m, "Start")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // Start indicates an expected call of Start.
-func (mr *MockWorkFlowMockRecorder) Start(arg0 any) *gomock.Call {
+func (mr *MockWorkFlowMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockWorkFlow)(nil).Start), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockWorkFlow)(nil).Start))
 }
 
 // Stop mocks base method.
-func (m *MockWorkFlow) Stop(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockWorkFlow) Stop() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Stop", arg0)
+	ret := m.ctrl.Call(m, "Stop")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // Stop indicates an expected call of Stop.
-func (mr *MockWorkFlowMockRecorder) Stop(arg0 any) *gomock.Call {
+func (mr *MockWorkFlowMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockWorkFlow)(nil).Stop), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockWorkFlow)(nil).Stop))
 }
 
 // MockSessionManager is a mock of SessionManager interface.
@@ -481,7 +491,6 @@ func (m *MockSessionManager) EXPECT() *MockSessionManagerMockRecorder {
 }
 
 // GetSessionOnCreate mocks base method.
-// auto-add: updated by hand to match the slimmed core.SessionManager signature.
 func (m *MockSessionManager) GetSessionOnCreate(id string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSessionOnCreate", id, forceCreate)
@@ -563,31 +572,31 @@ func (mr *MockAgentCoreMockRecorder) Acquire() *gomock.Call {
 }
 
 // BeforeStart mocks base method.
-func (m *MockAgentCore) BeforeStart(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockAgentCore) BeforeStart() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeforeStart", arg0)
+	ret := m.ctrl.Call(m, "BeforeStart")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // BeforeStart indicates an expected call of BeforeStart.
-func (mr *MockAgentCoreMockRecorder) BeforeStart(arg0 any) *gomock.Call {
+func (mr *MockAgentCoreMockRecorder) BeforeStart() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStart", reflect.TypeOf((*MockAgentCore)(nil).BeforeStart), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStart", reflect.TypeOf((*MockAgentCore)(nil).BeforeStart))
 }
 
 // BeforeStop mocks base method.
-func (m *MockAgentCore) BeforeStop(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockAgentCore) BeforeStop() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeforeStop", arg0)
+	ret := m.ctrl.Call(m, "BeforeStop")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // BeforeStop indicates an expected call of BeforeStop.
-func (mr *MockAgentCoreMockRecorder) BeforeStop(arg0 any) *gomock.Call {
+func (mr *MockAgentCoreMockRecorder) BeforeStop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockAgentCore)(nil).BeforeStop), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockAgentCore)(nil).BeforeStop))
 }
 
 // CloseBenchmarkListeningChannels mocks base method.
@@ -686,6 +695,34 @@ func (mr *MockAgentCoreMockRecorder) GetKnowledgeBase() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKnowledgeBase", reflect.TypeOf((*MockAgentCore)(nil).GetKnowledgeBase))
 }
 
+// GetMCPClients mocks base method.
+func (m *MockAgentCore) GetMCPClients() map[string]core.MCPAccessible {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMCPClients")
+	ret0, _ := ret[0].(map[string]core.MCPAccessible)
+	return ret0
+}
+
+// GetMCPClients indicates an expected call of GetMCPClients.
+func (mr *MockAgentCoreMockRecorder) GetMCPClients() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPClients", reflect.TypeOf((*MockAgentCore)(nil).GetMCPClients))
+}
+
+// GetMCPServerConfigs mocks base method.
+func (m *MockAgentCore) GetMCPServerConfigs() []core.MCPConfig {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMCPServerConfigs")
+	ret0, _ := ret[0].([]core.MCPConfig)
+	return ret0
+}
+
+// GetMCPServerConfigs indicates an expected call of GetMCPServerConfigs.
+func (mr *MockAgentCoreMockRecorder) GetMCPServerConfigs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPServerConfigs", reflect.TypeOf((*MockAgentCore)(nil).GetMCPServerConfigs))
+}
+
 // GetModelProviders mocks base method.
 func (m *MockAgentCore) GetModelProviders() []core.Provider {
 	m.ctrl.T.Helper()
@@ -712,6 +749,20 @@ func (m *MockAgentCore) GetPrompt() []byte {
 func (mr *MockAgentCoreMockRecorder) GetPrompt() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrompt", reflect.TypeOf((*MockAgentCore)(nil).GetPrompt))
+}
+
+// GetQuestionChan mocks base method.
+func (m *MockAgentCore) GetQuestionChan() chan core.Question {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetQuestionChan")
+	ret0, _ := ret[0].(chan core.Question)
+	return ret0
+}
+
+// GetQuestionChan indicates an expected call of GetQuestionChan.
+func (mr *MockAgentCoreMockRecorder) GetQuestionChan() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetQuestionChan", reflect.TypeOf((*MockAgentCore)(nil).GetQuestionChan))
 }
 
 // GetRootPath mocks base method.
@@ -743,7 +794,6 @@ func (mr *MockAgentCoreMockRecorder) GetSessionConfig() *gomock.Call {
 }
 
 // GetSessionOnCreate mocks base method.
-// auto-add: updated by hand to match the slimmed core.AgentCore signature.
 func (m *MockAgentCore) GetSessionOnCreate(id string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSessionOnCreate", id, forceCreate)
@@ -756,6 +806,34 @@ func (m *MockAgentCore) GetSessionOnCreate(id string, forceCreate bool) (core.Se
 func (mr *MockAgentCoreMockRecorder) GetSessionOnCreate(id, forceCreate any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSessionOnCreate", reflect.TypeOf((*MockAgentCore)(nil).GetSessionOnCreate), id, forceCreate)
+}
+
+// GetSkill mocks base method.
+func (m *MockAgentCore) GetSkill(name string) *core.SkillDefinition {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSkill", name)
+	ret0, _ := ret[0].(*core.SkillDefinition)
+	return ret0
+}
+
+// GetSkill indicates an expected call of GetSkill.
+func (mr *MockAgentCoreMockRecorder) GetSkill(name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkill", reflect.TypeOf((*MockAgentCore)(nil).GetSkill), name)
+}
+
+// GetSkills mocks base method.
+func (m *MockAgentCore) GetSkills() []core.SkillDefinition {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSkills")
+	ret0, _ := ret[0].([]core.SkillDefinition)
+	return ret0
+}
+
+// GetSkills indicates an expected call of GetSkills.
+func (mr *MockAgentCoreMockRecorder) GetSkills() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkills", reflect.TypeOf((*MockAgentCore)(nil).GetSkills))
 }
 
 // GetToolsConfig mocks base method.
@@ -892,6 +970,20 @@ func (mr *MockAgentCoreMockRecorder) SetLanguage(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLanguage", reflect.TypeOf((*MockAgentCore)(nil).SetLanguage), arg0)
 }
 
+// SetMCPClient mocks base method.
+func (m *MockAgentCore) SetMCPClient(arg0 []core.MCPConfig) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetMCPClient", arg0)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// SetMCPClient indicates an expected call of SetMCPClient.
+func (mr *MockAgentCoreMockRecorder) SetMCPClient(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMCPClient", reflect.TypeOf((*MockAgentCore)(nil).SetMCPClient), arg0)
+}
+
 // SetPrompt mocks base method.
 func (m *MockAgentCore) SetPrompt(arg0 core.PromptConfig) *core.Diagnostic {
 	m.ctrl.T.Helper()
@@ -932,34 +1024,6 @@ func (mr *MockAgentCoreMockRecorder) SetSkills(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSkills", reflect.TypeOf((*MockAgentCore)(nil).SetSkills), arg0)
 }
 
-// GetSkill mocks base method.
-func (m *MockAgentCore) GetSkill(arg0 string) *core.SkillDefinition {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSkill", arg0)
-	ret0, _ := ret[0].(*core.SkillDefinition)
-	return ret0
-}
-
-// GetSkill indicates an expected call of GetSkill.
-func (mr *MockAgentCoreMockRecorder) GetSkill(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkill", reflect.TypeOf((*MockAgentCore)(nil).GetSkill), arg0)
-}
-
-// GetSkills mocks base method.
-func (m *MockAgentCore) GetSkills() []core.SkillDefinition {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSkills")
-	ret0, _ := ret[0].([]core.SkillDefinition)
-	return ret0
-}
-
-// GetSkills indicates an expected call of GetSkills.
-func (mr *MockAgentCoreMockRecorder) GetSkills() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkills", reflect.TypeOf((*MockAgentCore)(nil).GetSkills))
-}
-
 // SetToolsConfig mocks base method.
 func (m *MockAgentCore) SetToolsConfig(arg0 []core.ToolConfig) *core.Diagnostic {
 	m.ctrl.T.Helper()
@@ -975,31 +1039,31 @@ func (mr *MockAgentCoreMockRecorder) SetToolsConfig(arg0 any) *gomock.Call {
 }
 
 // Start mocks base method.
-func (m *MockAgentCore) Start(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockAgentCore) Start() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start", arg0)
+	ret := m.ctrl.Call(m, "Start")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // Start indicates an expected call of Start.
-func (mr *MockAgentCoreMockRecorder) Start(arg0 any) *gomock.Call {
+func (mr *MockAgentCoreMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockAgentCore)(nil).Start), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockAgentCore)(nil).Start))
 }
 
 // Stop mocks base method.
-func (m *MockAgentCore) Stop(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockAgentCore) Stop() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Stop", arg0)
+	ret := m.ctrl.Call(m, "Stop")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // Stop indicates an expected call of Stop.
-func (mr *MockAgentCoreMockRecorder) Stop(arg0 any) *gomock.Call {
+func (mr *MockAgentCoreMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockAgentCore)(nil).Stop), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockAgentCore)(nil).Stop))
 }
 
 // StopSession mocks base method.
@@ -1014,46 +1078,4 @@ func (m *MockAgentCore) StopSession(arg0 string) *core.Diagnostic {
 func (mr *MockAgentCoreMockRecorder) StopSession(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StopSession", reflect.TypeOf((*MockAgentCore)(nil).StopSession), arg0)
-}
-
-// auto-add: GetMCPServerConfigs mocks base method.
-func (m *MockAgentCore) GetMCPServerConfigs() []core.MCPConfig {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMCPServerConfigs")
-	ret0, _ := ret[0].([]core.MCPConfig)
-	return ret0
-}
-
-// auto-add: GetMCPServerConfigs indicates an expected call of GetMCPServerConfigs.
-func (mr *MockAgentCoreMockRecorder) GetMCPServerConfigs() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPServerConfigs", reflect.TypeOf((*MockAgentCore)(nil).GetMCPServerConfigs))
-}
-
-// auto-add: SetMCPClient mocks base method.
-func (m *MockAgentCore) SetMCPClient(arg0 []core.MCPConfig) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetMCPClient", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// auto-add: SetMCPClient indicates an expected call of SetMCPClient.
-func (mr *MockAgentCoreMockRecorder) SetMCPClient(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetMCPClient", reflect.TypeOf((*MockAgentCore)(nil).SetMCPClient), arg0)
-}
-
-// auto-add: GetMCPClients mocks base method.
-func (m *MockAgentCore) GetMCPClients() map[string]core.MCPAccessible {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMCPClients")
-	ret0, _ := ret[0].(map[string]core.MCPAccessible)
-	return ret0
-}
-
-// auto-add: GetMCPClients indicates an expected call of GetMCPClients.
-func (mr *MockAgentCoreMockRecorder) GetMCPClients() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPClients", reflect.TypeOf((*MockAgentCore)(nil).GetMCPClients))
 }

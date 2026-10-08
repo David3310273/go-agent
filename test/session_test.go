@@ -133,14 +133,13 @@ func TestStartSession_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockSession := testmock.NewMockSession(ctrl)
-	config := core.AgentCoreConfig{}
 
 	gomock.InOrder(
-		mockSession.EXPECT().BeforeStart(config).Return(nil),
-		mockSession.EXPECT().Start(config).Return(nil),
+		mockSession.EXPECT().BeforeStart().Return(nil),
+		mockSession.EXPECT().Start().Return(nil),
 	)
 
-	diagnostics := core.StartSession(mockSession, config)
+	diagnostics := core.StartSession(mockSession)
 	if len(diagnostics) != 0 {
 		t.Errorf("expected 0 diagnostics, got %d", len(diagnostics))
 	}
@@ -151,14 +150,13 @@ func TestStartSession_BeforeStartError(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockSession := testmock.NewMockSession(ctrl)
-	config := core.AgentCoreConfig{}
 	expectedErr := []core.Diagnostic{
 		{Level: core.SeverityError, Code: core.MessageCodeSessionCreateError},
 	}
 
-	mockSession.EXPECT().BeforeStart(config).Return(expectedErr)
+	mockSession.EXPECT().BeforeStart().Return(expectedErr)
 
-	diagnostics := core.StartSession(mockSession, config)
+	diagnostics := core.StartSession(mockSession)
 	if len(diagnostics) != 1 {
 		t.Errorf("expected 1 diagnostic, got %d", len(diagnostics))
 	}
@@ -173,14 +171,13 @@ func TestStopSession_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockSession := testmock.NewMockSession(ctrl)
-	config := core.AgentCoreConfig{}
 
 	gomock.InOrder(
-		mockSession.EXPECT().BeforeStop(config).Return(nil),
-		mockSession.EXPECT().Stop(config).Return(nil),
+		mockSession.EXPECT().BeforeStop().Return(nil),
+		mockSession.EXPECT().Stop().Return(nil),
 	)
 
-	diagnostics := core.StopSession(mockSession, config)
+	diagnostics := core.StopSession(mockSession)
 	if len(diagnostics) != 0 {
 		t.Errorf("expected 0 diagnostics, got %d", len(diagnostics))
 	}
@@ -191,14 +188,13 @@ func TestStopSession_BeforeStopError(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockSession := testmock.NewMockSession(ctrl)
-	config := core.AgentCoreConfig{}
 	expectedErr := []core.Diagnostic{
 		{Level: core.SeverityError, Code: core.MessageCodeSessionStopError},
 	}
 
-	mockSession.EXPECT().BeforeStop(config).Return(expectedErr)
+	mockSession.EXPECT().BeforeStop().Return(expectedErr)
 
-	diagnostics := core.StopSession(mockSession, config)
+	diagnostics := core.StopSession(mockSession)
 	if len(diagnostics) != 1 {
 		t.Errorf("expected 1 diagnostic, got %d", len(diagnostics))
 	}

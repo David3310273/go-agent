@@ -6,7 +6,9 @@ import (
 	"path"
 
 	"github.com/David3310273/go-agent/agent/simple"
+	"github.com/David3310273/go-agent/cmd/app"
 	"github.com/David3310273/go-agent/cmd/config"
+	"github.com/David3310273/go-agent/cmd/controller"
 	"github.com/David3310273/go-agent/cmd/ui"
 	"github.com/David3310273/go-agent/core"
 	_ "github.com/David3310273/go-agent/providers/qwen"
@@ -40,24 +42,24 @@ func main() {
 	core.LogStd(core.LogLevelInfo, "agent logs written to %s", logPath)
 	core.LogStd(core.LogLevelInfo, "cmd app starting, config %#v loaded from %s", config, configPath)
 
-	providers := simple.CreateProviders(config.RootPath, agent.Configs.Agent)
+	providers := simple.CreateProviders(config.RootPath, agent.Configs.Agent.QuestionProvider)
 	if diag := agent.SetProviders(providers); diag != nil {
 		core.LogStd(core.LogLevelError, "failed to set providers: %v", diag.ToString())
 		os.Exit(1)
 	}
 
+	cmdApp := app.InitInstance(agent, *config, controller.SimpleCommandParser{})
+
 	go func() {
-		diagnostics := core.StartAgentCore(agent, config.AppConfig)
+		diagnostics := core.StartCommandApp(cmdApp)
 		if len(diagnostics) > 0 {
-			for _, d := range diagnostics {
-				if d.Level >= core.SeverityError {
-					core.LogStd(core.LogLevelError, "StartAgentCore error: %s", d.ToString())
-				}
-			}
+			core.LogStd(core.LogLevelError, "Command app error: %#v", diagnostics.ToString())
+			os.Exit(1)
 		}
 	}()
+
 	// start command app with bubbletea UI
-	if err := ui.StartUI(agent, *config); err != nil {
+	if err := ui.StartUI(cmdApp); err != nil {
 		core.LogStd(core.LogLevelError, "Command app error: %v", err)
 		os.Exit(1)
 	}

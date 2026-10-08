@@ -185,19 +185,6 @@ func TestMockQuestion_SetQuery(t *testing.T) {
 	mockQuestion.SetQuery("new query")
 }
 
-func TestMockQuestion_GetProviderName(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockQuestion := testmock.NewMockQuestion(ctrl)
-	mockQuestion.EXPECT().GetProviderName().Return("qwen")
-
-	name := mockQuestion.GetProviderName()
-	if name != "qwen" {
-		t.Errorf("expected provider name 'qwen', got %s", name)
-	}
-}
-
 func TestMockQuestion_GetSessionID(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -457,7 +444,6 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockContext.EXPECT().GetToolsConfig().Return(nil).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"test-model"}}).AnyTimes()
-	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetModelName().Return("test-model").AnyTimes()
 	mockQuestion.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
@@ -541,7 +527,6 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockContext.EXPECT().GetToolsConfig().Return(nil).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"test-model"}}).AnyTimes()
-	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetModelName().Return("test-model").AnyTimes()
 	mockQuestion.EXPECT().GetEnableThinking().Return(false).AnyTimes()
@@ -647,7 +632,6 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockContext.EXPECT().GetHistory().Return([]byte("")).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"test-model"}}).AnyTimes()
-	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetModelName().Return("test-model").AnyTimes()
 	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
@@ -756,7 +740,6 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockContext.EXPECT().GetToolsConfig().Return(nil).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"test-model"}}).AnyTimes()
-	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetModelName().Return("test-model").AnyTimes()
 	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
@@ -861,7 +844,6 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockContext.EXPECT().GetToolsConfig().Return(nil).AnyTimes()
 	mockProvider.EXPECT().GetName().Return("qwen").AnyTimes()
 	mockProvider.EXPECT().GetModelConfig().Return(core.ModelConfig{Models: []string{"test-model"}}).AnyTimes()
-	mockQuestion.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	mockQuestion.EXPECT().GetQuery().Return("test query").AnyTimes()
 	mockQuestion.EXPECT().GetModelName().Return("test-model").AnyTimes()
 	mockQuestion.EXPECT().GetHintChan().Return(make(chan core.Answer, 10)).AnyTimes()
@@ -952,7 +934,6 @@ func newToolCallBatchFixture(ctrl *gomock.Controller, loadedTools []core.Tool, r
 		fixture.provider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(response, nil)
 	}
 
-	fixture.question.EXPECT().GetProviderName().Return("qwen").AnyTimes()
 	fixture.question.EXPECT().GetQuery().Return("test query").AnyTimes()
 	fixture.question.EXPECT().GetModelName().Return("test-model").AnyTimes()
 	fixture.question.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()

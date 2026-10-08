@@ -43,57 +43,6 @@ func TestMockLockManager_Release(t *testing.T) {
 }
 
 // =============================================================================
-// UI interface tests
-// =============================================================================
-
-func TestMockUI_Render(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockUI := testmock.NewMockUI(ctrl)
-	mockUI.EXPECT().Render("hello world")
-
-	mockUI.Render("hello world")
-}
-
-func TestMockUI_RenderSystemMessage(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockUI := testmock.NewMockUI(ctrl)
-	diagnostics := []core.Diagnostic{
-		{Level: core.SeverityError, Message: "error occurred"},
-	}
-
-	mockUI.EXPECT().RenderSystemMessage(diagnostics)
-
-	mockUI.RenderSystemMessage(diagnostics)
-}
-
-func TestMockUI_Welcome(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockUI := testmock.NewMockUI(ctrl)
-	mockUI.EXPECT().Welcome()
-
-	mockUI.Welcome()
-}
-
-func TestMockUI_GetUserInput(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockUI := testmock.NewMockUI(ctrl)
-	mockUI.EXPECT().GetUserInput().Return("user input")
-
-	input := mockUI.GetUserInput()
-	if input != "user input" {
-		t.Errorf("expected 'user input', got %s", input)
-	}
-}
-
-// =============================================================================
 // Configurable interface tests
 // =============================================================================
 
@@ -119,11 +68,10 @@ func TestMockWorkFlow_BeforeStart(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockWorkFlow := testmock.NewMockWorkFlow(ctrl)
-	config := core.AgentCoreConfig{}
 
-	mockWorkFlow.EXPECT().BeforeStart(config).Return(nil)
+	mockWorkFlow.EXPECT().BeforeStart().Return(nil)
 
-	diagnostics := mockWorkFlow.BeforeStart(config)
+	diagnostics := mockWorkFlow.BeforeStart()
 	if diagnostics != nil {
 		t.Errorf("expected nil diagnostics, got %v", diagnostics)
 	}
@@ -134,11 +82,10 @@ func TestMockWorkFlow_Start(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockWorkFlow := testmock.NewMockWorkFlow(ctrl)
-	config := core.AgentCoreConfig{}
 
-	mockWorkFlow.EXPECT().Start(config).Return(nil)
+	mockWorkFlow.EXPECT().Start().Return(nil)
 
-	diagnostics := mockWorkFlow.Start(config)
+	diagnostics := mockWorkFlow.Start()
 	if diagnostics != nil {
 		t.Errorf("expected nil diagnostics, got %v", diagnostics)
 	}
@@ -149,11 +96,10 @@ func TestMockWorkFlow_BeforeStop(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockWorkFlow := testmock.NewMockWorkFlow(ctrl)
-	config := core.AgentCoreConfig{}
 
-	mockWorkFlow.EXPECT().BeforeStop(config).Return(nil)
+	mockWorkFlow.EXPECT().BeforeStop().Return(nil)
 
-	diagnostics := mockWorkFlow.BeforeStop(config)
+	diagnostics := mockWorkFlow.BeforeStop()
 	if diagnostics != nil {
 		t.Errorf("expected nil diagnostics, got %v", diagnostics)
 	}
@@ -164,11 +110,10 @@ func TestMockWorkFlow_Stop(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockWorkFlow := testmock.NewMockWorkFlow(ctrl)
-	config := core.AgentCoreConfig{}
 
-	mockWorkFlow.EXPECT().Stop(config).Return(nil)
+	mockWorkFlow.EXPECT().Stop().Return(nil)
 
-	diagnostics := mockWorkFlow.Stop(config)
+	diagnostics := mockWorkFlow.Stop()
 	if diagnostics != nil {
 		t.Errorf("expected nil diagnostics, got %v", diagnostics)
 	}
@@ -265,8 +210,8 @@ func TestStartAgentCore_Success(t *testing.T) {
 		mockAgent.EXPECT().SetKnowledgeBase(agentConfig.Agent.KnowledgeBase).Return(nil),
 		mockAgent.EXPECT().SetToolsConfig(agentConfig.Agent.Tool).Return(nil),
 		mockAgent.EXPECT().SetMCPClient(agentConfig.Agent.MCPServer).Return(nil),
-		mockAgent.EXPECT().BeforeStart(agentConfig).Return(nil),
-		mockAgent.EXPECT().Start(agentConfig).Return(nil),
+		mockAgent.EXPECT().BeforeStart().Return(nil),
+		mockAgent.EXPECT().Start().Return(nil),
 	)
 
 	diagnostics := core.StartAgentCore(mockAgent, appConfig)
@@ -301,8 +246,8 @@ func TestStartAgentCore_SetIDError(t *testing.T) {
 	mockAgent.EXPECT().SetKnowledgeBase(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetToolsConfig(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetMCPClient(gomock.Any()).Return(expectedErr).AnyTimes()
-	mockAgent.EXPECT().BeforeStart(gomock.Any()).Return(nil).AnyTimes()
-	mockAgent.EXPECT().Start(gomock.Any()).Return(nil).AnyTimes()
+	mockAgent.EXPECT().BeforeStart().Return(nil).AnyTimes()
+	mockAgent.EXPECT().Start().Return(nil).AnyTimes()
 
 	diagnostics := core.StartAgentCore(mockAgent, appConfig)
 	if len(diagnostics) == 0 {
@@ -319,13 +264,10 @@ func TestStopAgentCore_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockAgent := testmock.NewMockAgentCore(ctrl)
-	agentConfig := core.AgentCoreConfig{}
 
-	//  updated LoadConfigs to new no-arg signature
 	gomock.InOrder(
-		mockAgent.EXPECT().LoadConfigs().Return(agentConfig),
-		mockAgent.EXPECT().BeforeStop(agentConfig).Return(nil),
-		mockAgent.EXPECT().Stop(agentConfig).Return(nil),
+		mockAgent.EXPECT().BeforeStop().Return(nil),
+		mockAgent.EXPECT().Stop().Return(nil),
 	)
 
 	diagnostics := core.StopAgentCore(mockAgent)

@@ -211,7 +211,7 @@ func TestNewSubSession_OwnEventListener(t *testing.T) {
 
 	// stop before the test ends so the listener goroutine is not writing while
 	// t.TempDir cleanup removes the directory
-	if diagnostics := core.StopSession(parent, core.AgentCoreConfig{}); len(diagnostics) > 0 {
+	if diagnostics := core.StopSession(parent); len(diagnostics) > 0 {
 		t.Errorf("expected no diagnostics from StopSession, got %v", diagnostics)
 	}
 }
@@ -249,7 +249,7 @@ func TestNewSubSession_RegisteredAndStoppedByParent(t *testing.T) {
 		t.Error("expected the registered sub-session to be the one just created")
 	}
 
-	diagnostics := core.StopSession(parent, core.AgentCoreConfig{})
+	diagnostics := core.StopSession(parent)
 	if len(diagnostics) > 0 {
 		t.Errorf("expected no diagnostics from StopSession, got %v", diagnostics)
 	}
@@ -273,7 +273,7 @@ func TestSession_LockUsableAfterStop(t *testing.T) {
 	defer ctrl.Finish()
 
 	parent := newTestParentSession(t, ctrl)
-	if diagnostics := core.StopSession(parent, core.AgentCoreConfig{}); len(diagnostics) > 0 {
+	if diagnostics := core.StopSession(parent); len(diagnostics) > 0 {
 		t.Fatalf("expected no diagnostics from StopSession, got %v", diagnostics)
 	}
 
@@ -293,7 +293,7 @@ func TestNewSubSession_NotRegisteredAfterParentStop(t *testing.T) {
 	defer ctrl.Finish()
 
 	parent := newTestParentSession(t, ctrl)
-	if diagnostics := core.StopSession(parent, core.AgentCoreConfig{}); len(diagnostics) > 0 {
+	if diagnostics := core.StopSession(parent); len(diagnostics) > 0 {
 		t.Fatalf("expected no diagnostics from StopSession, got %v", diagnostics)
 	}
 
@@ -459,7 +459,7 @@ func TestRunSubSession_RunsSubSessionAndReturnsAnswer(t *testing.T) {
 		t.Errorf("expected the thinking line to carry the prefix %q, got %q", wantPrefix, string(capturedStdout))
 	}
 
-	if diagnostics := core.StopSession(parent, core.AgentCoreConfig{}); len(diagnostics) > 0 {
+	if diagnostics := core.StopSession(parent); len(diagnostics) > 0 {
 		t.Errorf("expected no diagnostics from StopSession, got %v", diagnostics)
 	}
 }
@@ -521,7 +521,7 @@ func TestRunSubSession_FallsBackToDefaultAnswer(t *testing.T) {
 		t.Errorf("expected at least 2 history lines in %s", memoryFile)
 	}
 
-	if diagnostics := core.StopSession(parent, core.AgentCoreConfig{}); len(diagnostics) > 0 {
+	if diagnostics := core.StopSession(parent); len(diagnostics) > 0 {
 		t.Errorf("expected no diagnostics from StopSession, got %v", diagnostics)
 	}
 }

@@ -82,20 +82,6 @@ func (mr *MockEventMockRecorder[T]) ToString() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToString", reflect.TypeOf((*MockEvent[T])(nil).ToString))
 }
 
-// WriteToStorage mocks base method.
-func (m *MockEvent[T]) WriteToStorage() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "WriteToStorage")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// WriteToStorage indicates an expected call of WriteToStorage.
-func (mr *MockEventMockRecorder[T]) WriteToStorage() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteToStorage", reflect.TypeOf((*MockEvent[T])(nil).WriteToStorage))
-}
-
 // MockEventManager is a mock of EventManager interface.
 type MockEventManager struct {
 	ctrl     *gomock.Controller
