@@ -17,7 +17,7 @@ type CommandParser interface {
 }
 
 // command app for agent
-type AgentCommandApp interface {
+type CommandApp interface {
 	UI
 	CommandParser
 	UserManager
