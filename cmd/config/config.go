@@ -8,11 +8,7 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
-type CommandAppConfig struct {
-	core.AppConfig
-}
-
-func LoadAppConfig(configPath string) (*CommandAppConfig, *core.Diagnostic) {
+func LoadAppConfig(configPath string) (*core.CommandAppConfig, *core.Diagnostic) {
 	if configPath == "" {
 		return nil, nil
 	}
@@ -26,7 +22,7 @@ func LoadAppConfig(configPath string) (*CommandAppConfig, *core.Diagnostic) {
 		}
 	}
 
-	var config CommandAppConfig
+	var config core.CommandAppConfig
 	if err := json.Unmarshal(configData, &config); err != nil {
 		return nil, &core.Diagnostic{
 			Level:   core.SeverityError,

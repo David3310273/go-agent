@@ -515,18 +515,23 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	}
 
 	// always send finalAnswer to responseChan so streaming handler can extract sessionID and usage
-	select {
-	case query.GetResponseChan() <- finalAnswer:
-		// finished process question
-		core.Emit(s, core.CommonEvent[SessionEventTimeData]{
-			SourceType: core.SessionFinishQuestion,
-			Data: SessionEventTimeData{
-				SnapshotTime: time.Now(),
-				SessionID:    s.GetID(),
-			},
-		})
-	default:
-	}
+	// use goroutine to avoid deadlock when channel is full
+	go func() {
+		select {
+		case query.GetResponseChan() <- finalAnswer:
+			// finished process question
+			core.Emit(s, core.CommonEvent[SessionEventTimeData]{
+				SourceType: core.SessionFinishQuestion,
+				Data: SessionEventTimeData{
+					SnapshotTime: time.Now(),
+					SessionID:    s.GetID(),
+				},
+			})
+		case <-time.After(30 * time.Second):
+			// timeout to avoid deadlock
+			core.LogStd(core.LogLevelWarn, "[session=%s] send finalAnswer timeout", s.GetID())
+		}
+	}()
 }
 
 // lock manager methods
@@ -621,11 +626,11 @@ func (a *SimpleAgentSession) CloseBenchmarkListeningChannels() {
 // WorkFlow methods
 // =============================================================================
 
-func (s *SimpleAgentSession) BeforeStart(config core.AgentCoreConfig) []core.Diagnostic {
+func (s *SimpleAgentSession) BeforeStart() []core.Diagnostic {
 	return nil
 }
 
-func (s *SimpleAgentSession) Start(config core.AgentCoreConfig) []core.Diagnostic {
+func (s *SimpleAgentSession) Start() []core.Diagnostic {
 	core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] listening for questions", s.GetID())
 
 	core.Emit(s, core.CommonEvent[SessionEventTimeData]{
@@ -659,7 +664,7 @@ func (s *SimpleAgentSession) Start(config core.AgentCoreConfig) []core.Diagnosti
 	}
 }
 
-func (s *SimpleAgentSession) BeforeStop(config core.AgentCoreConfig) []core.Diagnostic {
+func (s *SimpleAgentSession) BeforeStop() []core.Diagnostic {
 	// process hook
 	return nil
 }
@@ -681,11 +686,11 @@ func (s *SimpleAgentSession) snapshotSubSessions() []*SimpleAgentSession {
 	return subSessions
 }
 
-func (s *SimpleAgentSession) Stop(config core.AgentCoreConfig) []core.Diagnostic {
+func (s *SimpleAgentSession) Stop() []core.Diagnostic {
 	// 1. stop all sub sessions
 	diagnostics := []core.Diagnostic{}
 	for _, subSession := range s.snapshotSubSessions() {
-		if err := core.StopSession(subSession, config); len(err) > 0 {
+		if err := core.StopSession(subSession); len(err) > 0 {
 			diagnostics = append(diagnostics, err...)
 		}
 	}

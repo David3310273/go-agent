@@ -24,8 +24,8 @@ func parseAskCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 	fs := flag.NewFlagSet("ask", flag.ContinueOnError)
 	fs.SetOutput(nil)
 
-	enableThinking := fs.Bool("enableThinking", false, "enable thinking mode")
-	stream := fs.Bool("stream", false, "enable stream mode")
+	enableThinking := fs.Bool("enableThinking", true, "enable thinking mode")
+	stream := fs.Bool("stream", true, "enable stream mode")
 	modelName := fs.String("model", "", "model name")
 	questionType := fs.String("questionType", "normal", "question type")
 	query := fs.String("query", "", "your question")
@@ -61,6 +61,7 @@ func parseAskCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 
 	cmd := &model.AskQuestionCommand{
 		Query:          question,
+		Base:           model.AskCommandName,
 		EnableThinking: *enableThinking,
 		Stream:         *stream,
 		Model:          *modelName,

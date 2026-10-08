@@ -44,19 +44,6 @@ func TestMockEvent_GetData(t *testing.T) {
 	}
 }
 
-func TestMockEvent_WriteToStorage(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockEvent := testmock.NewMockEvent[any](ctrl)
-	mockEvent.EXPECT().WriteToStorage().Return(nil)
-
-	err := mockEvent.WriteToStorage()
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
-	}
-}
-
 // =============================================================================
 // EventManager interface tests
 // =============================================================================
@@ -181,16 +168,16 @@ func TestSimpleEvent_GetData(t *testing.T) {
 	}
 }
 
-func TestSimpleEvent_WriteToStorage(t *testing.T) {
-	//  test WriteToStorage via mock
+func TestSimpleEvent_ToString(t *testing.T) {
+	// test ToString via mock
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockEvent := testmock.NewMockEvent[any](ctrl)
-	mockEvent.EXPECT().WriteToStorage().Return(nil)
+	mockEvent.EXPECT().ToString().Return("{\"source_type\":\"test\"}")
 
-	err := mockEvent.WriteToStorage()
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
+	result := mockEvent.ToString()
+	if result == "" {
+		t.Error("expected non-empty string, got empty")
 	}
 }

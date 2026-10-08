@@ -184,6 +184,11 @@ func (q *QwenProvider) CompleteStream(messages []core.ReActMessage, tools []core
 		timeout = 60 * time.Second
 	}
 
+	// default to first model in config
+	if modelName == "" {
+		modelName = q.Configs.Models[0]
+	}
+
 	if !slices.Contains(q.Configs.Models, modelName) {
 		return nil, []core.Diagnostic{
 			{
@@ -305,6 +310,11 @@ func (q *QwenProvider) Complete(messages []core.ReActMessage, tools []core.Tool,
 	timeout := time.Duration(q.Configs.MaxWaitingTime) * time.Second
 	if timeout == 0 {
 		timeout = 60 * time.Second // default 60s if not configured
+	}
+
+	// default to first model in config
+	if modelName == "" {
+		modelName = q.Configs.Models[0]
 	}
 
 	if !slices.Contains(q.Configs.Models, modelName) {

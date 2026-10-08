@@ -98,4 +98,5 @@ const (
 	MessageCodeInvalidOption  MessageCode = 1200
 	MessageCodeCommandTimeout MessageCode = 1201
 	MessageCodeInvalidCommand MessageCode = 1202
+	MessageCodeNotInPlanDate  MessageCode = 1203
 )

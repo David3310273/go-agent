@@ -162,7 +162,7 @@ func (m *MilvusStorage) Search(ctx context.Context, req SearchRequest) ([]map[st
 		}
 	}
 
-	fmt.Printf("[Milvus Debug] Parsed %d results with mertric type %s, filter: %s, collection: %s\n ",
+	core.LogStd(core.LogLevelDebug, "[Milvus Debug] Parsed %d results with mertric type %s, filter: %s, collection: %s\n ",
 		len(results), req.MetricType, req.Filter, req.Collection)
 
 	return results, nil
@@ -285,7 +285,7 @@ type InsertResponse struct {
 func (c *MilvusClient) Insert(ctx context.Context, req InsertRequest) (*InsertResponse, error) {
 	// debug: print request
 	reqJSON, _ := json.Marshal(req)
-	fmt.Printf("[Milvus Debug] Insert Request (truncated): %s\n", string(reqJSON[:min(len(reqJSON), 500)]))
+	core.LogStd(core.LogLevelDebug, "[Milvus Debug] Insert Request (truncated): %s\n", string(reqJSON[:min(len(reqJSON), 500)]))
 
 	respBody, err := c.doRequest(ctx, http.MethodPost, "/v2/vectordb/entities/insert", req)
 	if err != nil {
@@ -293,7 +293,7 @@ func (c *MilvusClient) Insert(ctx context.Context, req InsertRequest) (*InsertRe
 	}
 
 	// debug: print response
-	fmt.Printf("[Milvus Debug] Insert Response: %s\n", string(respBody))
+	core.LogStd(core.LogLevelDebug, "[Milvus Debug] Insert Response: %s\n", string(respBody))
 
 	var milvusResp MilvusResponse
 	if err := json.Unmarshal(respBody, &milvusResp); err != nil {
