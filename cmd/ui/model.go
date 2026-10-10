@@ -64,6 +64,7 @@ type UIPage struct {
 	messages      []messageEntry
 	app           *app.SimpleCommandApp
 	sessionID     string // hidden session ID, not displayed in UI
+	language      core.LanguageType
 	quitting      bool
 	waiting       bool   // true when waiting for command output, input is locked
 	streaming     bool   // true when stream mode
@@ -104,6 +105,7 @@ func NewModel(app *app.SimpleCommandApp, sessionID string) UIPage {
 		messages:   []messageEntry{},
 		app:        app,
 		sessionID:  sessionID,
+		language:   core.Language_EN,
 		autoScroll: true,
 	}
 }
@@ -185,7 +187,7 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// fallback: also check String() for keys that might not have Type set correctly
 		switch msg.String() {
-		case "up", "down", "pgup", "pgdown":
+		case "up", "down":
 			core.LogStd(core.LogLevelDebug, "UI: routing String() key to viewport: %s", msg.String())
 			m.autoScroll = false
 			core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.viewport.YOffset, m.viewport.TotalLineCount(), m.viewport.Height)
@@ -378,7 +380,15 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 		m.input.Blur()
 		m.input.SetValue("")
 		return m, nil
-	case "/new":
+	case "/i18n":
+		if len(parts) < 2 {
+			m.lastError = "Language not specified"
+		} else if parts[1] != core.Language_EN && parts[1] != core.Language_ZH {
+			m.lastError = "Not supported language type"
+		} else {
+			m.language = core.LanguageType(parts[1])
+		}
+	case "/new-page":
 		id, _ := uuid.NewV4()
 		m.sessionID = id.String()
 		m.messages = []messageEntry{}
@@ -413,6 +423,7 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 	m.input.SetValue("")
 
 	command = command.WithOption("sessionID", m.sessionID)
+	command = command.WithOption("language", string(m.language))
 
 	m.lastError = ""
 
@@ -442,7 +453,7 @@ func (m UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea
 
 	diag := command.Run(m.app)
 	if diag != nil {
-		m.lastError = diag.Message
+		m.lastError = m.app.Render(diag.Code, m.language)
 		return &m, nil
 	}
 
