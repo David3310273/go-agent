@@ -168,6 +168,80 @@ func (m *MilvusStorage) Search(ctx context.Context, req SearchRequest) ([]map[st
 	return results, nil
 }
 
+// QueryRequest holds all parameters for a query-by-filter operation.
+type QueryRequest struct {
+	MilvusOptions
+	Filter         string
+	OutputFields   []string
+	GroupFields    []string
+	PartitionNames []string
+	Limit          int
+	Offset         int
+}
+
+// Query queries entities from the specified collection by filter.
+// returns raw query results as []map[string]any.
+func (m *MilvusStorage) Query(ctx context.Context, req QueryRequest) ([]map[string]any, *core.Diagnostic) {
+	if m.Client == nil {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "milvus client not initialized",
+		}
+	}
+
+	if req.Collection == "" {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "collectionName is required for query",
+		}
+	}
+	if req.DBName == "" {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "dbName is required for query",
+		}
+	}
+
+	outputFields := req.OutputFields
+	if len(outputFields) == 0 {
+		outputFields = []string{"*"}
+	}
+
+	httpReq := MilvusQueryRequest{
+		DBName:         req.DBName,
+		CollectionName: req.Collection,
+		Filter:         req.Filter,
+		OutputFields:   outputFields,
+		GroupFields:    req.GroupFields,
+		PartitionNames: req.PartitionNames,
+		Limit:          req.Limit,
+		Offset:         req.Offset,
+	}
+
+	resp, err := m.Client.Query(ctx, httpReq)
+	if err != nil {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "failed to query: " + err.Error(),
+		}
+	}
+
+	var results []map[string]any
+	if err := json.Unmarshal(resp.Data, &results); err != nil {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeStorageError,
+			Message: "failed to parse query results: " + err.Error(),
+		}
+	}
+
+	return results, nil
+}
+
 // Delete deletes entities from the specified collection.
 func (m *MilvusStorage) Delete(ctx context.Context, opts MilvusOptions, filter string) *core.Diagnostic {
 	if m.Client == nil {
@@ -332,6 +406,18 @@ type SearchParams struct {
 	Params     map[string]any `json:"params,omitempty"`
 }
 
+// MilvusQueryRequest is the request body for query operation.
+type MilvusQueryRequest struct {
+	DBName         string   `json:"dbName,omitempty"`
+	CollectionName string   `json:"collectionName"`
+	Filter         string   `json:"filter,omitempty"`
+	OutputFields   []string `json:"outputFields,omitempty"`
+	GroupFields    []string `json:"groupByFields,omitempty"`
+	PartitionNames []string `json:"partitionNames,omitempty"`
+	Limit          int      `json:"limit,omitempty"`
+	Offset         int      `json:"offset,omitempty"`
+}
+
 // Search searches for vectors in a collection.
 // returns raw Milvus response, caller parses data with their entity type.
 func (c *MilvusClient) Search(ctx context.Context, req MilvusSearchRequest) (*MilvusResponse, error) {
@@ -345,6 +431,26 @@ func (c *MilvusClient) Search(ctx context.Context, req MilvusSearchRequest) (*Mi
 	}
 
 	respBody, err := c.doRequest(ctx, http.MethodPost, "/v2/vectordb/entities/search", req)
+	if err != nil {
+		return nil, err
+	}
+
+	var milvusResp MilvusResponse
+	if err := json.Unmarshal(respBody, &milvusResp); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	if milvusResp.Code != 0 {
+		return nil, fmt.Errorf("milvus error %d: %s", milvusResp.Code, milvusResp.Message)
+	}
+
+	return &milvusResp, nil
+}
+
+// Query queries entities from a collection by filter.
+// returns raw Milvus response, caller parses data.
+func (c *MilvusClient) Query(ctx context.Context, req MilvusQueryRequest) (*MilvusResponse, error) {
+	respBody, err := c.doRequest(ctx, http.MethodPost, "/v2/vectordb/entities/query", req)
 	if err != nil {
 		return nil, err
 	}

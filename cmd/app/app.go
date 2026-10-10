@@ -125,7 +125,8 @@ func (a *SimpleCommandApp) CheckUserPlan(userInfo any, plan core.Plan) *core.Dia
 // I18n interface implementation
 
 func (a *SimpleCommandApp) Translate(key core.MessageCode, targetLanguage core.LanguageType) string {
-	i18nPath := path.Join(a.Config.I18nConfig.FilePath, fmt.Sprintf("%s.ini", string(targetLanguage)))
+	i18nPath := path.Join(a.Config.RootPath, a.Config.I18nConfig.FilePath, fmt.Sprintf("%s.ini", string(targetLanguage)))
+	core.LogStd(core.LogLevelDebug, "i18nPath: %s", i18nPath)
 	cfg, err := ini.Load(i18nPath)
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "failed to load i18n file: %s", i18nPath)

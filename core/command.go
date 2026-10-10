@@ -2,7 +2,7 @@ package core
 
 // output channel descriptor for UI to listen on
 type OutputChannel struct {
-	Chan chan Answer
+	Chan any
 	Type string // "response", "hint", or any custom type
 }
 
@@ -26,7 +26,7 @@ type CommandParser interface {
 
 type CommandAppConfig struct {
 	AppConfig
-	I18nConfig
+	I18nConfig `json:"i18n"`
 }
 
 // command app for agent

@@ -10,7 +10,7 @@ type Diagnostic struct {
 	Code    MessageCode `json:"code"`
 	Level   Severity    `json:"level"`
 	Message string      `json:"message"`
-	Data    string      `json:"data"`
+	Data    any         `json:"data"`
 }
 
 func (d Diagnostic) ToString() string {
