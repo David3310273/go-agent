@@ -187,14 +187,14 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 
 	responseWaitingTimeout := time.Duration(appConfig.MaxWaitingSeconds) * time.Second
 	if req.Stream {
-		handleStreamResponse(c, agent, result, responseWaitingTimeout)
+		handleStreamResponse(c, result, responseWaitingTimeout)
 	} else {
 		handleNonStreamResponse(c, result, responseWaitingTimeout)
 	}
 }
 
 // handleStreamResponse handles SSE streaming response
-func handleStreamResponse(c *gin.Context, agent *simple.SimpleAgent, result *services.AskResult, timeout time.Duration) {
+func handleStreamResponse(c *gin.Context, result *services.AskResult, timeout time.Duration) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
 	c.Header("Connection", "keep-alive")

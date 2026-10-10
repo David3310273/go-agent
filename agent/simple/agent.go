@@ -25,11 +25,11 @@ const (
 
 // creates all registered providers from the core providerregistry
 // rootPath parameter for resolving provider config file paths
-func CreateProviders(rootPath string, agentConfig core.AgentConfig) []core.Provider {
+func CreateProviders(rootPath string, providerNames []string) []core.Provider {
 	providers := []core.Provider{}
-	for _, agentProviderName := range agentConfig.QuestionProvider {
+	for _, providerName := range providerNames {
 		for name, factory := range core.GetProviderFactories() {
-			if name != agentProviderName {
+			if name != providerName {
 				continue
 			}
 			provider, err := factory(rootPath)
@@ -146,6 +146,11 @@ func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
 		cancel: cancel,
 	}
 
+	diag := agent.SetID()
+	if diag != nil {
+		return nil, diag
+	}
+
 	return agent, nil
 }
 
@@ -187,6 +192,10 @@ func (a *SimpleAgent) GetRootPath() string {
 
 func (a *SimpleAgent) LoadConfigs() core.AgentCoreConfig {
 	return a.Configs
+}
+
+func (a *SimpleAgent) GetQuestionChan() chan core.Question {
+	return a.Question
 }
 
 // EventManager
@@ -236,7 +245,7 @@ func (a *SimpleAgent) GetEventChans() map[string]chan core.Event[any] {
 
 // WorkFlow
 
-func (a *SimpleAgent) BeforeStart(config core.AgentCoreConfig) []core.Diagnostic {
+func (a *SimpleAgent) BeforeStart() []core.Diagnostic {
 	// 1. register event handlers
 	a.RegisterEventChans()
 	go a.OnEvent()
@@ -246,9 +255,11 @@ func (a *SimpleAgent) BeforeStart(config core.AgentCoreConfig) []core.Diagnostic
 	return diagnostics
 }
 
-func (a *SimpleAgent) Start(config core.AgentCoreConfig) []core.Diagnostic {
+func (a *SimpleAgent) Start() []core.Diagnostic {
 	// get input from question, listen session output outside
-	core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "agent started: id=%s", a.GetID())
+	relativePath := fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))
+	core.LogInfo(utils.ResolvePath(a.RootPath, relativePath), "agent started: id=%s", a.GetID())
+	core.LogStd(core.LogLevelDebug, "agent Start() method entered, waiting for questions on channel, agentID=%s", a.GetID())
 	// emit start event for benchmark
 	core.Emit(a, core.CommonEvent[AgentEventTimeData]{
 		SourceType: core.AgentEventStart,
@@ -261,13 +272,16 @@ func (a *SimpleAgent) Start(config core.AgentCoreConfig) []core.Diagnostic {
 	for {
 		select {
 		case query := <-a.Question:
+			core.LogStd(core.LogLevelDebug, "agent received question: sessionID=%s, query=%s", query.GetSessionID(), query.GetQuery())
 			sessionID := query.GetSessionID()
 			// organize session
 			session, err := a.GetSessionOnCreate(sessionID, true)
 			if err != nil {
 				// send error to question's response channel when session creation fails
+				core.LogStd(core.LogLevelError, "failed to create session: %s", err.Message)
 				query.GetResponseChan() <- err
 			} else {
+				core.LogStd(core.LogLevelDebug, "session created/found, forwarding question to session: sessionID=%s", session.GetID())
 				session.GetQuestionChan() <- query
 			}
 
@@ -282,10 +296,10 @@ func (a *SimpleAgent) Start(config core.AgentCoreConfig) []core.Diagnostic {
 	}
 }
 
-func (a *SimpleAgent) BeforeStop(config core.AgentCoreConfig) []core.Diagnostic {
+func (a *SimpleAgent) BeforeStop() []core.Diagnostic {
 	// close active sessions
 	for _, session := range a.sessions {
-		if err := core.StopSession(session, config); len(err) > 0 {
+		if err := core.StopSession(session); len(err) > 0 {
 			core.Emit(a, core.CommonEvent[AgentEventData]{
 				SourceType: core.SessionEventStop,
 				Data: AgentEventData{
@@ -297,7 +311,7 @@ func (a *SimpleAgent) BeforeStop(config core.AgentCoreConfig) []core.Diagnostic 
 	return nil
 }
 
-func (a *SimpleAgent) Stop(config core.AgentCoreConfig) []core.Diagnostic {
+func (a *SimpleAgent) Stop() []core.Diagnostic {
 	// cancel goroutine
 	a.cancel()
 
@@ -344,7 +358,7 @@ func (a *SimpleAgent) StopSession(sessionID string) *core.Diagnostic {
 	if !ok {
 		return nil
 	} else {
-		if err := core.StopSession(session, a.Configs); len(err) > 0 {
+		if err := core.StopSession(session); len(err) > 0 {
 			return &core.Diagnostic{
 				Level:   core.SeverityError,
 				Code:    core.MessageCodeSessionStopError,
@@ -403,10 +417,10 @@ func (a *SimpleAgent) RecoverConversation(sessionID string) *core.Conversation {
 // get session, if not exist and forceCreate is true, create a new one
 func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (core.Session, *core.Diagnostic) {
 	if session, ok := a.sessions[sessionID]; ok {
-		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "session found, reusing: session=%s", sessionID)
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "session found, reusing: session=%s", sessionID)
 		return session, nil
 	} else if forceCreate {
-		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID())), "session not found, creating: session=%s", sessionID)
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "session not found, creating: session=%s", sessionID)
 
 		memories := a.RecoverConversation(sessionID)
 		session := NewAgentSession(a, sessionID, memories)
@@ -416,7 +430,7 @@ func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (co
 			defer a.Release()
 			a.sessions[session.GetID()] = session
 			// start session after registered in agent
-			go core.StartSession(session, a.Configs)
+			go core.StartSession(session)
 
 			return session, nil
 		}

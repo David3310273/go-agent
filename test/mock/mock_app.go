@@ -40,80 +40,6 @@ func (m *MockServiceProvider) EXPECT() *MockServiceProviderMockRecorder {
 	return m.recorder
 }
 
-// MockUI is a mock of UI interface.
-type MockUI struct {
-	ctrl     *gomock.Controller
-	recorder *MockUIMockRecorder
-	isgomock struct{}
-}
-
-// MockUIMockRecorder is the mock recorder for MockUI.
-type MockUIMockRecorder struct {
-	mock *MockUI
-}
-
-// NewMockUI creates a new mock instance.
-func NewMockUI(ctrl *gomock.Controller) *MockUI {
-	mock := &MockUI{ctrl: ctrl}
-	mock.recorder = &MockUIMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUI) EXPECT() *MockUIMockRecorder {
-	return m.recorder
-}
-
-// GetUserInput mocks base method.
-func (m *MockUI) GetUserInput() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserInput")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// GetUserInput indicates an expected call of GetUserInput.
-func (mr *MockUIMockRecorder) GetUserInput() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserInput", reflect.TypeOf((*MockUI)(nil).GetUserInput))
-}
-
-// Render mocks base method.
-func (m *MockUI) Render(arg0 string) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Render", arg0)
-}
-
-// Render indicates an expected call of Render.
-func (mr *MockUIMockRecorder) Render(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Render", reflect.TypeOf((*MockUI)(nil).Render), arg0)
-}
-
-// RenderSystemMessage mocks base method.
-func (m *MockUI) RenderSystemMessage(arg0 []core.Diagnostic) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RenderSystemMessage", arg0)
-}
-
-// RenderSystemMessage indicates an expected call of RenderSystemMessage.
-func (mr *MockUIMockRecorder) RenderSystemMessage(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenderSystemMessage", reflect.TypeOf((*MockUI)(nil).RenderSystemMessage), arg0)
-}
-
-// Welcome mocks base method.
-func (m *MockUI) Welcome() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Welcome")
-}
-
-// Welcome indicates an expected call of Welcome.
-func (mr *MockUIMockRecorder) Welcome() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Welcome", reflect.TypeOf((*MockUI)(nil).Welcome))
-}
-
 // MockSingalManager is a mock of SingalManager interface.
 type MockSingalManager struct {
 	ctrl     *gomock.Controller
@@ -148,72 +74,6 @@ func (m *MockSingalManager) GracefulQuit() {
 func (mr *MockSingalManagerMockRecorder) GracefulQuit() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GracefulQuit", reflect.TypeOf((*MockSingalManager)(nil).GracefulQuit))
-}
-
-// MockUserManager is a mock of UserManager interface.
-type MockUserManager struct {
-	ctrl     *gomock.Controller
-	recorder *MockUserManagerMockRecorder
-	isgomock struct{}
-}
-
-// MockUserManagerMockRecorder is the mock recorder for MockUserManager.
-type MockUserManagerMockRecorder struct {
-	mock *MockUserManager
-}
-
-// NewMockUserManager creates a new mock instance.
-func NewMockUserManager(ctrl *gomock.Controller) *MockUserManager {
-	mock := &MockUserManager{ctrl: ctrl}
-	mock.recorder = &MockUserManagerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockUserManager) EXPECT() *MockUserManagerMockRecorder {
-	return m.recorder
-}
-
-// AuthUser mocks base method.
-func (m *MockUserManager) AuthUser(token string) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AuthUser", token)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// AuthUser indicates an expected call of AuthUser.
-func (mr *MockUserManagerMockRecorder) AuthUser(token any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthUser", reflect.TypeOf((*MockUserManager)(nil).AuthUser), token)
-}
-
-// CheckUserPlan mocks base method.
-func (m *MockUserManager) CheckUserPlan(arg0 core.AgentConfig) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckUserPlan", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// CheckUserPlan indicates an expected call of CheckUserPlan.
-func (mr *MockUserManagerMockRecorder) CheckUserPlan(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckUserPlan", reflect.TypeOf((*MockUserManager)(nil).CheckUserPlan), arg0)
-}
-
-// SetModelProviders mocks base method.
-func (m *MockUserManager) SetModelProviders(modelConfigs []core.ModelConfig, appConfig core.AppConfig) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetModelProviders", modelConfigs, appConfig)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// SetModelProviders indicates an expected call of SetModelProviders.
-func (mr *MockUserManagerMockRecorder) SetModelProviders(modelConfigs, appConfig any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetModelProviders", reflect.TypeOf((*MockUserManager)(nil).SetModelProviders), modelConfigs, appConfig)
 }
 
 // MockAgentApp is a mock of AgentApp interface.
@@ -255,17 +115,17 @@ func (mr *MockAgentAppMockRecorder) AuthUser(token any) *gomock.Call {
 }
 
 // CheckUserPlan mocks base method.
-func (m *MockAgentApp) CheckUserPlan(arg0 core.AgentConfig) *core.Diagnostic {
+func (m *MockAgentApp) CheckUserPlan(userInfo any, plan core.Plan) *core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CheckUserPlan", arg0)
+	ret := m.ctrl.Call(m, "CheckUserPlan", userInfo, plan)
 	ret0, _ := ret[0].(*core.Diagnostic)
 	return ret0
 }
 
 // CheckUserPlan indicates an expected call of CheckUserPlan.
-func (mr *MockAgentAppMockRecorder) CheckUserPlan(arg0 any) *gomock.Call {
+func (mr *MockAgentAppMockRecorder) CheckUserPlan(userInfo, plan any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckUserPlan", reflect.TypeOf((*MockAgentApp)(nil).CheckUserPlan), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckUserPlan", reflect.TypeOf((*MockAgentApp)(nil).CheckUserPlan), userInfo, plan)
 }
 
 // GetAgentCore mocks base method.
@@ -296,18 +156,19 @@ func (mr *MockAgentAppMockRecorder) GetAppConfig() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAppConfig", reflect.TypeOf((*MockAgentApp)(nil).GetAppConfig))
 }
 
-// GetUserInput mocks base method.
-func (m *MockAgentApp) GetUserInput() string {
+// GetUserPlan mocks base method.
+func (m *MockAgentApp) GetUserPlan(userID string) (core.Plan, *core.Diagnostic) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserInput")
-	ret0, _ := ret[0].(string)
-	return ret0
+	ret := m.ctrl.Call(m, "GetUserPlan", userID)
+	ret0, _ := ret[0].(core.Plan)
+	ret1, _ := ret[1].(*core.Diagnostic)
+	return ret0, ret1
 }
 
-// GetUserInput indicates an expected call of GetUserInput.
-func (mr *MockAgentAppMockRecorder) GetUserInput() *gomock.Call {
+// GetUserPlan indicates an expected call of GetUserPlan.
+func (mr *MockAgentAppMockRecorder) GetUserPlan(userID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserInput", reflect.TypeOf((*MockAgentApp)(nil).GetUserInput))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserPlan", reflect.TypeOf((*MockAgentApp)(nil).GetUserPlan), userID)
 }
 
 // GracefulQuit mocks base method.
@@ -323,27 +184,31 @@ func (mr *MockAgentAppMockRecorder) GracefulQuit() *gomock.Call {
 }
 
 // Render mocks base method.
-func (m *MockAgentApp) Render(arg0 string) {
+func (m *MockAgentApp) Render(arg0 core.MessageCode, arg1 core.LanguageType) string {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Render", arg0)
+	ret := m.ctrl.Call(m, "Render", arg0, arg1)
+	ret0, _ := ret[0].(string)
+	return ret0
 }
 
 // Render indicates an expected call of Render.
-func (mr *MockAgentAppMockRecorder) Render(arg0 any) *gomock.Call {
+func (mr *MockAgentAppMockRecorder) Render(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Render", reflect.TypeOf((*MockAgentApp)(nil).Render), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Render", reflect.TypeOf((*MockAgentApp)(nil).Render), arg0, arg1)
 }
 
 // RenderSystemMessage mocks base method.
-func (m *MockAgentApp) RenderSystemMessage(arg0 []core.Diagnostic) {
+func (m *MockAgentApp) RenderSystemMessage(arg0 *core.DiagnosticList, arg1 core.LanguageType) string {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "RenderSystemMessage", arg0)
+	ret := m.ctrl.Call(m, "RenderSystemMessage", arg0, arg1)
+	ret0, _ := ret[0].(string)
+	return ret0
 }
 
 // RenderSystemMessage indicates an expected call of RenderSystemMessage.
-func (mr *MockAgentAppMockRecorder) RenderSystemMessage(arg0 any) *gomock.Call {
+func (mr *MockAgentAppMockRecorder) RenderSystemMessage(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenderSystemMessage", reflect.TypeOf((*MockAgentApp)(nil).RenderSystemMessage), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenderSystemMessage", reflect.TypeOf((*MockAgentApp)(nil).RenderSystemMessage), arg0, arg1)
 }
 
 // SetAgentCore mocks base method.
@@ -368,34 +233,6 @@ func (m *MockAgentApp) SetAppConfig(arg0 core.AppConfig) {
 func (mr *MockAgentAppMockRecorder) SetAppConfig(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAppConfig", reflect.TypeOf((*MockAgentApp)(nil).SetAppConfig), arg0)
-}
-
-// SetConfig mocks base method.
-func (m *MockAgentApp) SetConfig(config core.I18nConfig) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetConfig", config)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// SetConfig indicates an expected call of SetConfig.
-func (mr *MockAgentAppMockRecorder) SetConfig(config any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetConfig", reflect.TypeOf((*MockAgentApp)(nil).SetConfig), config)
-}
-
-// SetModelProviders mocks base method.
-func (m *MockAgentApp) SetModelProviders(modelConfigs []core.ModelConfig, appConfig core.AppConfig) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetModelProviders", modelConfigs, appConfig)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// SetModelProviders indicates an expected call of SetModelProviders.
-func (mr *MockAgentAppMockRecorder) SetModelProviders(modelConfigs, appConfig any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetModelProviders", reflect.TypeOf((*MockAgentApp)(nil).SetModelProviders), modelConfigs, appConfig)
 }
 
 // SetRouter mocks base method.
@@ -435,7 +272,7 @@ func (mr *MockAgentAppMockRecorder) Stop() *gomock.Call {
 }
 
 // Translate mocks base method.
-func (m *MockAgentApp) Translate(key string, targetLanguage core.LanguageType) string {
+func (m *MockAgentApp) Translate(key core.MessageCode, targetLanguage core.LanguageType) string {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Translate", key, targetLanguage)
 	ret0, _ := ret[0].(string)
@@ -449,9 +286,11 @@ func (mr *MockAgentAppMockRecorder) Translate(key, targetLanguage any) *gomock.C
 }
 
 // Welcome mocks base method.
-func (m *MockAgentApp) Welcome() {
+func (m *MockAgentApp) Welcome() string {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Welcome")
+	ret := m.ctrl.Call(m, "Welcome")
+	ret0, _ := ret[0].(string)
+	return ret0
 }
 
 // Welcome indicates an expected call of Welcome.

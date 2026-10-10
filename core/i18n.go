@@ -3,8 +3,8 @@ package core
 type LanguageType string
 
 const (
-	Language_EN = "English"
-	Language_ZH = "Chinese"
+	Language_EN = "en_US"
+	Language_ZH = "zh_CN"
 )
 
 type I18nConfig struct {
@@ -14,6 +14,5 @@ type I18nConfig struct {
 
 // interface for UI message translate
 type I18n interface {
-	Translate(key string, targetLanguage LanguageType) string
-	SetConfig(config I18nConfig) *Diagnostic
+	Translate(key MessageCode, targetLanguage LanguageType) string
 }

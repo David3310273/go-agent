@@ -57,71 +57,72 @@ func TestMockAgentServer(t *testing.T) {
 }
 
 // =============================================================================
-// UserManager interface tests
+// UserManager interface tests (via MockAgentApp)
 // =============================================================================
 
-func TestMockUserManager_AuthUser(t *testing.T) {
+func TestMockAgentApp_AuthUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserMgr := testmock.NewMockUserManager(ctrl)
-	mockUserMgr.EXPECT().AuthUser("valid-token").Return(nil)
+	mockApp := testmock.NewMockAgentApp(ctrl)
+	mockApp.EXPECT().AuthUser("valid-token").Return(nil)
 
-	err := mockUserMgr.AuthUser("valid-token")
+	err := mockApp.AuthUser("valid-token")
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}
 }
 
-func TestMockUserManager_AuthUser_Error(t *testing.T) {
+func TestMockAgentApp_AuthUser_Error(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserMgr := testmock.NewMockUserManager(ctrl)
+	mockApp := testmock.NewMockAgentApp(ctrl)
 	expectedErr := &core.Diagnostic{
 		Level:   core.SeverityError,
 		Code:    core.MessageCodeProviderAuthError,
 		Message: "invalid token",
 	}
 
-	mockUserMgr.EXPECT().AuthUser("invalid-token").Return(expectedErr)
+	mockApp.EXPECT().AuthUser("invalid-token").Return(expectedErr)
 
-	err := mockUserMgr.AuthUser("invalid-token")
+	err := mockApp.AuthUser("invalid-token")
 	if err == nil {
 		t.Error("expected error, got nil")
 	}
 }
 
-func TestMockUserManager_CheckUserPlan(t *testing.T) {
+func TestMockAgentApp_CheckUserPlan(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserMgr := testmock.NewMockUserManager(ctrl)
-	agentConfig := core.AgentConfig{Version: "1.0.0"}
+	mockApp := testmock.NewMockAgentApp(ctrl)
+	userInfo := "user-123"
+	plan := core.Plan{Name: core.PlanClassic}
 
-	mockUserMgr.EXPECT().CheckUserPlan(agentConfig).Return(nil)
+	mockApp.EXPECT().CheckUserPlan(userInfo, plan).Return(nil)
 
-	err := mockUserMgr.CheckUserPlan(agentConfig)
+	err := mockApp.CheckUserPlan(userInfo, plan)
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}
 }
 
-func TestMockUserManager_SetModelProviders(t *testing.T) {
+func TestMockAgentApp_GetUserPlan(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockUserMgr := testmock.NewMockUserManager(ctrl)
-	modelConfigs := []core.ModelConfig{
-		{Name: "qwen", BaseUrl: "https://api.qwen.com"},
-	}
-	appConfig := core.AppConfig{Language: core.Language_EN}
+	mockApp := testmock.NewMockAgentApp(ctrl)
+	expectedPlan := core.Plan{Name: core.PlanEnterprise}
 
-	mockUserMgr.EXPECT().SetModelProviders(modelConfigs, appConfig).Return(nil)
+	mockApp.EXPECT().GetUserPlan("user-123").Return(expectedPlan, nil)
 
-	err := mockUserMgr.SetModelProviders(modelConfigs, appConfig)
+	plan, err := mockApp.GetUserPlan("user-123")
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
+	}
+	if plan.Name != core.PlanEnterprise {
+		t.Errorf("expected plan name 'PlanEnterprise', got %v", plan.Name)
 	}
 }
 
@@ -134,9 +135,12 @@ func TestMockAgentApp_Render(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockApp := testmock.NewMockAgentApp(ctrl)
-	mockApp.EXPECT().Render("Welcome to Agent App")
+	mockApp.EXPECT().Render(core.MessageCodeSuccess, gomock.Eq(core.LanguageType(core.Language_EN))).Return("Success")
 
-	mockApp.Render("Welcome to Agent App")
+	result := mockApp.Render(core.MessageCodeSuccess, core.Language_EN)
+	if result != "Success" {
+		t.Errorf("expected 'Success', got %s", result)
+	}
 }
 
 func TestMockAgentApp_Translate(t *testing.T) {
@@ -144,10 +148,23 @@ func TestMockAgentApp_Translate(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockApp := testmock.NewMockAgentApp(ctrl)
-	mockApp.EXPECT().Translate("hello", gomock.Eq(core.LanguageType("Chinese"))).Return("你好")
+	mockApp.EXPECT().Translate(core.MessageCodeSuccess, gomock.Eq(core.LanguageType(core.Language_ZH))).Return("成功")
 
-	result := mockApp.Translate("hello", core.LanguageType("Chinese"))
-	if result != "你好" {
-		t.Errorf("expected '你好', got %s", result)
+	result := mockApp.Translate(core.MessageCodeSuccess, core.Language_ZH)
+	if result != "成功" {
+		t.Errorf("expected '成功', got %s", result)
+	}
+}
+
+func TestMockAgentApp_Welcome(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockApp := testmock.NewMockAgentApp(ctrl)
+	mockApp.EXPECT().Welcome().Return("Welcome!")
+
+	result := mockApp.Welcome()
+	if result != "Welcome!" {
+		t.Errorf("expected 'Welcome!', got %s", result)
 	}
 }

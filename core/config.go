@@ -1,7 +1,5 @@
 package core
 
-import "time"
-
 type Model int
 
 const (
@@ -25,18 +23,6 @@ const (
 	PlanClassic
 	PlanEnterprise
 )
-
-type Plan struct {
-	Name    PlanType `json:"name"`
-	MaxUser int      `json:"maxUser"`
-	// the max round of one conversation
-	SessionMaxRounds int `json:"sessionMaxRounds"`
-	SubSessionLimit  int `json:"subSessionLimit"`
-	// start date
-	StartUseDate time.Time `json:"startDate"`
-	// expiry date
-	ExpiryDate time.Time `json:"expiryDate"`
-}
 
 type AppConfig struct {
 	//  project root path, used as base path for all runtime file operations

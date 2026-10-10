@@ -86,14 +86,14 @@ type Configurable interface {
 
 type WorkFlow interface {
 	// before start
-	BeforeStart(AgentCoreConfig) []Diagnostic
+	BeforeStart() []Diagnostic
 	// start the agent
-	Start(AgentCoreConfig) []Diagnostic
+	Start() []Diagnostic
 
 	// before stop
-	BeforeStop(AgentCoreConfig) []Diagnostic
+	BeforeStop() []Diagnostic
 	// stop the agent
-	Stop(AgentCoreConfig) []Diagnostic
+	Stop() []Diagnostic
 }
 
 // CRUD for sessions map of agent
@@ -126,6 +126,8 @@ type AgentCore interface {
 	LoadConfigs() AgentCoreConfig
 	// get root path
 	GetRootPath() string
+	// get question chan
+	GetQuestionChan() chan Question
 }
 
 type AgentStatus int
@@ -196,13 +198,13 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 		diagnostics = append(diagnostics, contextDiagnostics...)
 	}
 
-	beforeStartDiagnostics := agent.BeforeStart(agentConfigs)
+	beforeStartDiagnostics := agent.BeforeStart()
 	if len(beforeStartDiagnostics) > 0 {
 		diagnostics = append(diagnostics, beforeStartDiagnostics...)
 		return diagnostics
 	}
 
-	startDiagnostics := agent.Start(agentConfigs)
+	startDiagnostics := agent.Start()
 	if len(startDiagnostics) > 0 {
 		diagnostics = append(diagnostics, startDiagnostics...)
 		return diagnostics
@@ -214,15 +216,14 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 func StopAgentCore(agent AgentCore) []Diagnostic {
 	// load all configs
 	diagnostics := []Diagnostic{}
-	agentConfigs := agent.LoadConfigs()
 
-	beforeStopDiagnostics := agent.BeforeStop(agentConfigs)
+	beforeStopDiagnostics := agent.BeforeStop()
 	if len(beforeStopDiagnostics) > 0 {
 		diagnostics = append(diagnostics, beforeStopDiagnostics...)
 		return diagnostics
 	}
 
-	stopDiagnostics := agent.Stop(agentConfigs)
+	stopDiagnostics := agent.Stop()
 	if len(stopDiagnostics) > 0 {
 		diagnostics = append(diagnostics, stopDiagnostics...)
 		return diagnostics
@@ -588,7 +589,8 @@ func AskQuestion(session Session, messages []ReActMessage, tools []Tool, questio
 	// use the first provider that has the model from request
 	for _, provider := range providers {
 		models := provider.GetModelConfig().Models
-		if slices.Contains(models, modelName) {
+		// if modelName is empty, use the first provider
+		if modelName == "" || slices.Contains(models, modelName) {
 			modelProvider = provider
 			break
 		}
@@ -841,20 +843,27 @@ func AskQuestionStream(session Session, messages []ReActMessage, tools []Tool, q
 	// use the first provider that has the model from request
 	for _, provider := range providers {
 		models := provider.GetModelConfig().Models
-		if slices.Contains(models, modelName) {
+		// if modelName is empty, use the first provider
+		if modelName == "" || slices.Contains(models, modelName) {
 			modelProvider = provider
 			break
 		}
 	}
 
 	if modelProvider == nil {
+		LogStd(LogLevelError, "[session=%s] AskQuestionStream: no provider found for model=%s", session.GetID(), modelName)
 		return acc, diagnostics
 	}
 
+	LogStd(LogLevelDebug, "[session=%s] AskQuestionStream: found provider=%s, calling CompleteStream", session.GetID(), modelProvider.GetName())
+
 	streamChan, errs := modelProvider.CompleteStream(messages, tools, modelName)
 	if len(errs) > 0 {
+		LogStd(LogLevelError, "[session=%s] AskQuestionStream: errors from CompleteStream: %v", session.GetID(), errs)
 		diagnostics = append(diagnostics, errs...)
 	}
+
+	LogStd(LogLevelDebug, "[session=%s] AskQuestionStream: streamChan created, waiting for chunks", session.GetID())
 
 	// collect chunk for reAct process check
 	for answer := range streamChan {

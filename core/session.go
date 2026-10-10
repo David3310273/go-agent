@@ -87,13 +87,13 @@ type SessionAnswer interface {
 }
 
 // main func for start and stop session
-func StartSession(session Session, config AgentCoreConfig) []Diagnostic {
-	diagnostics := session.BeforeStart(config)
+func StartSession(session Session) []Diagnostic {
+	diagnostics := session.BeforeStart()
 	if len(diagnostics) > 0 {
 		return diagnostics
 	}
 
-	diagnostics = session.Start(config)
+	diagnostics = session.Start()
 	if len(diagnostics) > 0 {
 		return diagnostics
 	}
@@ -101,13 +101,13 @@ func StartSession(session Session, config AgentCoreConfig) []Diagnostic {
 	return diagnostics
 }
 
-func StopSession(session Session, config AgentCoreConfig) []Diagnostic {
-	diagnostics := session.BeforeStop(config)
+func StopSession(session Session) []Diagnostic {
+	diagnostics := session.BeforeStop()
 	if len(diagnostics) > 0 {
 		return diagnostics
 	}
 
-	diagnostics = session.Stop(config)
+	diagnostics = session.Stop()
 	if len(diagnostics) > 0 {
 		return diagnostics
 	}

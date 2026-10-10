@@ -56,31 +56,31 @@ func (mr *MockSessionMockRecorder) Acquire() *gomock.Call {
 }
 
 // BeforeStart mocks base method.
-func (m *MockSession) BeforeStart(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockSession) BeforeStart() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeforeStart", arg0)
+	ret := m.ctrl.Call(m, "BeforeStart")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // BeforeStart indicates an expected call of BeforeStart.
-func (mr *MockSessionMockRecorder) BeforeStart(arg0 any) *gomock.Call {
+func (mr *MockSessionMockRecorder) BeforeStart() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStart", reflect.TypeOf((*MockSession)(nil).BeforeStart), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStart", reflect.TypeOf((*MockSession)(nil).BeforeStart))
 }
 
 // BeforeStop mocks base method.
-func (m *MockSession) BeforeStop(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockSession) BeforeStop() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeforeStop", arg0)
+	ret := m.ctrl.Call(m, "BeforeStop")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // BeforeStop indicates an expected call of BeforeStop.
-func (mr *MockSessionMockRecorder) BeforeStop(arg0 any) *gomock.Call {
+func (mr *MockSessionMockRecorder) BeforeStop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockSession)(nil).BeforeStop), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockSession)(nil).BeforeStop))
 }
 
 // CancelQuery mocks base method.
@@ -454,31 +454,31 @@ func (mr *MockSessionMockRecorder) SetToolConfirmed(toolCallID, answer any) *gom
 }
 
 // Start mocks base method.
-func (m *MockSession) Start(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockSession) Start() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start", arg0)
+	ret := m.ctrl.Call(m, "Start")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // Start indicates an expected call of Start.
-func (mr *MockSessionMockRecorder) Start(arg0 any) *gomock.Call {
+func (mr *MockSessionMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSession)(nil).Start), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockSession)(nil).Start))
 }
 
 // Stop mocks base method.
-func (m *MockSession) Stop(arg0 core.AgentCoreConfig) []core.Diagnostic {
+func (m *MockSession) Stop() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Stop", arg0)
+	ret := m.ctrl.Call(m, "Stop")
 	ret0, _ := ret[0].([]core.Diagnostic)
 	return ret0
 }
 
 // Stop indicates an expected call of Stop.
-func (mr *MockSessionMockRecorder) Stop(arg0 any) *gomock.Call {
+func (mr *MockSessionMockRecorder) Stop() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSession)(nil).Stop), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockSession)(nil).Stop))
 }
 
 // MockToolConfirmManager is a mock of ToolConfirmManager interface.

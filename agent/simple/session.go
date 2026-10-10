@@ -198,9 +198,9 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 	// Uses the session channel lock, the same one SetQueryContext takes. Skipped when the
 	// parent is already stopping, since a sub-session registered after Stop is never shut down.
 	if s.ctx.Err() != nil {
-		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] parent is stopping, sub-session=%s not registered", s.ID, session.ID)
+		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] parent is stopping, sub-session=%s not registered", s.ID, session.ID)
 	} else if diag := s.Acquire(); diag != nil {
-		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] lock timeout, sub-session not registered: %s", session.ID, diag.Message)
+		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] lock timeout, sub-session not registered: %s", session.ID, diag.Message)
 	} else {
 		s.SubSessions = append(s.SubSessions, session)
 		s.Release()
@@ -340,7 +340,7 @@ func (s *SimpleAgentSession) DeleteMemory() {
 	filename := fmt.Sprintf(filePath, s.GetID())
 	if err := os.Remove(filename); err != nil {
 		// ignore error
-		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] delete memory file failed: file=%s, error=%v", s.GetID(), filename, err)
+		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] delete memory file failed: file=%s, error=%v", s.GetID(), filename, err)
 	}
 }
 
@@ -483,7 +483,7 @@ func (s *SimpleAgentSession) RunQuery(query core.Question) (core.Answer, []core.
 // ProcessQuery handles a user question with full channel support, streaming, and events.
 // Wraps RunQuery for user-facing scenarios.
 func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
-	core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] question received: query_len=%d, streaming=%v, enable_thinking=%v",
+	core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] question received: query_len=%d, streaming=%v, enable_thinking=%v",
 		s.GetID(), len(query.GetQuery()), query.GetStreaming(), query.GetEnableThinking())
 
 	// emit start event for benchmark
@@ -506,7 +506,7 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	}
 
 	if len(diagnostics) > 0 {
-		core.LogError(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] process question failed: diagnostics=%v", s.GetID(), diagnostics)
+		core.LogError(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] process question failed: diagnostics=%v", s.GetID(), diagnostics)
 	} else {
 		answer, ok := response.(core.AgentResponse)
 		if ok {
@@ -515,18 +515,23 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	}
 
 	// always send finalAnswer to responseChan so streaming handler can extract sessionID and usage
-	select {
-	case query.GetResponseChan() <- finalAnswer:
-		// finished process question
-		core.Emit(s, core.CommonEvent[SessionEventTimeData]{
-			SourceType: core.SessionFinishQuestion,
-			Data: SessionEventTimeData{
-				SnapshotTime: time.Now(),
-				SessionID:    s.GetID(),
-			},
-		})
-	default:
-	}
+	// use goroutine to avoid deadlock when channel is full
+	go func() {
+		select {
+		case query.GetResponseChan() <- finalAnswer:
+			// finished process question
+			core.Emit(s, core.CommonEvent[SessionEventTimeData]{
+				SourceType: core.SessionFinishQuestion,
+				Data: SessionEventTimeData{
+					SnapshotTime: time.Now(),
+					SessionID:    s.GetID(),
+				},
+			})
+		case <-time.After(30 * time.Second):
+			// timeout to avoid deadlock
+			core.LogStd(core.LogLevelWarn, "[session=%s] send finalAnswer timeout", s.GetID())
+		}
+	}()
 }
 
 // lock manager methods
@@ -561,10 +566,10 @@ func (s *SimpleAgentSession) OnEvent() {
 		case <-s.eventChans[core.SessionEventStart]:
 			// handle session start event
 			s.startTime = time.Now()
-			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] started", s.GetID())
+			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] started", s.GetID())
 		case <-s.eventChans[core.SessionEventStop]:
 			// handle session stop event
-			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] stopped", s.GetID())
+			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] stopped", s.GetID())
 		case e := <-s.eventChans[core.SessionHistory]:
 			// handle session answer generated event
 			history, ok := e.GetData().(core.ReActMessage)
@@ -582,10 +587,10 @@ func (s *SimpleAgentSession) OnEvent() {
 		case <-s.eventChans[core.SessionStartProcessQuestion]:
 			// handle session start process question event
 			s.startProcessTime = time.Now()
-			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] processing question started at: %s", s.GetID(), s.startProcessTime.Format(time.RFC3339))
+			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] processing question started at: %s", s.GetID(), s.startProcessTime.Format(time.RFC3339))
 		case <-s.eventChans[core.SessionFinishQuestion]:
 			// handle session finish question event
-			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] processing question finished at: %s", s.GetID(), time.Now().Format(time.RFC3339))
+			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] processing question finished at: %s", s.GetID(), time.Now().Format(time.RFC3339))
 		}
 	}
 }
@@ -621,12 +626,12 @@ func (a *SimpleAgentSession) CloseBenchmarkListeningChannels() {
 // WorkFlow methods
 // =============================================================================
 
-func (s *SimpleAgentSession) BeforeStart(config core.AgentCoreConfig) []core.Diagnostic {
+func (s *SimpleAgentSession) BeforeStart() []core.Diagnostic {
 	return nil
 }
 
-func (s *SimpleAgentSession) Start(config core.AgentCoreConfig) []core.Diagnostic {
-	core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] listening for questions", s.GetID())
+func (s *SimpleAgentSession) Start() []core.Diagnostic {
+	core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] listening for questions", s.GetID())
 
 	core.Emit(s, core.CommonEvent[SessionEventTimeData]{
 		SourceType: core.SessionEventStart,
@@ -642,10 +647,10 @@ func (s *SimpleAgentSession) Start(config core.AgentCoreConfig) []core.Diagnosti
 		// check if channel is closed to avoid goroutine leak when ctrl+c
 		case request, ok := <-s.Question:
 			if !ok {
-				core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] question channel closed, exiting", s.GetID())
+				core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] question channel closed, exiting", s.GetID())
 				return nil
 			}
-			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] received query, dispatching", s.GetID())
+			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] received query, dispatching", s.GetID())
 			s.ProcessQuery(request)
 		case <-s.ctx.Done():
 			return []core.Diagnostic{
@@ -659,7 +664,7 @@ func (s *SimpleAgentSession) Start(config core.AgentCoreConfig) []core.Diagnosti
 	}
 }
 
-func (s *SimpleAgentSession) BeforeStop(config core.AgentCoreConfig) []core.Diagnostic {
+func (s *SimpleAgentSession) BeforeStop() []core.Diagnostic {
 	// process hook
 	return nil
 }
@@ -672,7 +677,7 @@ func (s *SimpleAgentSession) snapshotSubSessions() []*SimpleAgentSession {
 		defer s.Release()
 	} else {
 		// best effort: still stop the sub-sessions we know about instead of leaking them
-		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID())), "[session=%s] lock timeout while snapshotting sub-sessions: %s", s.GetID(), diag.Message)
+		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] lock timeout while snapshotting sub-sessions: %s", s.GetID(), diag.Message)
 	}
 
 	subSessions := make([]*SimpleAgentSession, len(s.SubSessions))
@@ -681,11 +686,11 @@ func (s *SimpleAgentSession) snapshotSubSessions() []*SimpleAgentSession {
 	return subSessions
 }
 
-func (s *SimpleAgentSession) Stop(config core.AgentCoreConfig) []core.Diagnostic {
+func (s *SimpleAgentSession) Stop() []core.Diagnostic {
 	// 1. stop all sub sessions
 	diagnostics := []core.Diagnostic{}
 	for _, subSession := range s.snapshotSubSessions() {
-		if err := core.StopSession(subSession, config); len(err) > 0 {
+		if err := core.StopSession(subSession); len(err) > 0 {
 			diagnostics = append(diagnostics, err...)
 		}
 	}

@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"sync"
+
 	"github.com/fatih/color"
 )
 
@@ -22,6 +24,27 @@ var (
 	warnColor  = color.New(color.FgHiYellow)
 	errorColor = color.New(color.FgHiRed)
 )
+
+// default log path for LogStd (used by CLI to redirect logs to file)
+var (
+	defaultLogPath string
+	logPathMu      sync.RWMutex
+)
+
+// SetDefaultLogPath sets the default log output path for LogStd.
+// This is useful for CLI apps to redirect internal logs to a file
+// without affecting webapp or other consumers.
+func SetDefaultLogPath(path string) {
+	logPathMu.Lock()
+	defer logPathMu.Unlock()
+	defaultLogPath = path
+}
+
+func getDefaultLogPath() string {
+	logPathMu.RLock()
+	defer logPathMu.RUnlock()
+	return defaultLogPath
+}
 
 func logLine(outputPath string, level string, format string, args ...any) {
 	msg := fmt.Sprintf("[%s] %s", level, fmt.Sprintf(format, args...))
@@ -88,16 +111,17 @@ func LogError(outputPath string, format string, args ...any) {
 
 // LogStd is for system log.
 func LogStd(levelTag, format string, args ...any) {
+	outputPath := getDefaultLogPath()
 	switch levelTag {
 	case LogLevelDebug:
-		LogDebug("", format, args...)
+		LogDebug(outputPath, format, args...)
 	case LogLevelInfo:
-		LogInfo("", format, args...)
+		LogInfo(outputPath, format, args...)
 	case LogLevelWarn:
-		LogWarn("", format, args...)
+		LogWarn(outputPath, format, args...)
 	case LogLevelError:
-		LogError("", format, args...)
+		LogError(outputPath, format, args...)
 	default:
-		LogInfo("", format, args...)
+		LogInfo(outputPath, format, args...)
 	}
 }
