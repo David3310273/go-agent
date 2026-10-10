@@ -20,6 +20,8 @@ type StorageConfig struct {
 	Chunker     ChunkerConfig  `json:"chunker"`
 }
 
+type KbStorageType string
+
 // Config holds the configuration for the knowledgebase package.
 // config is now an array of storage configs.
 type Config []StorageConfig

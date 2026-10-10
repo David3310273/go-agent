@@ -3,6 +3,8 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	"github.com/David3310273/go-agent/core"
 	"github.com/David3310273/go-agent/knowledgebase/loader"
@@ -17,12 +19,14 @@ type MilvusKnowledgebase[T any] struct {
 	chunker  core.Chunker
 	Config   core.KnowledgeBaseConfig
 	Options  milvus.MilvusOptions
+	name     string
 }
 
 var _ core.KnowledgeBase[any] = (*MilvusKnowledgebase[any])(nil)
 
 const (
 	MilvusKnowledgeBaseStorageType = "milvus"
+	MilvusKnowledgeBaseName        = "milvus_test"
 )
 
 // NewMilvusKnowledgebase creates a MilvusKnowledgebase with the given configuration.
@@ -33,6 +37,7 @@ func NewMilvusKnowledgebase[T any](embedder core.Embedder, chunker core.Chunker,
 	return &MilvusKnowledgebase[T]{
 		embedder: embedder,
 		chunker:  chunker,
+		name:     MilvusKnowledgeBaseName,
 		Options:  options,
 		Config:   config,
 	}
@@ -190,6 +195,50 @@ func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int, filter string) (
 	}
 
 	return readables, nil
+}
+
+func (kb *MilvusKnowledgebase[T]) GetName() string {
+	return kb.name
+}
+
+// Query queries entities from Milvus by domain and filename filter.
+// collectionName: target collection, domain: document domain, filename: document filename.
+func (kb *MilvusKnowledgebase[T]) Query(collectionName, domain, filename string, outputFields, groupFields []string) ([]map[string]any, *core.Diagnostic) {
+	if collectionName == "" {
+		collectionName = kb.Options.Collection
+	}
+
+	filterParts := []string{}
+	if domain != "" {
+		filterParts = append(filterParts, fmt.Sprintf(`domain == "%s"`, domain))
+	}
+	if filename != "" {
+		filterParts = append(filterParts, fmt.Sprintf(`filename == "%s"`, filename))
+	}
+	filter := strings.Join(filterParts, " && ")
+
+	req := milvus.QueryRequest{
+		MilvusOptions: milvus.MilvusOptions{
+			Type:          kb.Options.Type,
+			DBName:        kb.Options.DBName,
+			Collection:    collectionName,
+			PartitionName: kb.Options.PartitionName,
+		},
+		Filter:       filter,
+		OutputFields: outputFields,
+		GroupFields:  groupFields,
+	}
+
+	core.LogStd(core.LogLevelDebug, "milvus query: filter=%s, outputFields=%v, db=%s, collection=%s, groupFields=%v", req.Filter, req.OutputFields, req.DBName, req.Collection, req.GroupFields)
+
+	results, diag := milvus.MilvusClientInstance.Query(context.Background(), req)
+	if diag != nil {
+		return nil, diag
+	}
+
+	core.LogStd(core.LogLevelDebug, "milvus query result: %#v", results)
+
+	return results, nil
 }
 
 // HasCollection checks if a collection exists in Milvus.

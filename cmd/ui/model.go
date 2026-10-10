@@ -76,6 +76,7 @@ type UIPage struct {
 	currentHint   string           // current accumulated hint content
 	hintOverwrite bool             // next hint chunk should overwrite current hint
 	helpPage      *helpPage
+	kbPage        *kbListResultPage
 	width         int // terminal width for text wrapping
 	height        int // terminal height for viewport
 	welcomeHeight int
@@ -89,6 +90,12 @@ type UIPage struct {
 type helpPage struct {
 	viewport viewport.Model
 	active   bool
+}
+
+type kbListResultPage struct {
+	viewport viewport.Model
+	active   bool
+	fileList []string
 }
 
 func NewModel(app *app.SimpleCommandApp, sessionID string) UIPage {
@@ -122,6 +129,10 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.helpPage != nil && m.helpPage.active {
 		return m.updateHelpPage(msg)
+	}
+
+	if m.kbPage != nil && m.kbPage.active {
+		return m.updateKBListResultPage(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -345,6 +356,64 @@ func (m *UIPage) updateHelpPage(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *UIPage) updateKBListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyEnter || msg.String() == "q" || msg.Type == tea.KeyEsc {
+			m.kbPage.active = false
+			m.input.Focus()
+			return m, nil
+		}
+		switch msg.String() {
+		case "up":
+			m.kbPage.viewport.ScrollUp(1)
+		case "down":
+			m.kbPage.viewport.ScrollDown(1)
+		}
+		if m.kbPage.viewport.YOffset < 0 {
+			m.kbPage.viewport.YOffset = 0
+		}
+		return m, nil
+	case tea.WindowSizeMsg:
+		kbHeader := titleStyle.Render("Knowledge Base") + "\n\n"
+		kbFooter := "\n\n" + hintStyle.Render("Press q or Esc to exit")
+		kbVpHeight := msg.Height - lipgloss.Height(kbHeader) - lipgloss.Height(kbFooter)
+		if kbVpHeight < 5 {
+			kbVpHeight = 5
+		}
+		m.kbPage.viewport.Width = msg.Width
+		m.kbPage.viewport.Height = kbVpHeight
+		m.kbPage.viewport.SetContent(buildKBListContent(m.kbPage.fileList))
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.kbPage.viewport, cmd = m.kbPage.viewport.Update(msg)
+	return m, cmd
+}
+
+func (m UIPage) viewKBListResultPage() string {
+	var contentBuilder strings.Builder
+	contentBuilder.WriteString(titleStyle.Render("Knowledge Base"))
+	contentBuilder.WriteString("\n\n")
+	contentBuilder.WriteString(m.kbPage.viewport.View())
+	contentBuilder.WriteString("\n\n")
+	contentBuilder.WriteString(hintStyle.Render("Press q or Esc to exit"))
+
+	return contentBuilder.String()
+}
+
+func buildKBListContent(fileList []string) string {
+	var contentBuilder strings.Builder
+	contentBuilder.WriteString(responseStyle.Render("Your knowledgebase files:"))
+	contentBuilder.WriteString("\n\n")
+	for _, file := range fileList {
+		contentBuilder.WriteString(promptUserStyle.Render("- " + file))
+		contentBuilder.WriteString("\n")
+	}
+	return contentBuilder.String()
+}
+
 func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 	input := strings.TrimSpace(m.input.Value())
 	if input == "" {
@@ -439,10 +508,78 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 		}
 		m.lastError = "Unknown command."
 		return m, nil
+	case "/kb":
+		kbCmd, ok := command.(*model.KnowledgeBaseCommand)
+		if ok {
+			switch kbCmd.SubCommand {
+			case model.KBSubCommandLs:
+				return m.runKBLsCommand(kbCmd)
+			case model.KBSubCommandAdd:
+				return m.runKBAddCommand(kbCmd)
+			case model.KBSubCommandRm:
+				return m.runKBRmCommand(kbCmd)
+			}
+		}
+		m.lastError = "Unknown command."
+		return m, nil
 	default:
 		m.lastError = "Unknown command."
 		return m, nil
 	}
+}
+
+func (m *UIPage) runKBLsCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
+	diag := command.Run(m.app)
+	if diag != nil {
+		core.LogStd(core.LogLevelDebug, "kb ls result: %s", diag.ToString())
+		if diag.Code != core.MessageCodeSuccess {
+			m.lastError = m.app.Render(diag.Code, m.language)
+			return m, nil
+		} else {
+			fileList, ok := diag.Data.([]string)
+			if ok {
+				kbHeader := titleStyle.Render("Knowledge Base") + "\n\n"
+				kbFooter := "\n\n" + hintStyle.Render("Press q or Esc to exit")
+				kbVpHeight := m.height - lipgloss.Height(kbHeader) - lipgloss.Height(kbFooter)
+				if kbVpHeight < 5 {
+					kbVpHeight = 5
+				}
+				m.kbPage = &kbListResultPage{
+					viewport: viewport.New(m.width, kbVpHeight),
+					active:   true,
+					fileList: fileList,
+				}
+				m.kbPage.viewport.SetContent(buildKBListContent(fileList))
+				m.input.Blur()
+			}
+		}
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m *UIPage) runKBAddCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
+	diag := command.Run(m.app)
+	if diag != nil {
+		if diag.Code != core.MessageCodeSuccess {
+			m.lastError = m.app.Render(diag.Code, m.language)
+			return m, nil
+		}
+	}
+	m.lastError = ""
+	m.input.SetValue("")
+	return m, nil
+}
+
+func (m *UIPage) runKBRmCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
+	diag := command.Run(m.app)
+	if diag != nil {
+		m.lastError = m.app.Render(diag.Code, m.language)
+		return m, nil
+	}
+	m.lastError = ""
+	m.input.SetValue("")
+	return m, nil
 }
 
 func (m UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea.Cmd) {
@@ -467,8 +604,8 @@ func (m UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea
 
 	if m.streaming {
 		// save channels for continued listening
-		m.responseChan = outputChans[0].Chan
-		m.hintChan = outputChans[1].Chan
+		m.responseChan, _ = outputChans[0].Chan.(chan core.Answer)
+		m.hintChan, _ = outputChans[1].Chan.(chan core.Answer)
 		// stream mode: listen to both channels continuously
 		return &m, waitForStreamOutput(outputChans)
 	}
@@ -476,7 +613,8 @@ func (m UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea
 	// non-stream mode: just wait for the first response
 	var cmds []tea.Cmd
 	for _, oc := range outputChans {
-		cmds = append(cmds, waitForOutput(oc.Chan, oc.Type))
+		ch, _ := oc.Chan.(chan core.Answer)
+		cmds = append(cmds, waitForOutput(ch, oc.Type))
 	}
 
 	return &m, tea.Batch(cmds...)
@@ -513,8 +651,8 @@ func (m UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea
 func waitForStreamOutput(outputChans []core.OutputChannel) tea.Cmd {
 	return func() tea.Msg {
 		// listen to both channels
-		responseChan := outputChans[0].Chan
-		hintChan := outputChans[1].Chan
+		responseChan, _ := outputChans[0].Chan.(chan core.Answer)
+		hintChan, _ := outputChans[1].Chan.(chan core.Answer)
 
 		select {
 		case answer, ok := <-responseChan:
@@ -795,6 +933,10 @@ func (m *UIPage) View() string {
 
 	if m.helpPage != nil && m.helpPage.active {
 		return m.viewHelpPage()
+	}
+
+	if m.kbPage != nil && m.kbPage.active {
+		return m.viewKBListResultPage()
 	}
 
 	wrapWidth := m.width

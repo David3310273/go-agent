@@ -67,6 +67,10 @@ type KnowledgeBase[T any] interface {
 	// Search returns results with entity type T.
 	// filter parameter for server-side filtering in vector db.
 	Search(keyword any, topK int, filter string) ([]Readable, *Diagnostic)
+	// query
+	Query(collectionName, domain, filename string, outputFields, groupFields []string) ([]map[string]any, *Diagnostic)
+	// get name
+	GetName() string
 }
 
 type Readable interface {
@@ -79,10 +83,14 @@ type MapReadable map[string]any
 
 // GetContent implements core.Readable interface
 func (m MapReadable) GetContent() string {
-	if content, ok := m["content"].(string); ok {
-		return content
+	for _, v := range m {
+		switch val := v.(type) {
+		case string:
+			return val
+		case []byte:
+			return string(val)
+		}
 	}
-
 	return ""
 }
 
