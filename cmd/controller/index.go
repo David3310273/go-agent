@@ -37,6 +37,12 @@ func (p SimpleCommandParser) Parse(cmd string) (core.Command, []core.Diagnostic)
 			return nil, diagnostics
 		}
 		return command, nil
+	case model.SkillCommandName:
+		command, diagnostics := parseSkillCommand(cmdSlices)
+		if len(diagnostics) > 0 {
+			return nil, diagnostics
+		}
+		return command, nil
 	default:
 		return nil, []core.Diagnostic{
 			{
