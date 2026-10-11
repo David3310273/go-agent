@@ -83,7 +83,8 @@ const (
 	MessageCodeErrorFromLLM           MessageCode = 702
 	MessageCodeInvalidQuestion        MessageCode = 703
 	// 8xx: kb error
-	MessageCodeDocNotFound MessageCode = 800
+	MessageCodeDocNotFound     MessageCode = 800
+	MessageCodeDocProcessError MessageCode = 801
 	// 9xx: storage error
 	// storage error codes.
 	MessageCodeStorageError     MessageCode = 900

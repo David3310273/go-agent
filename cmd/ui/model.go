@@ -40,10 +40,10 @@ var (
 			Foreground(lipgloss.Color("#888888"))
 
 	responseStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#E0E0E0"))
+			Foreground(lipgloss.Color("#32FF7E"))
 
 	streamStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575"))
+			Foreground(lipgloss.Color("#32FF7E"))
 
 	helpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#666666")).
@@ -89,7 +89,7 @@ type UIPage struct {
 	lastError     string          // last error message, displayed above input area
 	rmStatuses    []rmStatusEntry // rm status entries, each displayed on its own line above input
 	viewport      viewport.Model
-	autoScroll    bool   // true when user hasn't manually scrolled, auto-scroll to bottom
+	autoScroll    bool   // true when user hasn't manually scrolled, auto-scroll to bottom (latest)
 	lastMsgCount  int    // track message count to detect new messages
 	lastContent   string // track viewport content to avoid resetting on every View()
 }
@@ -486,6 +486,7 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 		m.sessionID = id.String()
 		m.messages = []messageEntry{}
 		m.refreshViewport()
+		m.scrollToLatest()
 		m.input.SetValue("")
 		return m, nil
 	}
@@ -526,6 +527,7 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 		if ok {
 			m.messages = append(m.messages, messageEntry{content: formatTimestamp() + " " + askCmd.Query, msgType: "prompt"})
 			m.refreshViewport()
+			m.scrollToLatest()
 			m.streaming = askCmd.Stream
 			m.streamContent = ""
 			return m.runAskCommand(askCmd)
@@ -583,16 +585,42 @@ func (m *UIPage) runKBLsCommand(command *model.KnowledgeBaseCommand) (tea.Model,
 }
 
 func (m *UIPage) runKBAddCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
-	diag := command.Run(m.app)
-	if diag != nil {
-		if diag.Code != core.MessageCodeSuccess {
-			m.lastError = m.app.Render(diag.Code, m.language)
-			return m, nil
+	filename := ""
+	if command.FilePath != "" {
+		filename = command.FilePath
+	}
+
+	m.rmStatuses = append(m.rmStatuses, rmStatusEntry{
+		message: "adding file " + filename + "...",
+		done:    false,
+		code:    -1,
+	})
+	pendingIndex := len(m.rmStatuses) - 1
+	m.input.SetValue("")
+	m.refreshViewport()
+
+	return m, func() tea.Msg {
+		command.Run(m.app)
+		var message string
+		var code core.MessageCode
+		select {
+		case diag := <-command.ResponseChan:
+			code = diag.Code
+			if diag.Code == core.MessageCodeSuccess {
+				message = "file " + filename + " added"
+			} else {
+				message = m.app.Render(diag.Code, m.language)
+			}
+		case <-time.After(30 * time.Second):
+			code = core.MessageCodeCommandTimeout
+			message = m.app.Render(core.MessageCodeCommandTimeout, m.language)
+		}
+		return rmResultMsg{
+			index:   pendingIndex,
+			message: message,
+			code:    code,
 		}
 	}
-	m.lastError = ""
-	m.input.SetValue("")
-	return m, nil
 }
 
 func (m *UIPage) runKBRmCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
@@ -610,17 +638,23 @@ func (m *UIPage) runKBRmCommand(command *model.KnowledgeBaseCommand) (tea.Model,
 	})
 	pendingIndex := len(m.rmStatuses) - 1
 	m.input.SetValue("")
+	m.refreshViewport()
 
 	return m, func() tea.Msg {
-		diag := command.Run(m.app)
+		command.Run(m.app)
 		var message string
 		var code core.MessageCode
-		if diag != nil {
+		select {
+		case diag := <-command.ResponseChan:
 			code = diag.Code
-			message = m.app.Render(diag.Code, m.language)
-		} else {
-			code = core.MessageCodeSuccess
-			message = "removed " + filename
+			if diag.Code == core.MessageCodeSuccess {
+				message = "removed " + filename
+			} else {
+				message = m.app.Render(diag.Code, m.language)
+			}
+		case <-time.After(30 * time.Second):
+			code = core.MessageCodeCommandTimeout
+			message = m.app.Render(core.MessageCodeCommandTimeout, m.language)
 		}
 		return rmResultMsg{
 			index:   pendingIndex,
@@ -955,6 +989,17 @@ func (m UIPage) calcViewportHeight() int {
 		footerBuilder.WriteString(errorStyle.Render(wrapped))
 		footerBuilder.WriteString("\n")
 	}
+	for _, entry := range m.rmStatuses {
+		wrapped := wrapText(entry.message, wrapWidth)
+		if !entry.done {
+			footerBuilder.WriteString(pendingStyle.Render(wrapped))
+		} else if entry.code == core.MessageCodeSuccess {
+			footerBuilder.WriteString(successStyle.Render(wrapped))
+		} else {
+			footerBuilder.WriteString(errorStyle.Render(wrapped))
+		}
+		footerBuilder.WriteString("\n")
+	}
 	footerBuilder.WriteString(m.input.View())
 	if hint := m.getCommandHint(); hint != "" {
 		footerBuilder.WriteString("\n")
@@ -985,6 +1030,11 @@ func (m *UIPage) refreshViewport() {
 			m.viewport.GotoBottom()
 		}
 	}
+}
+
+func (m *UIPage) scrollToLatest() {
+	m.autoScroll = true
+	m.viewport.GotoBottom()
 }
 
 func (m *UIPage) View() string {

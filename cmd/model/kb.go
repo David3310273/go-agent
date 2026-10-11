@@ -2,9 +2,12 @@ package model
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/David3310273/go-agent/app/models"
 	"github.com/David3310273/go-agent/core"
 	kb "github.com/David3310273/go-agent/knowledgebase"
 	storage "github.com/David3310273/go-agent/knowledgebase/storage"
@@ -74,9 +77,105 @@ func (c KnowledgeBaseCommand) GetBase() string {
 func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 	switch c.SubCommand {
 	case KBSubCommandAdd:
-		// TODO: implement kb add
+		if c.Type != storage.MilvusKnowledgeBaseStorageType {
+			return &core.Diagnostic{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeInvalidCommand,
+				Message: fmt.Sprintf("type %s is not supported now", c.Type),
+			}
+		}
+
+		done := make(chan core.Diagnostic, 1)
+		go func() {
+			agent := app.GetAgentCore()
+			kbs := (*agent).GetKnowledgeBase()
+			var kbClient core.KnowledgeBase[any]
+			for _, kb := range kbs {
+				if kb.GetName() == c.Name {
+					kbClient = kb
+					break
+				}
+			}
+
+			data, err := os.ReadFile(c.FilePath)
+			if err != nil {
+				done <- core.Diagnostic{
+					Level:   core.SeverityError,
+					Code:    core.MessageCodeDocProcessError,
+					Message: fmt.Sprintf("failed to read file %s: %v", c.FilePath, err),
+				}
+				return
+			}
+
+			filename := path.Base(c.FilePath)
+			embedResult, diag := kbClient.Process(data, filename)
+			if diag != nil {
+				done <- *diag
+				return
+			}
+
+			if embedResult == nil || len(embedResult.Chunks) == 0 {
+				done <- core.Diagnostic{
+					Level:   core.SeverityInfo,
+					Code:    core.MessageCodeSuccess,
+					Message: fmt.Sprintf("no content to add from file %s", filename),
+				}
+				return
+			}
+
+			entities := make([]any, 0, len(embedResult.Chunks))
+			for i, chunk := range embedResult.Chunks {
+				var embedding []float32
+				if i < len(embedResult.Vectors) && len(embedResult.Vectors[i]) > 0 {
+					embedding = make([]float32, len(embedResult.Vectors[i]))
+					for j, v := range embedResult.Vectors[i] {
+						embedding[j] = float32(v)
+					}
+				}
+
+				collection := models.MarkdownCollection{
+					ChunkID:    int64(i),
+					Privacy:    string(core.PublicKB),
+					Filename:   filename,
+					DocumentID: filename,
+					CreateAt:   time.Now().Unix(),
+					Domain:     c.Domain,
+					Embedding:  embedding,
+					Content:    chunk,
+				}
+				entities = append(entities, collection)
+			}
+
+			diag = kbClient.Save(entities)
+			if diag == nil {
+				diag = &core.Diagnostic{
+					Level:   core.SeverityInfo,
+					Code:    core.MessageCodeSuccess,
+					Message: fmt.Sprintf("added %s", filename),
+				}
+			}
+			done <- *diag
+		}()
+
+		select {
+		case result := <-done:
+			select {
+			case c.ResponseChan <- result:
+			default:
+			}
+		case <-time.After(30 * time.Second):
+			select {
+			case c.ResponseChan <- core.Diagnostic{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeCommandTimeout,
+				Message: fmt.Sprintf("add file %s timed out after 30s", c.FilePath),
+			}:
+			default:
+			}
+		}
+
+		return nil
 	case KBSubCommandLs:
-		// /kb ls
 		if c.Type != storage.MilvusKnowledgeBaseStorageType {
 			return &core.Diagnostic{
 				Level:   core.SeverityError,
@@ -129,28 +228,49 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 				Message: fmt.Sprintf("type %s is not supported now", c.Type),
 			}
 		}
-		agent := app.GetAgentCore()
-		kbs := (*agent).GetKnowledgeBase()
-		var kbClient core.KnowledgeBase[any]
-		for _, kb := range kbs {
-			if kb.GetName() == c.Name {
-				kbClient = kb
-				break
+		done := make(chan core.Diagnostic, 1)
+
+		go func() {
+			go func() {
+				agent := app.GetAgentCore()
+				kbs := (*agent).GetKnowledgeBase()
+				var kbClient core.KnowledgeBase[any]
+				for _, kb := range kbs {
+					if kb.GetName() == c.Name {
+						kbClient = kb
+						break
+					}
+				}
+				filename := path.Base(c.FilePath)
+				diag := kbClient.Delete(c.Collection, c.Domain, filename)
+				if diag == nil {
+					diag = &core.Diagnostic{
+						Level:   core.SeverityInfo,
+						Code:    core.MessageCodeSuccess,
+						Message: fmt.Sprintf("remove %s", filename),
+					}
+				}
+				done <- *diag
+			}()
+
+			select {
+			case result := <-done:
+				select {
+				case c.ResponseChan <- result:
+				default:
+				}
+			case <-time.After(30 * time.Second):
+				select {
+				case c.ResponseChan <- core.Diagnostic{
+					Level:   core.SeverityError,
+					Code:    core.MessageCodeCommandTimeout,
+					Message: fmt.Sprintf("rm file %s timed out after 30s", c.FilePath),
+				}:
+				default:
+				}
 			}
-		}
-		filename := path.Base(c.FilePath)
-		diag := kbClient.Delete(c.Collection, c.Domain, filename)
-		if diag == nil {
-			diag = &core.Diagnostic{
-				Level:   core.SeverityInfo,
-				Code:    core.MessageCodeSuccess,
-				Message: fmt.Sprintf("remove %s", filename),
-			}
-		}
-		select {
-		case c.ResponseChan <- *diag:
-		default:
-		}
+		}()
+
 		return nil
 	}
 	return nil

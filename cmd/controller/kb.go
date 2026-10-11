@@ -88,13 +88,14 @@ func parseKBCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 	}
 
 	cmd := &model.KnowledgeBaseCommand{
-		SubCommand: subCommand,
-		FilePath:   filePath,
-		Base:       model.KBCommandName,
-		Type:       kb.KbStorageType(*kbType),
-		Domain:     *domain,
-		Name:       *name,
-		Collection: *collection,
+		SubCommand:   subCommand,
+		FilePath:     filePath,
+		Base:         model.KBCommandName,
+		Type:         kb.KbStorageType(*kbType),
+		Domain:       *domain,
+		Name:         *name,
+		Collection:   *collection,
+		ResponseChan: make(chan core.Diagnostic, 1),
 	}
 
 	return cmd, nil
