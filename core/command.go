@@ -44,7 +44,7 @@ type CommandApp interface {
 	// get config
 	GetConfig() CommandAppConfig
 	// get help
-	GetHelpDoc() string
+	GetHelpDoc() map[string]any
 }
 
 func StartCommandApp(app CommandApp) DiagnosticList {

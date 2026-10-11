@@ -17,7 +17,6 @@ type UIPage struct {
 	MainPage     *view.MainPage
 	App          *app.SimpleCommandApp
 	SessionID    string
-	Language     core.LanguageType
 	Quitting     bool
 	ResponseChan chan core.Answer
 	HintChan     chan core.Answer
@@ -26,13 +25,17 @@ type UIPage struct {
 	SkillHandler *SkillListPageHandler
 	Width        int
 	Height       int
+	// frontend storage variables
+	commandHints []commandHint
+	language     core.LanguageType
 }
 
 func NewModel(app *app.SimpleCommandApp, sessionID string) *UIPage {
 	return &UIPage{
-		App:       app,
-		SessionID: sessionID,
-		Language:  core.Language_EN,
+		App:          app,
+		SessionID:    sessionID,
+		language:     core.Language_EN,
+		commandHints: buildCommandHints(),
 	}
 }
 
@@ -121,24 +124,24 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
 			return m, cmd
 		}
-		switch msg.String() {
-		case "up", "down":
-			core.LogStd(core.LogLevelDebug, "UI: routing String() key to viewport: %s", msg.String())
-			m.MainPage.AutoScroll = false
-			core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.MainPage.Viewport.YOffset, m.MainPage.Viewport.TotalLineCount(), m.MainPage.Viewport.Height)
-			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
-			core.LogStd(core.LogLevelDebug, "UI: after viewport.Update: YOffset=%d", m.MainPage.Viewport.YOffset)
-			return m, cmd
-		case "left", "right":
-			if m.MainPage.Footer.Input.Value() != "" {
-				m.MainPage.Footer.Input, cmd = m.MainPage.Footer.Input.Update(msg)
-				m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
-				return m, cmd
-			}
-			m.MainPage.AutoScroll = false
-			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
-			return m, cmd
-		}
+		// switch msg.String() {
+		// case "up", "down":
+		// 	core.LogStd(core.LogLevelDebug, "UI: routing String() key to viewport: %s", msg.String())
+		// 	m.MainPage.AutoScroll = false
+		// 	core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.MainPage.Viewport.YOffset, m.MainPage.Viewport.TotalLineCount(), m.MainPage.Viewport.Height)
+		// 	m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
+		// 	core.LogStd(core.LogLevelDebug, "UI: after viewport.Update: YOffset=%d", m.MainPage.Viewport.YOffset)
+		// 	return m, cmd
+		// case "left", "right":
+		// 	if m.MainPage.Footer.Input.Value() != "" {
+		// 		m.MainPage.Footer.Input, cmd = m.MainPage.Footer.Input.Update(msg)
+		// 		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
+		// 		return m, cmd
+		// 	}
+		// 	m.MainPage.AutoScroll = false
+		// 	m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
+		// 	return m, cmd
+		// }
 
 	case OutputMsg:
 		if msg.MsgType == "response" {
@@ -254,6 +257,13 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.refreshMainPage()
 	}
 
+	currentInput := m.MainPage.Footer.Input.Value()
+	if currentInput != "" && currentInput != "/" {
+		m.MainPage.SetCommandHint(getFormatHint(currentInput, m.commandHints))
+	} else {
+		m.MainPage.SetCommandHint("")
+	}
+
 	return m, cmd
 }
 
@@ -263,6 +273,7 @@ func (m *UIPage) updateHelpPage(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.HelpHandler.Deactivate()
 		m.MainPage.Footer.Input.Focus()
 		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
+		m.MainPage.SetCommandHint("")
 		return m, nil
 	}
 	return m, cmd
@@ -274,6 +285,7 @@ func (m *UIPage) updateKBListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.KBHandler.Deactivate()
 		m.MainPage.Footer.Input.Focus()
 		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
+		m.MainPage.SetCommandHint("")
 		return m, nil
 	}
 	return m, cmd
@@ -285,6 +297,7 @@ func (m *UIPage) updateSkillListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.SkillHandler.Deactivate()
 		m.MainPage.Footer.Input.Focus()
 		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
+		m.MainPage.SetCommandHint("")
 		return m, nil
 	}
 	return m, cmd
@@ -323,28 +336,29 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 				messages = append(messages, diag.Message)
 			}
 		}
+		var errMsg string
 		if len(messages) > 0 {
-			m.MainPage.SetLastError(strings.Join(messages, "\n"))
+			errMsg = strings.Join(messages, "\n")
+			m.MainPage.SetLastError(errMsg)
 		} else {
-			m.MainPage.SetLastError("Unknown error occurred")
+			errMsg = "Unknown error occurred"
+			m.MainPage.SetLastError(errMsg)
 		}
-		m.MainPage.Footer.Input.SetValue("")
 		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 		return m, nil
 	}
 
 	if command == nil {
 		m.MainPage.SetLastError("Unknown command.")
-		m.MainPage.Footer.Input.SetValue("")
 		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 		return m, nil
 	}
 
 	m.MainPage.Footer.Input.SetValue("")
 	m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
+	m.MainPage.SetCommandHint("")
 
 	command = command.WithOption("sessionID", m.SessionID)
-	command = command.WithOption("language", string(m.Language))
 
 	m.MainPage.SetLastError("")
 

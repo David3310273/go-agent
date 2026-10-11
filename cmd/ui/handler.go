@@ -41,7 +41,7 @@ func HandleSystemCommand(page *UIPage, input string) tea.Cmd {
 		page.Quitting = true
 		return tea.Quit
 	case "/help", "/h":
-		page.HelpHandler = NewHelpPageHandler(page.Width, page.Height, page.App.GetHelpDoc())
+		page.HelpHandler = NewHelpPageHandler(page.Width, page.Height, view.FormatHelpDoc(page.App.GetHelpDoc()))
 		page.MainPage.Footer.Input.Blur()
 		page.MainPage.Footer.Input.SetValue("")
 		page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
@@ -55,7 +55,7 @@ func HandleSystemCommand(page *UIPage, input string) tea.Cmd {
 			page.MainPage.SetLastError("Not supported language type")
 			return nil
 		}
-		page.Language = core.LanguageType(parts[1])
+		page.language = core.LanguageType(parts[1])
 		page.MainPage.SetLastError("")
 		return nil
 	case "/new-page", "/np":
@@ -115,7 +115,7 @@ func runAskCommand(page *UIPage, command *model.AskQuestionCommand) tea.Cmd {
 
 	diag := command.Run(page.App)
 	if diag != nil {
-		page.MainPage.SetLastError(page.App.Render(diag.Code, page.Language))
+		page.MainPage.SetLastError(page.App.Render(diag.Code, page.language))
 		return nil
 	}
 
@@ -162,7 +162,15 @@ func runSkillLsCommand(page *UIPage, command *model.SkillCommand) tea.Cmd {
 	diag := command.Run(page.App)
 	if diag != nil {
 		if diag.Data != nil {
-			if skillList, ok := diag.Data.([]view.SkillListEntry); ok {
+			if skillDefs, ok := diag.Data.([]core.SkillDefinition); ok {
+				skillList := make([]view.SkillListEntry, 0, len(skillDefs))
+				for _, s := range skillDefs {
+					skillList = append(skillList, view.SkillListEntry{
+						Name:        s.Name,
+						Description: s.Description,
+						Tools:       s.Tools,
+					})
+				}
 				page.SkillHandler = NewSkillListPageHandler(page.Width, page.Height, skillList)
 				page.MainPage.Footer.Input.Blur()
 				page.MainPage.Footer.Input.SetValue("")
@@ -171,7 +179,7 @@ func runSkillLsCommand(page *UIPage, command *model.SkillCommand) tea.Cmd {
 			}
 		}
 		if diag.Code != core.MessageCodeSuccess {
-			page.MainPage.SetLastError(page.App.Render(diag.Code, page.Language))
+			page.MainPage.SetLastError(page.App.Render(diag.Code, page.language))
 		}
 		return nil
 	}
@@ -193,7 +201,15 @@ func runSkillLsCommand(page *UIPage, command *model.SkillCommand) tea.Cmd {
 			}
 
 			if diag.Data != nil {
-				if skillList, ok := diag.Data.([]view.SkillListEntry); ok {
+				if skillDefs, ok := diag.Data.([]core.SkillDefinition); ok {
+					skillList := make([]view.SkillListEntry, 0, len(skillDefs))
+					for _, s := range skillDefs {
+						skillList = append(skillList, view.SkillListEntry{
+							Name:        s.Name,
+							Description: s.Description,
+							Tools:       s.Tools,
+						})
+					}
 					page.SkillHandler = NewSkillListPageHandler(page.Width, page.Height, skillList)
 					page.MainPage.Footer.Input.Blur()
 					page.MainPage.Footer.Input.SetValue("")
@@ -277,6 +293,59 @@ func handleKBCommand(page *UIPage, command *model.KnowledgeBaseCommand) tea.Cmd 
 	}
 }
 
+type commandHint struct {
+	name   string
+	format string
+}
+
+func buildCommandHints() []commandHint {
+	commands := model.GetAllCommands()
+	var hints []commandHint
+
+	for _, cmd := range commands {
+		help := cmd.GetHelp()
+		hints = append(hints, parseHelpToHints(help, cmd.GetBase())...)
+	}
+
+	return hints
+}
+
+func getFormatHint(currentInput string, hints []commandHint) string {
+	currentInput = strings.TrimSpace(currentInput)
+	for _, hint := range hints {
+		if strings.HasPrefix(hint.name, currentInput) || strings.HasPrefix(currentInput, hint.name) {
+			return hint.format
+		}
+	}
+	return ""
+}
+
+func parseHelpToHints(help map[string]any, name string) []commandHint {
+	var hints []commandHint
+
+	if format, ok := help["format"].(string); ok {
+		if name != "" {
+			hints = append(hints, commandHint{
+				name:   name,
+				format: format,
+			})
+		}
+	} else {
+		for key, value := range help {
+			if subHelp, ok := value.(map[string]any); ok {
+				if subFormat, ok := subHelp["format"].(string); ok {
+					hints = append(hints, commandHint{
+						name:   key,
+						format: subFormat,
+					})
+				}
+			}
+		}
+	}
+
+	return hints
+}
+
 func runKBLsCommand(page *UIPage, command *model.KnowledgeBaseCommand) tea.Cmd {
 	if page.App.Agent == nil {
 		page.MainPage.SetLastError("Agent not initialized")
@@ -295,7 +364,7 @@ func runKBLsCommand(page *UIPage, command *model.KnowledgeBaseCommand) tea.Cmd {
 			}
 		}
 		if diag.Code != core.MessageCodeSuccess {
-			page.MainPage.SetLastError(page.App.Render(diag.Code, page.Language))
+			page.MainPage.SetLastError(page.App.Render(diag.Code, page.language))
 		}
 		return nil
 	}
@@ -360,7 +429,7 @@ func runKBAddCommand(page *UIPage, command *model.KnowledgeBaseCommand) tea.Cmd 
 		if diag != nil {
 			return RMResultMsg{
 				Index:   index,
-				Message: page.App.Render(diag.Code, page.Language),
+				Message: page.App.Render(diag.Code, page.language),
 				Code:    diag.Code,
 			}
 		}
@@ -400,7 +469,7 @@ func runKBRmCommand(page *UIPage, command *model.KnowledgeBaseCommand) tea.Cmd {
 		if diag != nil {
 			return RMResultMsg{
 				Index:   index,
-				Message: page.App.Render(diag.Code, page.Language),
+				Message: page.App.Render(diag.Code, page.language),
 				Code:    diag.Code,
 			}
 		}

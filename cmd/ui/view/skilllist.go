@@ -8,18 +8,18 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+type SkillListEntry struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Tools       []string `json:"tools"`
+}
+
 type SkillListResultPage struct {
 	Viewport  viewport.Model
 	Active    bool
 	SkillList []SkillListEntry
 	width     int
 	height    int
-}
-
-type SkillListEntry struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Tools       []string `json:"tools"`
 }
 
 func (s *SkillListResultPage) headerView() string {
@@ -104,8 +104,14 @@ func BuildSkillListContent(skillList []SkillListEntry) string {
 	var contentBuilder strings.Builder
 	contentBuilder.WriteString(TitleStyle.Render("Available Skills"))
 	contentBuilder.WriteString("\n\n")
+	separator := strings.Repeat("-", 40)
 	for _, skill := range skillList {
-		contentBuilder.WriteString(PromptUserStyle.Render(fmt.Sprintf("- name: %s - desc: %s", skill.Name, skill.Description)))
+		contentBuilder.WriteString(separator)
+		contentBuilder.WriteString("\n")
+		contentBuilder.WriteString(fmt.Sprintf("name: %s\n", skill.Name))
+		contentBuilder.WriteString(fmt.Sprintf("desc: %s\n", skill.Description))
+		contentBuilder.WriteString(fmt.Sprintf("tools: %v\n", skill.Tools))
+		contentBuilder.WriteString(separator)
 		contentBuilder.WriteString("\n")
 	}
 	return contentBuilder.String()
