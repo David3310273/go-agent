@@ -49,6 +49,12 @@ var (
 			Foreground(lipgloss.Color("#666666")).
 			MarginTop(1)
 
+	pendingStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#FFD700"))
+
+	successStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#04B575"))
+
 	hintStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#555555")).
 			Italic(true)
@@ -80,7 +86,8 @@ type UIPage struct {
 	width         int // terminal width for text wrapping
 	height        int // terminal height for viewport
 	welcomeHeight int
-	lastError     string // last error message, displayed above input area
+	lastError     string          // last error message, displayed above input area
+	rmStatuses    []rmStatusEntry // rm status entries, each displayed on its own line above input
 	viewport      viewport.Model
 	autoScroll    bool   // true when user hasn't manually scrolled, auto-scroll to bottom
 	lastMsgCount  int    // track message count to detect new messages
@@ -302,6 +309,15 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.lastError = msg.err
 		m.refreshViewport()
 		return m, nil
+
+	case rmResultMsg:
+		if msg.index >= 0 && msg.index < len(m.rmStatuses) {
+			m.rmStatuses[msg.index].message = msg.message
+			m.rmStatuses[msg.index].done = true
+			m.rmStatuses[msg.index].code = msg.code
+		}
+		m.refreshViewport()
+		return m, nil
 	}
 
 	m.input, cmd = m.input.Update(msg)
@@ -310,6 +326,14 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if len(keyMsg.String()) == 1 {
 			m.lastError = ""
+			// clear completed rm status entries
+			var pending []rmStatusEntry
+			for _, entry := range m.rmStatuses {
+				if !entry.done {
+					pending = append(pending, entry)
+				}
+			}
+			m.rmStatuses = pending
 		}
 		m.refreshViewport()
 	}
@@ -572,31 +596,55 @@ func (m *UIPage) runKBAddCommand(command *model.KnowledgeBaseCommand) (tea.Model
 }
 
 func (m *UIPage) runKBRmCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
+	filename := ""
+	if command.FilePath != "" {
+		filename = command.FilePath
+	} else if command.Domain != "" {
+		filename = "in domain " + command.Domain
+	}
+
+	m.rmStatuses = append(m.rmStatuses, rmStatusEntry{
+		message: "removing file " + filename + "...",
+		done:    false,
+		code:    -1,
+	})
+	pendingIndex := len(m.rmStatuses) - 1
+	m.input.SetValue("")
+
+	return m, func() tea.Msg {
+		diag := command.Run(m.app)
+		var message string
+		var code core.MessageCode
+		if diag != nil {
+			code = diag.Code
+			message = m.app.Render(diag.Code, m.language)
+		} else {
+			code = core.MessageCodeSuccess
+			message = "removed " + filename
+		}
+		return rmResultMsg{
+			index:   pendingIndex,
+			message: message,
+			code:    code,
+		}
+	}
+}
+
+func (m *UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea.Cmd) {
+	if m.app.Agent == nil {
+		m.lastError = "Agent not initialized"
+		return m, nil
+	}
+
 	diag := command.Run(m.app)
 	if diag != nil {
 		m.lastError = m.app.Render(diag.Code, m.language)
 		return m, nil
 	}
-	m.lastError = ""
-	m.input.SetValue("")
-	return m, nil
-}
-
-func (m UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea.Cmd) {
-	if m.app.Agent == nil {
-		m.lastError = "Agent not initialized"
-		return &m, nil
-	}
-
-	diag := command.Run(m.app)
-	if diag != nil {
-		m.lastError = m.app.Render(diag.Code, m.language)
-		return &m, nil
-	}
 
 	outputChans := command.GetOutputChans()
 	if len(outputChans) == 0 {
-		return &m, nil
+		return m, nil
 	}
 
 	m.waiting = true
@@ -607,7 +655,7 @@ func (m UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea
 		m.responseChan, _ = outputChans[0].Chan.(chan core.Answer)
 		m.hintChan, _ = outputChans[1].Chan.(chan core.Answer)
 		// stream mode: listen to both channels continuously
-		return &m, waitForStreamOutput(outputChans)
+		return m, waitForStreamOutput(outputChans)
 	}
 
 	// non-stream mode: just wait for the first response
@@ -617,7 +665,7 @@ func (m UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea
 		cmds = append(cmds, waitForOutput(ch, oc.Type))
 	}
 
-	return &m, tea.Batch(cmds...)
+	return m, tea.Batch(cmds...)
 }
 
 // func (m UIPage) runCommand(command core.Command) (tea.Model, tea.Cmd) {
@@ -799,6 +847,7 @@ func waitForOutput(ch chan core.Answer, msgType string) tea.Cmd {
 				return outputMsg{content: resp.Choices[0].Message.Content, msgType: msgType}
 			}
 		}
+
 		// for other types, use ToString
 		return outputMsg{content: answer.ToString(), msgType: msgType}
 	}
@@ -813,6 +862,18 @@ type outputMsg struct {
 
 type errorMsg struct {
 	err string
+}
+
+type rmResultMsg struct {
+	index   int
+	message string
+	code    core.MessageCode
+}
+
+type rmStatusEntry struct {
+	message string
+	done    bool
+	code    core.MessageCode
 }
 
 func (m UIPage) buildViewportContent() string {
@@ -952,6 +1013,17 @@ func (m *UIPage) View() string {
 	if m.lastError != "" {
 		wrapped := wrapText(m.lastError, wrapWidth)
 		footerBuilder.WriteString(errorStyle.Render(wrapped))
+		footerBuilder.WriteString("\n")
+	}
+	for _, entry := range m.rmStatuses {
+		wrapped := wrapText(entry.message, wrapWidth)
+		if !entry.done {
+			footerBuilder.WriteString(pendingStyle.Render(wrapped))
+		} else if entry.code == core.MessageCodeSuccess {
+			footerBuilder.WriteString(successStyle.Render(wrapped))
+		} else {
+			footerBuilder.WriteString(errorStyle.Render(wrapped))
+		}
 		footerBuilder.WriteString("\n")
 	}
 	footerBuilder.WriteString(m.input.View())
