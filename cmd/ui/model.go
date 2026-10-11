@@ -23,6 +23,7 @@ type UIPage struct {
 	HintChan     chan core.Answer
 	HelpHandler  *HelpPageHandler
 	KBHandler    *KBListPageHandler
+	SkillHandler *SkillListPageHandler
 	Width        int
 	Height       int
 }
@@ -51,6 +52,10 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.KBHandler != nil && m.KBHandler.IsActive() {
 		return m.updateKBListResultPage(msg)
+	}
+
+	if m.SkillHandler != nil && m.SkillHandler.IsActive() {
+		return m.updateSkillListResultPage(msg)
 	}
 
 	switch msg := msg.(type) {
@@ -274,6 +279,17 @@ func (m *UIPage) updateKBListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *UIPage) updateSkillListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
+	cmd, shouldExit := m.SkillHandler.Update(msg)
+	if shouldExit {
+		m.SkillHandler.Deactivate()
+		m.MainPage.Footer.Input.Focus()
+		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
+		return m, nil
+	}
+	return m, cmd
+}
+
 func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 	input := strings.TrimSpace(m.MainPage.Footer.Input.Value())
 	if input == "" {
@@ -293,7 +309,7 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 			return m, sysCmd
 		}
 		// HandleSystemCommand may activate a page handler (e.g., /help) without returning a tea.Cmd
-		if (m.HelpHandler != nil && m.HelpHandler.IsActive()) || (m.KBHandler != nil && m.KBHandler.IsActive()) {
+		if (m.HelpHandler != nil && m.HelpHandler.IsActive()) || (m.KBHandler != nil && m.KBHandler.IsActive()) || (m.SkillHandler != nil && m.SkillHandler.IsActive()) {
 			return m, nil
 		}
 	}
@@ -338,6 +354,8 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 		cmd = handleAskCommand(m, c)
 	case *model.KnowledgeBaseCommand:
 		cmd = handleKBCommand(m, c)
+	case *model.SkillCommand:
+		cmd = handleSkillCommand(m, c)
 	default:
 		m.MainPage.SetLastError(fmt.Sprintf("%s: command not found", parts[0]))
 	}
@@ -351,6 +369,10 @@ func (m *UIPage) View() string {
 
 	if m.KBHandler != nil && m.KBHandler.IsActive() {
 		return m.KBHandler.View()
+	}
+
+	if m.SkillHandler != nil && m.SkillHandler.IsActive() {
+		return m.SkillHandler.View()
 	}
 
 	if m.MainPage == nil {

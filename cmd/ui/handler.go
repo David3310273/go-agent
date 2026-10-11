@@ -74,7 +74,7 @@ func HandleSystemCommand(page *UIPage, input string) tea.Cmd {
 		page.MainPage.Footer.Input.SetValue("")
 		page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
 		return nil
-	case "/clear":
+	case "/clear", "/clr":
 		page.MainPage.Messages = []view.MessageEntry{}
 		page.MainPage.Waiting = false
 		page.MainPage.Streaming = false
@@ -141,6 +141,126 @@ func runAskCommand(page *UIPage, command *model.AskQuestionCommand) tea.Cmd {
 	}
 
 	return tea.Batch(cmds...)
+}
+
+func handleSkillCommand(page *UIPage, command *model.SkillCommand) tea.Cmd {
+	switch command.SubCommand {
+	case "ls":
+		return runSkillLsCommand(page, command)
+	default:
+		page.MainPage.SetLastError(fmt.Sprintf("Unknown skill action: %s", command.SubCommand))
+		return nil
+	}
+}
+
+func runSkillLsCommand(page *UIPage, command *model.SkillCommand) tea.Cmd {
+	if page.App.Agent == nil {
+		page.MainPage.SetLastError("Agent not initialized")
+		return nil
+	}
+
+	diag := command.Run(page.App)
+	if diag != nil {
+		if diag.Data != nil {
+			if skillList, ok := diag.Data.([]view.SkillListEntry); ok {
+				page.SkillHandler = NewSkillListPageHandler(page.Width, page.Height, skillList)
+				page.MainPage.Footer.Input.Blur()
+				page.MainPage.Footer.Input.SetValue("")
+				page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
+				return nil
+			}
+		}
+		if diag.Code != core.MessageCodeSuccess {
+			page.MainPage.SetLastError(page.App.Render(diag.Code, page.Language))
+		}
+		return nil
+	}
+
+	ch := command.ResponseChan
+	if ch == nil {
+		return nil
+	}
+
+	page.MainPage.Waiting = true
+	page.MainPage.Footer.Input.Blur()
+	page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
+
+	return func() tea.Msg {
+		select {
+		case diag, ok := <-ch:
+			if !ok {
+				return OutputMsg{Content: "", MsgType: "response", IsComplete: true, IsFinalAnswer: true}
+			}
+
+			if diag.Data != nil {
+				if skillList, ok := diag.Data.([]view.SkillListEntry); ok {
+					page.SkillHandler = NewSkillListPageHandler(page.Width, page.Height, skillList)
+					page.MainPage.Footer.Input.Blur()
+					page.MainPage.Footer.Input.SetValue("")
+					page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
+					return nil
+				}
+			}
+			page.MainPage.Messages = append(page.MainPage.Messages, view.MessageEntry{
+				Content: view.FormatTimestamp() + " " + diag.Message,
+				MsgType: "response",
+			})
+			page.MainPage.Waiting = false
+			page.MainPage.Footer.Input.SetValue("")
+			page.MainPage.Footer.Input.Focus()
+			page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
+			return nil
+
+		case <-time.After(60 * time.Second):
+			return OutputMsg{Content: "", MsgType: "response", IsComplete: true, IsFinalAnswer: true}
+		}
+	}
+}
+
+// SkillListPageHandler
+type SkillListPageHandler struct {
+	Page *view.SkillListResultPage
+}
+
+func NewSkillListPageHandler(width, height int, skillList []view.SkillListEntry) *SkillListPageHandler {
+	return &SkillListPageHandler{
+		Page: view.NewSkillListResultPage(width, height, skillList),
+	}
+}
+
+func (h *SkillListPageHandler) Update(msg tea.Msg) (tea.Cmd, bool) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyEnter || msg.String() == "q" || msg.Type == tea.KeyEsc {
+			return nil, true
+		}
+		switch msg.String() {
+		case "up":
+			h.Page.ScrollUp(1)
+		case "down":
+			h.Page.ScrollDown(1)
+		}
+		return nil, false
+	case tea.WindowSizeMsg:
+		h.Page.Resize(msg.Width, msg.Height, h.Page.SkillList)
+		return nil, false
+	}
+
+	var cmd tea.Cmd
+	h.Page.Viewport, cmd = h.Page.Viewport.Update(msg)
+	return cmd, false
+}
+
+func (h *SkillListPageHandler) View() string {
+	return h.Page.View()
+}
+
+func (h *SkillListPageHandler) IsActive() bool {
+	return h.Page.Active
+}
+
+func (h *SkillListPageHandler) Deactivate() {
+	h.Page.Active = false
 }
 
 func handleKBCommand(page *UIPage, command *model.KnowledgeBaseCommand) tea.Cmd {
