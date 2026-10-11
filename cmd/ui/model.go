@@ -70,7 +70,7 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			ti.Placeholder = "Type /ask your question or /quit to exit..."
 			ti.Focus()
 			ti.CharLimit = 1024
-			ti.Width = 50
+			ti.Width = msg.Width
 			ti.Prompt = "> "
 			ti.PromptStyle = view.PromptStyle
 			m.MainPage = view.NewMainPage(msg.Width, msg.Height, m.App.Welcome(), ti)
