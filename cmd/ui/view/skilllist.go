@@ -108,9 +108,9 @@ func BuildSkillListContent(skillList []SkillListEntry) string {
 	for _, skill := range skillList {
 		contentBuilder.WriteString(separator)
 		contentBuilder.WriteString("\n")
-		contentBuilder.WriteString(fmt.Sprintf("name: %s\n", skill.Name))
-		contentBuilder.WriteString(fmt.Sprintf("desc: %s\n", skill.Description))
-		contentBuilder.WriteString(fmt.Sprintf("tools: %v\n", skill.Tools))
+		contentBuilder.WriteString(fmt.Sprintf("- name: %s\n", skill.Name))
+		contentBuilder.WriteString(fmt.Sprintf("- desc: %s\n", skill.Description))
+		contentBuilder.WriteString(fmt.Sprintf("- tools: %v\n", skill.Tools))
 		contentBuilder.WriteString(separator)
 		contentBuilder.WriteString("\n")
 	}

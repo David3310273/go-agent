@@ -22,6 +22,7 @@ type UIPage struct {
 	HintChan     chan core.Answer
 	HelpHandler  *HelpPageHandler
 	KBHandler    *KBListPageHandler
+	MCPHandler   *MCPListPageHandler
 	SkillHandler *SkillListPageHandler
 	Width        int
 	Height       int
@@ -55,6 +56,10 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.KBHandler != nil && m.KBHandler.IsActive() {
 		return m.updateKBListResultPage(msg)
+	}
+
+	if m.MCPHandler != nil && m.MCPHandler.IsActive() {
+		return m.updateMCPListResultPage(msg)
 	}
 
 	if m.SkillHandler != nil && m.SkillHandler.IsActive() {
@@ -291,6 +296,18 @@ func (m *UIPage) updateKBListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+func (m *UIPage) updateMCPListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
+	cmd, shouldExit := m.MCPHandler.Update(msg)
+	if shouldExit {
+		m.MCPHandler.Deactivate()
+		m.MainPage.Footer.Input.Focus()
+		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
+		m.MainPage.SetCommandHint("")
+		return m, nil
+	}
+	return m, cmd
+}
+
 func (m *UIPage) updateSkillListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmd, shouldExit := m.SkillHandler.Update(msg)
 	if shouldExit {
@@ -368,6 +385,8 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 		cmd = handleAskCommand(m, c)
 	case *model.KnowledgeBaseCommand:
 		cmd = handleKBCommand(m, c)
+	case *model.MCPCommand:
+		cmd = handleMCPCommand(m, c)
 	case *model.SkillCommand:
 		cmd = handleSkillCommand(m, c)
 	default:
@@ -383,6 +402,10 @@ func (m *UIPage) View() string {
 
 	if m.KBHandler != nil && m.KBHandler.IsActive() {
 		return m.KBHandler.View()
+	}
+
+	if m.MCPHandler != nil && m.MCPHandler.IsActive() {
+		return m.MCPHandler.View()
 	}
 
 	if m.SkillHandler != nil && m.SkillHandler.IsActive() {
