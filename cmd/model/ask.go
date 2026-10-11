@@ -35,7 +35,7 @@ func init() {
 
 func (c AskQuestionCommand) GetHelp() map[string]any {
 	return map[string]any{
-		"format": "/ask <your question> [--enableThinking] [--stream] [--model model_name] [--questionType normal|tool_confirm]",
+		"format": "/ask <your question> [--enableThinking] [--stream] [--model model_name] [--questionType normal]",
 		"desc":   "ask the agent a question",
 		"options": map[string]string{
 			"enableThinking": "enable thinking mode if set to true",

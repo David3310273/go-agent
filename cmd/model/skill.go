@@ -7,12 +7,6 @@ import (
 	"github.com/David3310273/go-agent/core"
 )
 
-type SkillListEntry struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Tools       []string `json:"tools"`
-}
-
 var _ core.Command = (*SkillCommand)(nil)
 
 type SkillCommand struct {
@@ -83,19 +77,10 @@ func (c *SkillCommand) Run(app core.CommandApp) *core.Diagnostic {
 			skills = filtered
 		}
 
-		skillList := make([]SkillListEntry, 0, len(skills))
-		for _, s := range skills {
-			skillList = append(skillList, SkillListEntry{
-				Name:        s.Name,
-				Description: s.Description,
-				Tools:       s.Tools,
-			})
-		}
-
 		return &core.Diagnostic{
 			Code:    core.MessageCodeSuccess,
-			Message: fmt.Sprintf("list %d skills", len(skillList)),
-			Data:    skillList,
+			Message: fmt.Sprintf("list %d skills", len(skills)),
+			Data:    skills,
 		}
 	}
 

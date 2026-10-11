@@ -35,29 +35,22 @@ func (a *SimpleCommandApp) registerCommands() {
 	a.Commands = model.GetAllCommands()
 }
 
-func (a *SimpleCommandApp) GetHelpDoc() string {
-	var sb strings.Builder
-	sb.WriteString("Available commands:\n\n")
+func (a *SimpleCommandApp) GetHelpDoc() map[string]any {
+	commandDetails := make(map[string]any)
+
 	for _, cmd := range a.Commands {
-		help := cmd.GetHelp()
-		sb.WriteString(fmt.Sprintf("%s: %s\n\n", cmd.GetBase(), help["desc"].(string)))
-		sb.WriteString("usage:  " + help["format"].(string))
-		if desc, ok := help["desc"].(string); ok {
-			sb.WriteString("\n    " + desc)
-		}
-		sb.WriteString("\n\n")
-		if options, ok := help["options"].(map[string]string); ok {
-			sb.WriteString("    Options:\n")
-			for key, desc := range options {
-				sb.WriteString(fmt.Sprintf("      --%-20s %s\n", key, desc))
+		if cmd.GetBase() == model.SystemCommandName {
+			systemCmds := cmd.GetHelp()
+			for base, help := range systemCmds {
+				commandDetails[base] = help.(map[string]any)
 			}
+		} else {
+			help := cmd.GetHelp()
+			commandDetails[cmd.GetBase()] = help
 		}
-		sb.WriteString("\n")
 	}
 
-	sb.WriteString(a.GetSystemCmdHelpDoc())
-
-	return sb.String()
+	return commandDetails
 }
 
 func (a *SimpleCommandApp) GetSystemCmdHelpDoc() string {
