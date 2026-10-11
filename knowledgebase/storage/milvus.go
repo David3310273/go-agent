@@ -49,6 +49,29 @@ func (kb *MilvusKnowledgebase[T]) GetEmedder() core.Embedder {
 	return kb.embedder
 }
 
+// Delete removes entities from Milvus by domain and filename filter.
+func (kb *MilvusKnowledgebase[T]) Delete(collectionName, domain, filename string) *core.Diagnostic {
+	if collectionName == "" {
+		collectionName = kb.Options.Collection
+	}
+
+	filterParts := []string{}
+	if domain != "" {
+		filterParts = append(filterParts, fmt.Sprintf(`domain == "%s"`, domain))
+	}
+	if filename != "" {
+		filterParts = append(filterParts, fmt.Sprintf(`filename == "%s"`, filename))
+	}
+	filter := strings.Join(filterParts, " && ")
+
+	return milvus.MilvusClientInstance.Delete(context.Background(), milvus.MilvusOptions{
+		Type:          kb.Options.Type,
+		DBName:        kb.Options.DBName,
+		Collection:    collectionName,
+		PartitionName: kb.Options.PartitionName,
+	}, filter)
+}
+
 // Process loads a document from binary data, chunks it, and embeds each chunk.
 // accepts binary data and filename instead of file path.
 // implements core.KnowledgeBase interface, auto-selects loader by filename.

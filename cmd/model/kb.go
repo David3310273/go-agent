@@ -94,7 +94,11 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 			}
 		}
 
-		filename := path.Base(c.FilePath)
+		filename := ""
+		if c.FilePath != "" {
+			filename = path.Base(c.FilePath)
+		}
+
 		results, diags := kbClient.Query(c.Collection, c.Domain, filename, []string{"filename"}, []string{"filename"})
 		if diags != nil {
 			return diags
@@ -117,19 +121,45 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 			Data:    fileList,
 		}
 	case KBSubCommandRm:
-		// TODO: implement kb rm
-	default:
-		return &core.Diagnostic{
-			Level:   core.SeverityError,
-			Code:    core.MessageCodeInvalidCommand,
-			Message: fmt.Sprintf("unknown kb subcommand: %s", c.SubCommand),
+		// implement kb rm
+		if c.Type != storage.MilvusKnowledgeBaseStorageType {
+			return &core.Diagnostic{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeInvalidCommand,
+				Message: fmt.Sprintf("type %s is not supported now", c.Type),
+			}
 		}
+		agent := app.GetAgentCore()
+		kbs := (*agent).GetKnowledgeBase()
+		var kbClient core.KnowledgeBase[any]
+		for _, kb := range kbs {
+			if kb.GetName() == c.Name {
+				kbClient = kb
+				break
+			}
+		}
+		filename := path.Base(c.FilePath)
+		diag := kbClient.Delete(c.Collection, c.Domain, filename)
+		if diag == nil {
+			diag = &core.Diagnostic{
+				Level:   core.SeverityInfo,
+				Code:    core.MessageCodeSuccess,
+				Message: fmt.Sprintf("remove %s", filename),
+			}
+		}
+		select {
+		case c.ResponseChan <- *diag:
+		default:
+		}
+		return nil
 	}
 	return nil
 }
 
 func (c *KnowledgeBaseCommand) GetOutputChans() []core.OutputChannel {
-	return nil
+	return []core.OutputChannel{
+		{Chan: c.ResponseChan, Type: "response"},
+	}
 }
 
 func (c *KnowledgeBaseCommand) ToString() string {

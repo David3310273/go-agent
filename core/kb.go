@@ -69,6 +69,7 @@ type KnowledgeBase[T any] interface {
 	Search(keyword any, topK int, filter string) ([]Readable, *Diagnostic)
 	// query
 	Query(collectionName, domain, filename string, outputFields, groupFields []string) ([]map[string]any, *Diagnostic)
+	Delete(collectionName, domain, filename string) *Diagnostic
 	// get name
 	GetName() string
 }
