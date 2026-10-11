@@ -21,6 +21,7 @@ Please view the help page in the app for more details. Here are some core functi
 
 - no user management implementions. Such as register, auth, login. Only interface provided. It's not important compared with the framework infrastructure.
 - cannot change skill/tool in runtime. If you want to add a skill with new tools, make sure them well prepared in advance using MCP server. (Of course advanced features such as tool plugin can solve this but now it's not necessary.)
+- cannot choose the dialog history list. If you open a new page, the pervious dialog history will be cleared. (Just focus on the core features.)
 
 ## Start the app
 
