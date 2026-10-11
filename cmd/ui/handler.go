@@ -293,6 +293,20 @@ func handleKBCommand(page *UIPage, command *model.KnowledgeBaseCommand) tea.Cmd 
 	}
 }
 
+func handleMCPCommand(page *UIPage, command *model.MCPCommand) tea.Cmd {
+	switch command.SubCommand {
+	case "ls":
+		return runMCPLsCommand(page, command)
+	case "add":
+		return runMCPAddCommand(page, command)
+	case "rm":
+		return runMCPRmCommand(page, command)
+	default:
+		page.MainPage.SetLastError(fmt.Sprintf("Unknown MCP action: %s", command.SubCommand))
+		return nil
+	}
+}
+
 type commandHint struct {
 	name   string
 	format string
@@ -533,6 +547,124 @@ func (h *KBListPageHandler) IsActive() bool {
 }
 
 func (h *KBListPageHandler) Deactivate() {
+	h.Page.Active = false
+}
+
+func runMCPLsCommand(page *UIPage, command *model.MCPCommand) tea.Cmd {
+	if page.App.Agent == nil {
+		page.MainPage.SetLastError("Agent not initialized")
+		return nil
+	}
+
+	diag := command.Run(page.App)
+	if diag != nil {
+		if diag.Data != nil {
+			if serverList, ok := diag.Data.([]core.MCPConfig); ok {
+				page.MCPHandler = NewMCPListPageHandler(page.Width, page.Height, serverList)
+				page.MainPage.Footer.Input.Blur()
+				page.MainPage.Footer.Input.SetValue("")
+				page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
+				return nil
+			}
+		}
+		if diag.Code != core.MessageCodeSuccess {
+			page.MainPage.SetLastError(page.App.Render(diag.Code, page.language))
+		}
+		return nil
+	}
+
+	return nil
+}
+
+func runMCPAddCommand(page *UIPage, command *model.MCPCommand) tea.Cmd {
+	if page.App.Agent == nil {
+		page.MainPage.SetLastError("Agent not initialized")
+		return nil
+	}
+
+	index := len(page.MainPage.Footer.RMStatuses)
+	page.MainPage.Footer.RMStatuses = append(page.MainPage.Footer.RMStatuses, view.RMStatusEntry{
+		Message: fmt.Sprintf("Adding MCP server %s...", command.ServerName),
+		Done:    false,
+	})
+	page.MainPage.SetRMStatuses(page.MainPage.Footer.RMStatuses)
+
+	diag := command.Run(page.App)
+	if diag != nil {
+		page.MainPage.Footer.RMStatuses[index].Message = page.App.Render(diag.Code, page.language)
+		page.MainPage.Footer.RMStatuses[index].Done = true
+		page.MainPage.Footer.RMStatuses[index].Code = diag.Code
+		page.MainPage.SetRMStatuses(page.MainPage.Footer.RMStatuses)
+	}
+	return nil
+}
+
+func runMCPRmCommand(page *UIPage, command *model.MCPCommand) tea.Cmd {
+	if page.App.Agent == nil {
+		page.MainPage.SetLastError("Agent not initialized")
+		return nil
+	}
+
+	index := len(page.MainPage.Footer.RMStatuses)
+	page.MainPage.Footer.RMStatuses = append(page.MainPage.Footer.RMStatuses, view.RMStatusEntry{
+		Message: fmt.Sprintf("Removing MCP server %s...", command.ServerName),
+		Done:    false,
+	})
+	page.MainPage.SetRMStatuses(page.MainPage.Footer.RMStatuses)
+
+	diag := command.Run(page.App)
+	if diag != nil {
+		page.MainPage.Footer.RMStatuses[index].Message = page.App.Render(diag.Code, page.language)
+		page.MainPage.Footer.RMStatuses[index].Done = true
+		page.MainPage.Footer.RMStatuses[index].Code = diag.Code
+		page.MainPage.SetRMStatuses(page.MainPage.Footer.RMStatuses)
+	}
+	return nil
+}
+
+// MCPListPageHandler
+type MCPListPageHandler struct {
+	Page *view.MCPListResultPage
+}
+
+func NewMCPListPageHandler(width, height int, serverList []core.MCPConfig) *MCPListPageHandler {
+	return &MCPListPageHandler{
+		Page: view.NewMCPListResultPage(width, height, serverList),
+	}
+}
+
+func (h *MCPListPageHandler) Update(msg tea.Msg) (tea.Cmd, bool) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		if msg.Type == tea.KeyEnter || msg.String() == "q" || msg.Type == tea.KeyEsc {
+			return nil, true
+		}
+		switch msg.String() {
+		case "up":
+			h.Page.ScrollUp(1)
+		case "down":
+			h.Page.ScrollDown(1)
+		}
+		return nil, false
+	case tea.WindowSizeMsg:
+		h.Page.Resize(msg.Width, msg.Height, h.Page.ServerList)
+		return nil, false
+	}
+
+	var cmd tea.Cmd
+	h.Page.Viewport, cmd = h.Page.Viewport.Update(msg)
+	return cmd, false
+}
+
+func (h *MCPListPageHandler) View() string {
+	return h.Page.View()
+}
+
+func (h *MCPListPageHandler) IsActive() bool {
+	return h.Page.Active
+}
+
+func (h *MCPListPageHandler) Deactivate() {
 	h.Page.Active = false
 }
 

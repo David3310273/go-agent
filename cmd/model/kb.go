@@ -45,11 +45,9 @@ func (c KnowledgeBaseCommand) GetHelp() map[string]any {
 		"format": "/kb add|ls|rm [file_path] [--type storage_type] [--domain domain]",
 		"desc":   "manage knowledge base",
 		"options": map[string]string{
-			"add":    "add a local file to knowledge base, usage: /kb add <file_path> [--type milvus] [--domain domain]",
-			"ls":     "list files in knowledge base, usage: /kb ls [--type milvus] [--domain domain]",
-			"rm":     "remove files from knowledge base, usage: /kb rm [file_path] [--type milvus] [--domain domain] (with --domain deletes all docs in domain)",
-			"type":   "storage type, default: milvus",
-			"domain": "document domain filter",
+			"add": "add a local file to knowledge base, usage: /kb add <file_path> [--type milvus] [--domain domain]",
+			"ls":  "list files in knowledge base, usage: /kb ls [--type milvus] [--domain domain]",
+			"rm":  "remove files from knowledge base, usage: /kb rm [file_path] [--type milvus] [--domain domain] (with --domain deletes all docs in domain)",
 		},
 	}
 }
