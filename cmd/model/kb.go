@@ -163,12 +163,12 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 			case c.ResponseChan <- result:
 			default:
 			}
-		case <-time.After(30 * time.Second):
+		case <-time.After(60 * time.Second):
 			select {
 			case c.ResponseChan <- core.Diagnostic{
 				Level:   core.SeverityError,
 				Code:    core.MessageCodeCommandTimeout,
-				Message: fmt.Sprintf("add file %s timed out after 30s", c.FilePath),
+				Message: fmt.Sprintf("add file %s timed out after 60s", c.FilePath),
 			}:
 			default:
 			}

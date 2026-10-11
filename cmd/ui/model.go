@@ -1,130 +1,41 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
-	"time"
 
-	"github.com/David3310273/go-agent/agent/simple"
 	"github.com/David3310273/go-agent/cmd/app"
 	"github.com/David3310273/go-agent/cmd/model"
+	"github.com/David3310273/go-agent/cmd/ui/view"
 	"github.com/David3310273/go-agent/core"
 	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	uuid "github.com/gofrs/uuid/v5"
 )
 
-// colors
-var (
-	titleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#7D56F4")).
-			Padding(0, 1).
-			Margin(0, 0, 1, 0)
-
-	promptStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575")).
-			Bold(true)
-
-	promptUserStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#E0E0E0")).
-			Bold(true).
-			Align(lipgloss.Left)
-
-	errorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF4444"))
-
-	infoStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#888888"))
-
-	responseStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#32FF7E"))
-
-	streamStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#32FF7E"))
-
-	helpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666")).
-			MarginTop(1)
-
-	pendingStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FFD700"))
-
-	successStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#04B575"))
-
-	hintStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#555555")).
-			Italic(true)
-)
-
-type messageEntry struct {
-	content string
-	msgType string // "response", "hint", "error", "prompt", "info", "stream"
-}
-
+// UIPage holds all UI state that handlers can modify
 type UIPage struct {
-	input         textinput.Model
-	messages      []messageEntry
-	app           *app.SimpleCommandApp
-	sessionID     string // hidden session ID, not displayed in UI
-	language      core.LanguageType
-	quitting      bool
-	waiting       bool   // true when waiting for command output, input is locked
-	streaming     bool   // true when stream mode
-	streamContent string // accumulated stream content for response display
-	streamTime    string // timestamp of first chunk
-	// output stream in command page
-	responseChan  chan core.Answer // response channel for stream mode
-	hintChan      chan core.Answer // hint channel for stream mode
-	currentHint   string           // current accumulated hint content
-	hintOverwrite bool             // next hint chunk should overwrite current hint
-	helpPage      *helpPage
-	kbPage        *kbListResultPage
-	width         int // terminal width for text wrapping
-	height        int // terminal height for viewport
-	welcomeHeight int
-	lastError     string          // last error message, displayed above input area
-	rmStatuses    []rmStatusEntry // rm status entries, each displayed on its own line above input
-	viewport      viewport.Model
-	autoScroll    bool   // true when user hasn't manually scrolled, auto-scroll to bottom (latest)
-	lastMsgCount  int    // track message count to detect new messages
-	lastContent   string // track viewport content to avoid resetting on every View()
+	MainPage     *view.MainPage
+	App          *app.SimpleCommandApp
+	SessionID    string
+	Language     core.LanguageType
+	Quitting     bool
+	ResponseChan chan core.Answer
+	HintChan     chan core.Answer
+	HelpHandler  *HelpPageHandler
+	KBHandler    *KBListPageHandler
+	Width        int
+	Height       int
 }
 
-type helpPage struct {
-	viewport viewport.Model
-	active   bool
-}
-
-type kbListResultPage struct {
-	viewport viewport.Model
-	active   bool
-	fileList []string
-}
-
-func NewModel(app *app.SimpleCommandApp, sessionID string) UIPage {
-	ti := textinput.New()
-	ti.Placeholder = "Type /ask your question or /quit to exit..."
-	ti.Focus()
-	ti.CharLimit = 1024
-	ti.Width = 50
-	ti.Prompt = "> "
-	ti.PromptStyle = promptStyle
-
-	return UIPage{
-		input:      ti,
-		messages:   []messageEntry{},
-		app:        app,
-		sessionID:  sessionID,
-		language:   core.Language_EN,
-		autoScroll: true,
+func NewModel(app *app.SimpleCommandApp, sessionID string) *UIPage {
+	return &UIPage{
+		App:       app,
+		SessionID: sessionID,
+		Language:  core.Language_EN,
 	}
 }
 
-func (m UIPage) Init() tea.Cmd {
+func (m *UIPage) Init() tea.Cmd {
 	return tea.Batch(
 		textinput.Blink,
 		tea.ClearScreen,
@@ -134,364 +45,261 @@ func (m UIPage) Init() tea.Cmd {
 func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
-	if m.helpPage != nil && m.helpPage.active {
+	if m.HelpHandler != nil && m.HelpHandler.IsActive() {
 		return m.updateHelpPage(msg)
 	}
 
-	if m.kbPage != nil && m.kbPage.active {
+	if m.KBHandler != nil && m.KBHandler.IsActive() {
 		return m.updateKBListResultPage(msg)
 	}
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		m.input.Width = msg.Width
-		vpHeight := m.calcViewportHeight()
-		if m.viewport.Width == 0 {
-			m.viewport = viewport.New(msg.Width, vpHeight)
+		m.Width = msg.Width
+		m.Height = msg.Height
+		if m.MainPage == nil {
+			ti := textinput.New()
+			ti.Placeholder = "Type /ask your question or /quit to exit..."
+			ti.Focus()
+			ti.CharLimit = 1024
+			ti.Width = 50
+			ti.Prompt = "> "
+			ti.PromptStyle = view.PromptStyle
+			m.MainPage = view.NewMainPage(msg.Width, msg.Height, m.App.Welcome(), ti)
 		} else {
-			m.viewport.Width = msg.Width
-			m.viewport.Height = vpHeight
+			m.MainPage.Resize(msg.Width, msg.Height)
 		}
 		return m, nil
 	case tea.KeyMsg:
 		core.LogStd(core.LogLevelDebug, "UI KeyMsg: Type=%v String=%q", msg.Type, msg.String())
-		// let viewport handle navigation keys first
 		switch msg.Type {
 		case tea.KeyCtrlC:
-			diags := core.StopCommandApp(m.app)
+			diags := core.StopCommandApp(m.App)
 			if len(diags) > 0 {
 				core.LogStd(core.LogLevelError, "UI: error stopping command app: %s", diags.ToString())
 				return m, nil
 			}
-			m.quitting = true
+			m.Quitting = true
 			return m, tea.Quit
 		case tea.KeyEsc:
-			if m.waiting {
+			if m.MainPage.Waiting {
 				return m, nil
 			}
 
-			diags := core.StopCommandApp(m.app)
+			diags := core.StopCommandApp(m.App)
 			if len(diags) > 0 {
 				core.LogStd(core.LogLevelError, "UI: error stopping command app: %s", diags.ToString())
 				return m, nil
 			}
 
-			m.quitting = true
+			m.Quitting = true
 			return m, tea.Quit
 		case tea.KeyEnter:
-			if m.waiting {
+			if m.MainPage.Waiting {
 				return m, nil
 			}
 			return m.handleInput()
 		case tea.KeyUp, tea.KeyDown:
 			core.LogStd(core.LogLevelDebug, "UI: routing arrow/page key to viewport: Type=%v", msg.Type)
-			m.autoScroll = false
-			core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.viewport.YOffset, m.viewport.TotalLineCount(), m.viewport.Height)
-			m.viewport, cmd = m.viewport.Update(msg)
-			core.LogStd(core.LogLevelDebug, "UI: after viewport.Update: YOffset=%d", m.viewport.YOffset)
+			m.MainPage.AutoScroll = false
+			core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.MainPage.Viewport.YOffset, m.MainPage.Viewport.TotalLineCount(), m.MainPage.Viewport.Height)
+			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
+			core.LogStd(core.LogLevelDebug, "UI: after viewport.Update: YOffset=%d", m.MainPage.Viewport.YOffset)
 			return m, cmd
 		case tea.KeyLeft, tea.KeyRight:
-			// when input has content, let textinput handle cursor movement;
-			// otherwise pass to viewport for horizontal scrolling
-			if m.input.Value() != "" {
-				m.input, cmd = m.input.Update(msg)
+			if m.MainPage.Footer.Input.Value() != "" {
+				m.MainPage.Footer.Input, cmd = m.MainPage.Footer.Input.Update(msg)
+				m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 				return m, cmd
 			}
-			m.autoScroll = false
-			m.viewport, cmd = m.viewport.Update(msg)
+			m.MainPage.AutoScroll = false
+			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
 			return m, cmd
 		}
-		// fallback: also check String() for keys that might not have Type set correctly
 		switch msg.String() {
 		case "up", "down":
 			core.LogStd(core.LogLevelDebug, "UI: routing String() key to viewport: %s", msg.String())
-			m.autoScroll = false
-			core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.viewport.YOffset, m.viewport.TotalLineCount(), m.viewport.Height)
-			m.viewport, cmd = m.viewport.Update(msg)
-			core.LogStd(core.LogLevelDebug, "UI: after viewport.Update: YOffset=%d", m.viewport.YOffset)
+			m.MainPage.AutoScroll = false
+			core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.MainPage.Viewport.YOffset, m.MainPage.Viewport.TotalLineCount(), m.MainPage.Viewport.Height)
+			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
+			core.LogStd(core.LogLevelDebug, "UI: after viewport.Update: YOffset=%d", m.MainPage.Viewport.YOffset)
 			return m, cmd
 		case "left", "right":
-			if m.input.Value() != "" {
-				m.input, cmd = m.input.Update(msg)
+			if m.MainPage.Footer.Input.Value() != "" {
+				m.MainPage.Footer.Input, cmd = m.MainPage.Footer.Input.Update(msg)
+				m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 				return m, cmd
 			}
-			m.autoScroll = false
-			m.viewport, cmd = m.viewport.Update(msg)
+			m.MainPage.AutoScroll = false
+			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
 			return m, cmd
 		}
 
-	case outputMsg:
-		if msg.msgType == "response" {
-			if m.streaming {
-				// clear hint once response starts coming in
-				if m.currentHint != "" {
-					m.currentHint = ""
-					m.hintOverwrite = false
+	case OutputMsg:
+		if msg.MsgType == "response" {
+			if m.MainPage.Streaming {
+				if m.MainPage.CurrentHint != "" {
+					m.MainPage.CurrentHint = ""
+					m.MainPage.HintOverwrite = false
 				}
-				if msg.isComplete {
-					// stream finished: use complete content directly (don't accumulate delta again)
-					finalContent := msg.content
+				if msg.IsComplete || msg.IsFinalAnswer {
+					finalContent := m.MainPage.StreamContent
+					if finalContent == "" {
+						finalContent = msg.Content
+					}
 					if finalContent != "" {
-						// use recorded first chunk time or current time
-						timePrefix := m.streamTime
+						timePrefix := m.MainPage.StreamTime
 						if timePrefix == "" {
-							timePrefix = formatTimestamp()
+							timePrefix = view.FormatTimestamp()
 						}
-						m.messages = append(m.messages, messageEntry{content: timePrefix + " " + finalContent, msgType: "stream"})
+						m.MainPage.Messages = append(m.MainPage.Messages, view.MessageEntry{Content: timePrefix + " " + finalContent, MsgType: "stream"})
 					}
-					m.streamContent = ""
-					m.streamTime = ""
-					m.waiting = false
-					m.streaming = false
-					m.input.SetValue("")
-					m.input.Focus()
+					m.MainPage.StreamContent = ""
+					m.MainPage.StreamTime = ""
+					m.MainPage.Waiting = false
+					m.MainPage.Streaming = false
+					m.MainPage.Footer.Input.SetValue("")
+					m.MainPage.Footer.Input.Focus()
+					m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 				} else {
-					// continue streaming: accumulate delta content for real-time display
-					// record time only for first chunk
-					if m.streamContent == "" && m.streamTime == "" {
-						m.streamTime = formatTimestamp()
+					if m.MainPage.StreamContent == "" && m.MainPage.StreamTime == "" {
+						m.MainPage.StreamTime = view.FormatTimestamp()
 					}
-					m.streamContent += msg.content
-					// continue listening for next chunk
-					m.refreshViewport()
+					m.MainPage.StreamContent += msg.Content
+					m.refreshMainPage()
 					return m, waitForStreamOutput([]core.OutputChannel{
-						{Chan: m.responseChan, Type: "response"},
-						{Chan: m.hintChan, Type: "hint"},
+						{Chan: m.ResponseChan, Type: "response"},
+						{Chan: m.HintChan, Type: "hint"},
 					})
 				}
 			} else {
-				// non-stream mode: show message directly
-				if msg.content != "" {
-					m.messages = append(m.messages, messageEntry{content: formatTimestamp() + " " + msg.content, msgType: "stream"})
+				if msg.Content != "" {
+					m.MainPage.Messages = append(m.MainPage.Messages, view.MessageEntry{Content: view.FormatTimestamp() + " " + msg.Content, MsgType: "stream"})
 				}
-				m.waiting = false
-				m.input.SetValue("")
-				m.input.Focus()
+				m.MainPage.Waiting = false
+				m.MainPage.Footer.Input.SetValue("")
+				m.MainPage.Footer.Input.Focus()
+				m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 			}
-		} else if msg.msgType == "hint" {
-			if m.streaming {
-				// accumulate hint content in one line
-				core.LogStd(core.LogLevelDebug, "UI received hint chunk: %s", msg.content)
-				// if previous chunk contained a period, overwrite current hint
-				if m.hintOverwrite {
-					m.currentHint = msg.content
-					m.hintOverwrite = false
+		} else if msg.MsgType == "hint" {
+			if m.MainPage.Streaming {
+				core.LogStd(core.LogLevelDebug, "UI received hint chunk: %s", msg.Content)
+				if m.MainPage.HintOverwrite {
+					m.MainPage.CurrentHint = msg.Content
+					m.MainPage.HintOverwrite = false
 				} else {
-					m.currentHint += msg.content
+					m.MainPage.CurrentHint += msg.Content
 				}
-				// check if current chunk contains a period, mark for next overwrite
-				if strings.Contains(msg.content, ".") {
-					m.hintOverwrite = true
+				if strings.Contains(msg.Content, ".") {
+					m.MainPage.HintOverwrite = true
 				}
-				// truncate with ellipsis if exceeds 80 characters
-				displayHint := m.currentHint
+				displayHint := m.MainPage.CurrentHint
 				if len(displayHint) > 80 {
 					displayHint = displayHint[:77] + "..."
 				}
-				m.currentHint = displayHint
-				// continue listening for more chunks
-				m.refreshViewport()
+				m.MainPage.CurrentHint = displayHint
+				m.refreshMainPage()
 				return m, waitForStreamOutput([]core.OutputChannel{
-					{Chan: m.responseChan, Type: "response"},
-					{Chan: m.hintChan, Type: "hint"},
+					{Chan: m.ResponseChan, Type: "response"},
+					{Chan: m.HintChan, Type: "hint"},
 				})
 			} else {
-				// non-stream mode: show as normal hint
-				m.messages = append(m.messages, messageEntry{content: msg.content, msgType: "hint"})
+				m.MainPage.Messages = append(m.MainPage.Messages, view.MessageEntry{Content: msg.Content, MsgType: "hint"})
 			}
 		}
-		m.refreshViewport()
+		m.refreshMainPage()
 		return m, nil
 
 	case errorMsg:
-		m.lastError = msg.err
-		m.refreshViewport()
+		m.MainPage.SetLastError(msg.err)
+		m.refreshMainPage()
 		return m, nil
 
-	case rmResultMsg:
-		if msg.index >= 0 && msg.index < len(m.rmStatuses) {
-			m.rmStatuses[msg.index].message = msg.message
-			m.rmStatuses[msg.index].done = true
-			m.rmStatuses[msg.index].code = msg.code
+	case RMResultMsg:
+		if msg.Index >= 0 && msg.Index < len(m.MainPage.Footer.RMStatuses) {
+			m.MainPage.Footer.RMStatuses[msg.Index].Message = msg.Message
+			m.MainPage.Footer.RMStatuses[msg.Index].Done = true
+			m.MainPage.Footer.RMStatuses[msg.Index].Code = msg.Code
 		}
-		m.refreshViewport()
+		m.MainPage.SetRMStatuses(m.MainPage.Footer.RMStatuses)
+		m.refreshMainPage()
 		return m, nil
 	}
 
-	m.input, cmd = m.input.Update(msg)
+	if m.MainPage == nil {
+		return m, nil
+	}
 
-	// clear error message only when user types actual characters (not cursor movement)
+	m.MainPage.Footer.Input, cmd = m.MainPage.Footer.Input.Update(msg)
+
 	if keyMsg, ok := msg.(tea.KeyMsg); ok {
 		if len(keyMsg.String()) == 1 {
-			m.lastError = ""
-			// clear completed rm status entries
-			var pending []rmStatusEntry
-			for _, entry := range m.rmStatuses {
-				if !entry.done {
+			m.MainPage.SetLastError("")
+			var pending []view.RMStatusEntry
+			for _, entry := range m.MainPage.Footer.RMStatuses {
+				if !entry.Done {
 					pending = append(pending, entry)
 				}
 			}
-			m.rmStatuses = pending
+			m.MainPage.Footer.RMStatuses = pending
+			m.MainPage.SetLastError("")
+			m.MainPage.SetRMStatuses(m.MainPage.Footer.RMStatuses)
 		}
-		m.refreshViewport()
+		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
+		m.refreshMainPage()
 	}
 
 	return m, cmd
 }
 
 func (m *UIPage) updateHelpPage(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyEnter || msg.String() == "q" || msg.Type == tea.KeyEsc {
-			m.helpPage.active = false
-			m.input.Focus()
-			return m, nil
-		}
-		// handle navigation keys manually for better compatibility
-		switch msg.String() {
-		case "up", "k":
-			m.helpPage.viewport.ScrollUp(1)
-		case "down", "j":
-			m.helpPage.viewport.ScrollDown(1)
-		}
-		// ensure YOffset doesn't go negative
-		if m.helpPage.viewport.YOffset < 0 {
-			m.helpPage.viewport.YOffset = 0
-		}
-		return m, nil
-	case tea.WindowSizeMsg:
-		// calculate help content header/footer height
-		helpHeader := titleStyle.Render("Help Documentation") + "\n\n"
-		helpFooter := "\n\n" + hintStyle.Render("Press q or Esc to exit help")
-		helpVpHeight := msg.Height - lipgloss.Height(helpHeader) - lipgloss.Height(helpFooter)
-		if helpVpHeight < 5 {
-			helpVpHeight = 5
-		}
-		m.helpPage.viewport.Width = msg.Width
-		m.helpPage.viewport.Height = helpVpHeight
-		m.helpPage.viewport.SetContent(m.app.GetHelpDoc())
+	cmd, shouldExit := m.HelpHandler.Update(msg)
+	if shouldExit {
+		m.HelpHandler.Deactivate()
+		m.MainPage.Footer.Input.Focus()
+		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 		return m, nil
 	}
-
-	var cmd tea.Cmd
-	m.helpPage.viewport, cmd = m.helpPage.viewport.Update(msg)
 	return m, cmd
 }
 
 func (m *UIPage) updateKBListResultPage(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		if msg.Type == tea.KeyEnter || msg.String() == "q" || msg.Type == tea.KeyEsc {
-			m.kbPage.active = false
-			m.input.Focus()
-			return m, nil
-		}
-		switch msg.String() {
-		case "up":
-			m.kbPage.viewport.ScrollUp(1)
-		case "down":
-			m.kbPage.viewport.ScrollDown(1)
-		}
-		if m.kbPage.viewport.YOffset < 0 {
-			m.kbPage.viewport.YOffset = 0
-		}
-		return m, nil
-	case tea.WindowSizeMsg:
-		kbHeader := titleStyle.Render("Knowledge Base") + "\n\n"
-		kbFooter := "\n\n" + hintStyle.Render("Press q or Esc to exit")
-		kbVpHeight := msg.Height - lipgloss.Height(kbHeader) - lipgloss.Height(kbFooter)
-		if kbVpHeight < 5 {
-			kbVpHeight = 5
-		}
-		m.kbPage.viewport.Width = msg.Width
-		m.kbPage.viewport.Height = kbVpHeight
-		m.kbPage.viewport.SetContent(buildKBListContent(m.kbPage.fileList))
+	cmd, shouldExit := m.KBHandler.Update(msg)
+	if shouldExit {
+		m.KBHandler.Deactivate()
+		m.MainPage.Footer.Input.Focus()
+		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 		return m, nil
 	}
-
-	var cmd tea.Cmd
-	m.kbPage.viewport, cmd = m.kbPage.viewport.Update(msg)
 	return m, cmd
 }
 
-func (m UIPage) viewKBListResultPage() string {
-	var contentBuilder strings.Builder
-	contentBuilder.WriteString(titleStyle.Render("Knowledge Base"))
-	contentBuilder.WriteString("\n\n")
-	contentBuilder.WriteString(m.kbPage.viewport.View())
-	contentBuilder.WriteString("\n\n")
-	contentBuilder.WriteString(hintStyle.Render("Press q or Esc to exit"))
-
-	return contentBuilder.String()
-}
-
-func buildKBListContent(fileList []string) string {
-	var contentBuilder strings.Builder
-	contentBuilder.WriteString(responseStyle.Render("Your knowledgebase files:"))
-	contentBuilder.WriteString("\n\n")
-	for _, file := range fileList {
-		contentBuilder.WriteString(promptUserStyle.Render("- " + file))
-		contentBuilder.WriteString("\n")
-	}
-	return contentBuilder.String()
-}
-
 func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
-	input := strings.TrimSpace(m.input.Value())
+	input := strings.TrimSpace(m.MainPage.Footer.Input.Value())
 	if input == "" {
 		return m, nil
 	}
 
 	core.LogStd(core.LogLevelDebug, "Parsing user input: %s", input)
 
+	// Try system commands first
 	parts := strings.Fields(input)
-	cmdName := parts[0]
-
-	switch cmdName {
-	case "/quit", "/exit", "/q":
-		diags := core.StopCommandApp(m.app)
-		if len(diags) > 0 {
-			core.LogStd(core.LogLevelError, "UI: error running /quit: %v\n", diags.ToString())
+	if len(parts) > 0 {
+		sysCmd := HandleSystemCommand(m, input)
+		if sysCmd != nil {
+			if m.Quitting {
+				return m, tea.Quit
+			}
+			return m, sysCmd
 		}
-		m.quitting = true
-		return m, tea.Quit
-	case "/help", "/h":
-		// calculate help content header/footer height
-		helpHeader := titleStyle.Render("Help Documentation") + "\n\n"
-		helpFooter := "\n\n" + hintStyle.Render("Press q or Esc to exit help")
-		helpVpHeight := m.height - lipgloss.Height(helpHeader) - lipgloss.Height(helpFooter)
-		if helpVpHeight < 5 {
-			helpVpHeight = 5
+		// HandleSystemCommand may activate a page handler (e.g., /help) without returning a tea.Cmd
+		if (m.HelpHandler != nil && m.HelpHandler.IsActive()) || (m.KBHandler != nil && m.KBHandler.IsActive()) {
+			return m, nil
 		}
-		m.helpPage = &helpPage{
-			viewport: viewport.New(m.width, helpVpHeight),
-			active:   true,
-		}
-		m.helpPage.viewport.SetContent(m.app.GetHelpDoc())
-		m.input.Blur()
-		m.input.SetValue("")
-		return m, nil
-	case "/i18n":
-		if len(parts) < 2 {
-			m.lastError = "Language not specified"
-		} else if parts[1] != core.Language_EN && parts[1] != core.Language_ZH {
-			m.lastError = "Not supported language type"
-		} else {
-			m.language = core.LanguageType(parts[1])
-		}
-	case "/new-page":
-		id, _ := uuid.NewV4()
-		m.sessionID = id.String()
-		m.messages = []messageEntry{}
-		m.refreshViewport()
-		m.scrollToLatest()
-		m.input.SetValue("")
-		return m, nil
 	}
 
-	command, diagnostics := m.app.Parse(input)
+	// Parse and handle other commands
+	command, diagnostics := m.App.Parse(input)
 	if len(diagnostics) > 0 {
 		var messages []string
 		for _, diag := range diagnostics {
@@ -500,683 +308,66 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 			}
 		}
 		if len(messages) > 0 {
-			m.lastError = strings.Join(messages, "\n")
+			m.MainPage.SetLastError(strings.Join(messages, "\n"))
 		} else {
-			m.lastError = "Unknown error occurred"
+			m.MainPage.SetLastError("Unknown error occurred")
 		}
-		m.input.SetValue("")
+		m.MainPage.Footer.Input.SetValue("")
+		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 		return m, nil
 	}
 
 	if command == nil {
-		m.lastError = "Unknown command."
-		m.input.SetValue("")
+		m.MainPage.SetLastError("Unknown command.")
+		m.MainPage.Footer.Input.SetValue("")
+		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 		return m, nil
 	}
 
-	m.input.SetValue("")
+	m.MainPage.Footer.Input.SetValue("")
+	m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
 
-	command = command.WithOption("sessionID", m.sessionID)
-	command = command.WithOption("language", string(m.language))
+	command = command.WithOption("sessionID", m.SessionID)
+	command = command.WithOption("language", string(m.Language))
 
-	m.lastError = ""
+	m.MainPage.SetLastError("")
 
-	switch command.GetBase() {
-	case "/ask":
-		askCmd, ok := command.(*model.AskQuestionCommand)
-		if ok {
-			m.messages = append(m.messages, messageEntry{content: formatTimestamp() + " " + askCmd.Query, msgType: "prompt"})
-			m.refreshViewport()
-			m.scrollToLatest()
-			m.streaming = askCmd.Stream
-			m.streamContent = ""
-			return m.runAskCommand(askCmd)
-		}
-		m.lastError = "Unknown command."
-		return m, nil
-	case "/kb":
-		kbCmd, ok := command.(*model.KnowledgeBaseCommand)
-		if ok {
-			switch kbCmd.SubCommand {
-			case model.KBSubCommandLs:
-				return m.runKBLsCommand(kbCmd)
-			case model.KBSubCommandAdd:
-				return m.runKBAddCommand(kbCmd)
-			case model.KBSubCommandRm:
-				return m.runKBRmCommand(kbCmd)
-			}
-		}
-		m.lastError = "Unknown command."
-		return m, nil
+	var cmd tea.Cmd
+	switch c := command.(type) {
+	case *model.AskQuestionCommand:
+		cmd = handleAskCommand(m, c)
+	case *model.KnowledgeBaseCommand:
+		cmd = handleKBCommand(m, c)
 	default:
-		m.lastError = "Unknown command."
-		return m, nil
+		m.MainPage.SetLastError(fmt.Sprintf("%s: command not found", parts[0]))
 	}
+	return m, cmd
 }
 
-func (m *UIPage) runKBLsCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
-	diag := command.Run(m.app)
-	if diag != nil {
-		core.LogStd(core.LogLevelDebug, "kb ls result: %s", diag.ToString())
-		if diag.Code != core.MessageCodeSuccess {
-			m.lastError = m.app.Render(diag.Code, m.language)
-			return m, nil
-		} else {
-			fileList, ok := diag.Data.([]string)
-			if ok {
-				kbHeader := titleStyle.Render("Knowledge Base") + "\n\n"
-				kbFooter := "\n\n" + hintStyle.Render("Press q or Esc to exit")
-				kbVpHeight := m.height - lipgloss.Height(kbHeader) - lipgloss.Height(kbFooter)
-				if kbVpHeight < 5 {
-					kbVpHeight = 5
-				}
-				m.kbPage = &kbListResultPage{
-					viewport: viewport.New(m.width, kbVpHeight),
-					active:   true,
-					fileList: fileList,
-				}
-				m.kbPage.viewport.SetContent(buildKBListContent(fileList))
-				m.input.Blur()
-			}
-		}
-		return m, nil
+func (m *UIPage) View() string {
+	if m.HelpHandler != nil && m.HelpHandler.IsActive() {
+		return m.HelpHandler.View()
 	}
-	return m, nil
+
+	if m.KBHandler != nil && m.KBHandler.IsActive() {
+		return m.KBHandler.View()
+	}
+
+	if m.MainPage == nil {
+		return "Loading..."
+	}
+
+	return m.MainPage.View()
 }
 
-func (m *UIPage) runKBAddCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
-	filename := ""
-	if command.FilePath != "" {
-		filename = command.FilePath
+func (m *UIPage) refreshMainPage() {
+	if m.MainPage != nil {
+		m.MainPage.SetMessages(m.MainPage.Messages, m.MainPage.Waiting, m.MainPage.Streaming,
+			m.MainPage.CurrentHint, m.MainPage.StreamContent, m.MainPage.StreamTime)
+		m.MainPage.ScrollToLatest()
 	}
-
-	m.rmStatuses = append(m.rmStatuses, rmStatusEntry{
-		message: "adding file " + filename + "...",
-		done:    false,
-		code:    -1,
-	})
-	pendingIndex := len(m.rmStatuses) - 1
-	m.input.SetValue("")
-	m.refreshViewport()
-
-	return m, func() tea.Msg {
-		command.Run(m.app)
-		var message string
-		var code core.MessageCode
-		select {
-		case diag := <-command.ResponseChan:
-			code = diag.Code
-			if diag.Code == core.MessageCodeSuccess {
-				message = "file " + filename + " added"
-			} else {
-				message = m.app.Render(diag.Code, m.language)
-			}
-		case <-time.After(30 * time.Second):
-			code = core.MessageCodeCommandTimeout
-			message = m.app.Render(core.MessageCodeCommandTimeout, m.language)
-		}
-		return rmResultMsg{
-			index:   pendingIndex,
-			message: message,
-			code:    code,
-		}
-	}
-}
-
-func (m *UIPage) runKBRmCommand(command *model.KnowledgeBaseCommand) (tea.Model, tea.Cmd) {
-	filename := ""
-	if command.FilePath != "" {
-		filename = command.FilePath
-	} else if command.Domain != "" {
-		filename = "in domain " + command.Domain
-	}
-
-	m.rmStatuses = append(m.rmStatuses, rmStatusEntry{
-		message: "removing file " + filename + "...",
-		done:    false,
-		code:    -1,
-	})
-	pendingIndex := len(m.rmStatuses) - 1
-	m.input.SetValue("")
-	m.refreshViewport()
-
-	return m, func() tea.Msg {
-		command.Run(m.app)
-		var message string
-		var code core.MessageCode
-		select {
-		case diag := <-command.ResponseChan:
-			code = diag.Code
-			if diag.Code == core.MessageCodeSuccess {
-				message = "removed " + filename
-			} else {
-				message = m.app.Render(diag.Code, m.language)
-			}
-		case <-time.After(30 * time.Second):
-			code = core.MessageCodeCommandTimeout
-			message = m.app.Render(core.MessageCodeCommandTimeout, m.language)
-		}
-		return rmResultMsg{
-			index:   pendingIndex,
-			message: message,
-			code:    code,
-		}
-	}
-}
-
-func (m *UIPage) runAskCommand(command *model.AskQuestionCommand) (tea.Model, tea.Cmd) {
-	if m.app.Agent == nil {
-		m.lastError = "Agent not initialized"
-		return m, nil
-	}
-
-	diag := command.Run(m.app)
-	if diag != nil {
-		m.lastError = m.app.Render(diag.Code, m.language)
-		return m, nil
-	}
-
-	outputChans := command.GetOutputChans()
-	if len(outputChans) == 0 {
-		return m, nil
-	}
-
-	m.waiting = true
-	m.input.Blur()
-
-	if m.streaming {
-		// save channels for continued listening
-		m.responseChan, _ = outputChans[0].Chan.(chan core.Answer)
-		m.hintChan, _ = outputChans[1].Chan.(chan core.Answer)
-		// stream mode: listen to both channels continuously
-		return m, waitForStreamOutput(outputChans)
-	}
-
-	// non-stream mode: just wait for the first response
-	var cmds []tea.Cmd
-	for _, oc := range outputChans {
-		ch, _ := oc.Chan.(chan core.Answer)
-		cmds = append(cmds, waitForOutput(ch, oc.Type))
-	}
-
-	return m, tea.Batch(cmds...)
-}
-
-// func (m UIPage) runCommand(command core.Command) (tea.Model, tea.Cmd) {
-// 	if m.app.Agent == nil {
-// 		m.lastError = "Agent not initialized"
-// 		return m, nil
-// 	}
-
-// 	diag := command.Run(m.app)
-// 	if diag != nil {
-// 		m.lastError = diag.Message
-// 		return m, nil
-// 	}
-
-// 	outputChans := command.GetOutputChans()
-// 	if len(outputChans) == 0 {
-// 		return m, nil
-// 	}
-
-// 	m.waiting = true
-// 	m.input.Blur()
-
-// 	var cmds []tea.Cmd
-// 	for _, oc := range outputChans {
-// 		cmds = append(cmds, waitForOutput(oc.Chan, oc.Type))
-// 	}
-
-// 	return m, tea.Batch(cmds...)
-// }
-
-func waitForStreamOutput(outputChans []core.OutputChannel) tea.Cmd {
-	return func() tea.Msg {
-		// listen to both channels
-		responseChan, _ := outputChans[0].Chan.(chan core.Answer)
-		hintChan, _ := outputChans[1].Chan.(chan core.Answer)
-
-		select {
-		case answer, ok := <-responseChan:
-			if !ok {
-				// channel closed, stream is complete
-				core.LogStd(core.LogLevelDebug, "UI: responseChan closed, stream complete")
-				return outputMsg{content: "", msgType: "response", isComplete: true, isFinalAnswer: true}
-			}
-			// debug: log the actual type received
-			core.LogStd(core.LogLevelDebug, "UI: received response chunk, type=%T", answer)
-
-			// try SimpleNormalResponse first
-			if simpleResp, ok := answer.(simple.SimpleNormalResponse); ok {
-				content := simpleResp.Response.Response
-				if content != "" {
-					core.LogStd(core.LogLevelDebug, "UI: extracted content from SimpleNormalResponse.Response: %s", content[:min(len(content), 50)])
-					return outputMsg{content: content, msgType: "response", isComplete: true, isFinalAnswer: true}
-				}
-				// fallback to Choices content
-				if len(simpleResp.Response.Choices) > 0 && simpleResp.Response.Choices[0].Message != nil {
-					content = simpleResp.Response.Choices[0].Message.Content
-					isComplete := simpleResp.Response.Choices[0].FinishReason != ""
-					core.LogStd(core.LogLevelDebug, "UI: extracted content from SimpleNormalResponse.Choices, isComplete=%v", isComplete)
-					return outputMsg{content: content, msgType: "response", isComplete: isComplete, isFinalAnswer: isComplete}
-				}
-			}
-
-			// try SimpleToolConfirmResponse
-			if confirmResp, ok := answer.(simple.SimpleToolConfirmResponse); ok {
-				content := confirmResp.Response.Response
-				if content != "" {
-					core.LogStd(core.LogLevelDebug, "UI: extracted content from SimpleToolConfirmResponse.Response: %s", content[:min(len(content), 50)])
-					return outputMsg{content: content, msgType: "response", isComplete: true, isFinalAnswer: true}
-				}
-				// fallback to Choices content
-				if len(confirmResp.Response.Choices) > 0 && confirmResp.Response.Choices[0].Message != nil {
-					content = confirmResp.Response.Choices[0].Message.Content
-					core.LogStd(core.LogLevelDebug, "UI: extracted content from SimpleToolConfirmResponse.Choices")
-					return outputMsg{content: content, msgType: "response", isComplete: true, isFinalAnswer: true}
-				}
-			}
-
-			// try core.AgentResponse
-			if resp, ok := answer.(core.AgentResponse); ok {
-				// extract content from choices
-				content := ""
-				isComplete := false
-				if len(resp.Choices) > 0 && resp.Choices[0].Message != nil {
-					// skip tool call responses, don't show to user
-					if resp.Choices[0].Message.ToolCalls != nil && len(*resp.Choices[0].Message.ToolCalls) > 0 {
-						core.LogStd(core.LogLevelDebug, "UI: skipping tool call response")
-						return outputMsg{content: "", msgType: "response", isComplete: false, isFinalAnswer: false}
-					}
-					content = resp.Choices[0].Message.Content
-					// check if this is the final chunk
-					if resp.Choices[0].FinishReason != "" {
-						isComplete = true
-						core.LogStd(core.LogLevelDebug, "UI: response chunk isComplete=true, finishReason=%s", resp.Choices[0].FinishReason)
-					}
-				}
-				// if content is empty but has usage, this is the final chunk
-				if content == "" && resp.Usage.TotalTokens > 0 {
-					isComplete = true
-					core.LogStd(core.LogLevelDebug, "UI: response chunk isComplete=true (usage only)")
-				}
-				// if has final response text, use it instead of stream content
-				if resp.Response != "" {
-					content = resp.Response
-					isComplete = true
-				}
-				return outputMsg{content: content, msgType: "response", isComplete: isComplete, isFinalAnswer: isComplete}
-			}
-
-			// for other types, treat as complete
-			core.LogStd(core.LogLevelDebug, "UI: response chunk type assertion failed, using ToString()")
-			return outputMsg{content: answer.ToString(), msgType: "response", isComplete: true, isFinalAnswer: true}
-		case hint, ok := <-hintChan:
-			if !ok {
-				// hint channel closed, continue waiting for response
-				return outputMsg{content: "", msgType: "hint", isComplete: false}
-			}
-			// try SimpleNormalResponse for hint
-			if simpleResp, ok := hint.(simple.SimpleNormalResponse); ok {
-				if len(simpleResp.Response.Choices) > 0 && simpleResp.Response.Choices[0].Message != nil && simpleResp.Response.Choices[0].Message.ReasoningContent != nil {
-					hintContent := *simpleResp.Response.Choices[0].Message.ReasoningContent
-					time.Sleep(500 * time.Millisecond)
-					return outputMsg{content: hintContent, msgType: "hint", isComplete: false}
-				}
-			}
-			// try core.AgentResponse for hint
-			if resp, ok := hint.(core.AgentResponse); ok {
-				if len(resp.Choices) > 0 && resp.Choices[0].Message != nil && resp.Choices[0].Message.ReasoningContent != nil {
-					hintContent := *resp.Choices[0].Message.ReasoningContent
-					// add delay for hint display to avoid flashing too fast
-					time.Sleep(500 * time.Millisecond)
-					return outputMsg{content: hintContent, msgType: "hint", isComplete: false}
-				}
-			}
-			// add delay for hint display
-			time.Sleep(500 * time.Millisecond)
-			return outputMsg{content: hint.ToString(), msgType: "hint", isComplete: false}
-		}
-	}
-}
-
-func waitForOutput(ch chan core.Answer, msgType string) tea.Cmd {
-	return func() tea.Msg {
-		answer := <-ch
-		// try SimpleNormalResponse first
-		if simpleResp, ok := answer.(simple.SimpleNormalResponse); ok {
-			// use final response content if available
-			if simpleResp.Response.Response != "" {
-				return outputMsg{content: simpleResp.Response.Response, msgType: msgType, isFinalAnswer: true}
-			}
-			// fallback to choices content
-			if len(simpleResp.Response.Choices) > 0 && simpleResp.Response.Choices[0].Message != nil {
-				return outputMsg{content: simpleResp.Response.Choices[0].Message.Content, msgType: msgType}
-			}
-		}
-		// try SimpleToolConfirmResponse
-		if confirmResp, ok := answer.(simple.SimpleToolConfirmResponse); ok {
-			// use final response content if available
-			if confirmResp.Response.Response != "" {
-				return outputMsg{content: confirmResp.Response.Response, msgType: msgType, isFinalAnswer: true}
-			}
-			// fallback to choices content
-			if len(confirmResp.Response.Choices) > 0 && confirmResp.Response.Choices[0].Message != nil {
-				return outputMsg{content: confirmResp.Response.Choices[0].Message.Content, msgType: msgType}
-			}
-		}
-		// try AgentResponse
-		if resp, ok := answer.(core.AgentResponse); ok {
-			// use final response content if available
-			if resp.Response != "" {
-				return outputMsg{content: resp.Response, msgType: msgType, isFinalAnswer: true}
-			}
-			// fallback to choices content
-			if len(resp.Choices) > 0 && resp.Choices[0].Message != nil {
-				// skip tool call responses, don't show to user
-				if resp.Choices[0].Message.ToolCalls != nil && len(*resp.Choices[0].Message.ToolCalls) > 0 {
-					core.LogStd(core.LogLevelDebug, "UI: skipping tool call response in non-stream mode")
-					return outputMsg{content: "", msgType: msgType, isFinalAnswer: false}
-				}
-				return outputMsg{content: resp.Choices[0].Message.Content, msgType: msgType}
-			}
-		}
-
-		// for other types, use ToString
-		return outputMsg{content: answer.ToString(), msgType: msgType}
-	}
-}
-
-type outputMsg struct {
-	content       string
-	msgType       string
-	isComplete    bool // true when stream is complete
-	isFinalAnswer bool // true when this is the final parsed response
 }
 
 type errorMsg struct {
 	err string
-}
-
-type rmResultMsg struct {
-	index   int
-	message string
-	code    core.MessageCode
-}
-
-type rmStatusEntry struct {
-	message string
-	done    bool
-	code    core.MessageCode
-}
-
-func (m UIPage) buildViewportContent() string {
-	wrapWidth := m.width
-	if wrapWidth <= 0 {
-		wrapWidth = 80
-	}
-
-	var contentBuilder strings.Builder
-	for i, entry := range m.messages {
-		switch entry.msgType {
-		case "response":
-			wrapped := wrapText(entry.content, wrapWidth)
-			contentBuilder.WriteString(responseStyle.Render(wrapped))
-			contentBuilder.WriteString("\n")
-		case "stream":
-			wrapped := wrapText(entry.content, wrapWidth)
-			contentBuilder.WriteString(streamStyle.Render(wrapped))
-			contentBuilder.WriteString("\n")
-		case "hint":
-			truncated := truncateHint(entry.content, wrapWidth)
-			contentBuilder.WriteString(infoStyle.Render("💡 " + truncated))
-			contentBuilder.WriteString("\n")
-			contentBuilder.WriteString("\n")
-		case "error":
-			wrapped := wrapText(entry.content, wrapWidth)
-			contentBuilder.WriteString(errorStyle.Render(wrapped))
-			contentBuilder.WriteString("\n")
-		case "prompt":
-			if i > 0 {
-				contentBuilder.WriteString("\n")
-			}
-			wrapped := wrapText(entry.content, wrapWidth)
-			contentBuilder.WriteString(promptUserStyle.Render(wrapped))
-			contentBuilder.WriteString("\n")
-		case "info":
-			wrapped := wrapText(entry.content, wrapWidth)
-			contentBuilder.WriteString(helpStyle.Render(wrapped))
-			contentBuilder.WriteString("\n")
-		}
-	}
-
-	if m.waiting {
-		if m.streaming {
-			if m.currentHint != "" && m.streamContent == "" {
-				contentBuilder.WriteString(infoStyle.Render("💡 " + m.currentHint))
-				contentBuilder.WriteString("\n")
-				contentBuilder.WriteString("\n")
-			}
-			if m.streamContent != "" {
-				timePrefix := m.streamTime
-				if timePrefix == "" {
-					timePrefix = formatTimestamp()
-				}
-				wrapped := wrapText(timePrefix+" "+m.streamContent, wrapWidth)
-				contentBuilder.WriteString(streamStyle.Render(wrapped))
-				contentBuilder.WriteString("\n")
-			}
-		} else {
-			contentBuilder.WriteString(infoStyle.Render("⏳ Waiting for response..."))
-		}
-	}
-
-	return contentBuilder.String()
-}
-
-func (m UIPage) calcViewportHeight() int {
-	wrapWidth := m.width
-	if wrapWidth <= 0 {
-		wrapWidth = 80
-	}
-
-	header := titleStyle.Render("Agent CLI") + "\n" + titleStyle.Render(m.app.Welcome())
-	headerHeight := lipgloss.Height(header)
-
-	var footerBuilder strings.Builder
-	if m.lastError != "" {
-		wrapped := wrapText(m.lastError, wrapWidth)
-		footerBuilder.WriteString(errorStyle.Render(wrapped))
-		footerBuilder.WriteString("\n")
-	}
-	for _, entry := range m.rmStatuses {
-		wrapped := wrapText(entry.message, wrapWidth)
-		if !entry.done {
-			footerBuilder.WriteString(pendingStyle.Render(wrapped))
-		} else if entry.code == core.MessageCodeSuccess {
-			footerBuilder.WriteString(successStyle.Render(wrapped))
-		} else {
-			footerBuilder.WriteString(errorStyle.Render(wrapped))
-		}
-		footerBuilder.WriteString("\n")
-	}
-	footerBuilder.WriteString(m.input.View())
-	if hint := m.getCommandHint(); hint != "" {
-		footerBuilder.WriteString("\n")
-		footerBuilder.WriteString(hintStyle.Render(hint))
-	}
-	footerHeight := lipgloss.Height(footerBuilder.String())
-
-	vpHeight := m.height - headerHeight - footerHeight
-	if vpHeight < 5 {
-		vpHeight = 5
-	}
-	return vpHeight
-}
-
-func (m *UIPage) refreshViewport() {
-	vpHeight := m.calcViewportHeight()
-	if vpHeight != m.viewport.Height {
-		m.viewport.Height = vpHeight
-	}
-	newContent := m.buildViewportContent()
-	if newContent != m.lastContent {
-		m.viewport.SetContent(newContent)
-		m.lastContent = newContent
-		if len(m.messages) > m.lastMsgCount {
-			m.lastMsgCount = len(m.messages)
-		}
-		if m.autoScroll {
-			m.viewport.GotoBottom()
-		}
-	}
-}
-
-func (m *UIPage) scrollToLatest() {
-	m.autoScroll = true
-	m.viewport.GotoBottom()
-}
-
-func (m *UIPage) View() string {
-	if m.quitting {
-		return "Goodbye!\n"
-	}
-
-	if m.helpPage != nil && m.helpPage.active {
-		return m.viewHelpPage()
-	}
-
-	if m.kbPage != nil && m.kbPage.active {
-		return m.viewKBListResultPage()
-	}
-
-	wrapWidth := m.width
-	if wrapWidth <= 0 {
-		wrapWidth = 80
-	}
-
-	header := titleStyle.Render("Agent CLI") + "\n" + titleStyle.Render(m.app.Welcome())
-	welcomeHeaderHeight := lipgloss.Height(header)
-	m.welcomeHeight = welcomeHeaderHeight
-
-	var footerBuilder strings.Builder
-	if m.lastError != "" {
-		wrapped := wrapText(m.lastError, wrapWidth)
-		footerBuilder.WriteString(errorStyle.Render(wrapped))
-		footerBuilder.WriteString("\n")
-	}
-	for _, entry := range m.rmStatuses {
-		wrapped := wrapText(entry.message, wrapWidth)
-		if !entry.done {
-			footerBuilder.WriteString(pendingStyle.Render(wrapped))
-		} else if entry.code == core.MessageCodeSuccess {
-			footerBuilder.WriteString(successStyle.Render(wrapped))
-		} else {
-			footerBuilder.WriteString(errorStyle.Render(wrapped))
-		}
-		footerBuilder.WriteString("\n")
-	}
-	footerBuilder.WriteString(m.input.View())
-	if hint := m.getCommandHint(); hint != "" {
-		footerBuilder.WriteString("\n")
-		footerBuilder.WriteString(hintStyle.Render(hint))
-	}
-	footer := footerBuilder.String()
-
-	return lipgloss.JoinVertical(lipgloss.Left, header, m.viewport.View(), footer)
-}
-
-func (m UIPage) viewHelpPage() string {
-	var contentBuilder strings.Builder
-	contentBuilder.WriteString(titleStyle.Render("Help Documentation"))
-	contentBuilder.WriteString("\n\n")
-	contentBuilder.WriteString(m.helpPage.viewport.View())
-	contentBuilder.WriteString("\n\n")
-	contentBuilder.WriteString(hintStyle.Render("Press q or Esc to exit help"))
-
-	return contentBuilder.String()
-}
-
-func (m UIPage) getCommandHint() string {
-	input := strings.TrimSpace(m.input.Value())
-	if input == "" || !strings.HasPrefix(input, "/") {
-		return ""
-	}
-
-	parts := strings.Fields(input)
-	if len(parts) == 0 {
-		return ""
-	}
-
-	cmdName := parts[0]
-	if cmd, ok := m.app.Commands[cmdName]; ok {
-		help := cmd.GetHelp()
-		if format, ok := help["format"].(string); ok {
-			return "Format: " + format
-		}
-	}
-
-	return ""
-}
-
-func truncateHint(content string, maxWidth int) string {
-	lines := strings.Split(content, "\n")
-	if len(lines) > 1 {
-		content = strings.Join(lines, " ")
-	}
-	if len(content) > maxWidth {
-		return content[:maxWidth-3] + "..."
-	}
-	return content
-}
-
-// formatTimestamp returns current time in [YYYY-MM-DD HH:MM:SS] format
-func formatTimestamp() string {
-	now := time.Now()
-	return now.Format("[2006-01-02 15:04:05]")
-}
-
-// wrapText wraps text to the specified width, preserving existing newlines
-func wrapText(text string, width int) string {
-	if width <= 0 {
-		return text
-	}
-
-	lines := strings.Split(text, "\n")
-	var wrapped []string
-
-	for _, line := range lines {
-		if len(line) <= width {
-			wrapped = append(wrapped, line)
-			continue
-		}
-
-		// split long line into chunks
-		words := strings.Fields(line)
-		if len(words) == 0 {
-			wrapped = append(wrapped, line)
-			continue
-		}
-
-		var currentLine string
-		for _, word := range words {
-			if len(currentLine)+len(word)+1 <= width {
-				if currentLine == "" {
-					currentLine = word
-				} else {
-					currentLine += " " + word
-				}
-			} else {
-				if currentLine != "" {
-					wrapped = append(wrapped, currentLine)
-				}
-				currentLine = word
-			}
-		}
-		if currentLine != "" {
-			wrapped = append(wrapped, currentLine)
-		}
-	}
-
-	return strings.Join(wrapped, "\n")
 }

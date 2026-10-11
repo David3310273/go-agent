@@ -21,7 +21,7 @@ func StartUI(app *app.SimpleCommandApp) error {
 
 	model := NewModel(app, sessionID)
 
-	p := tea.NewProgram(&model)
+	p := tea.NewProgram(model, tea.WithAltScreen())
 
 	go func() {
 		sig := <-sigChan
