@@ -55,6 +55,24 @@ func (a *SimpleCommandApp) GetHelpDoc() string {
 		sb.WriteString("\n")
 	}
 
+	sb.WriteString(a.GetSystemCmdHelpDoc())
+
+	return sb.String()
+}
+
+func (a *SimpleCommandApp) GetSystemCmdHelpDoc() string {
+	var sb strings.Builder
+	sb.WriteString("\n\n")
+	sb.WriteString("/quit, /exit, /q\n")
+	sb.WriteString("    Quit the application\n\n")
+	sb.WriteString("/help, /h\n")
+	sb.WriteString("    Show this help documentation\n\n")
+	sb.WriteString("/new-page\n")
+	sb.WriteString("    Start a new conversation page (clears current session)\n\n")
+	sb.WriteString("/i18n <language>\n")
+	sb.WriteString("    Switch language (supported: en_US, zh_CN)\n\n")
+	sb.WriteString("/clear\n")
+	sb.WriteString("    Clear the current screen\n\n")
 	return sb.String()
 }
 
