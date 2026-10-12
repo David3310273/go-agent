@@ -14,8 +14,7 @@ Using param injection from outside app to start eventual tool call
 - Minimal skills should be provided. In this framework, only one tool provided with two skills.
 - - accquire tools using MCP server skill
 - - extend backgrounds with knowledge base skill. 
-- **Framework process control rather than LLM process or prompt control**. For example, control the process and context using framework logic, rather than keep modifying the prompt with hint words. 
-
+- **Framework process control rather than LLM process or prompt control**. For example, control the process and context using framework logic, rather than often modify the prompt with hint words or rely on the LLM's response or param input.
 
 ## How to start
 
