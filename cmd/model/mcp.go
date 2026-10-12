@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/David3310273/go-agent/core"
 )
@@ -12,19 +11,9 @@ import (
 var _ core.Command = (*MCPCommand)(nil)
 
 type MCPCommand struct {
-	SubCommand      string
-	ServerName      string
-	FilePath        string
-	Host            string
-	Port            int
-	BaseUrl         string
-	ProtocolVersion string
-	JSONRPCVersion  string
-	Name            string
-	Description     string
-	ToolName        string
-	Args            string
-	ResponseChan    chan core.Diagnostic
+	SubCommand string
+	ServerName string
+	FilePath   string
 }
 
 const (
@@ -43,10 +32,10 @@ func init() {
 
 func (c MCPCommand) GetHelp() map[string]any {
 	return map[string]any{
-		"format": "/mcp add|ls|rm [server_name] [--host host] [--port port] [--baseUrl baseUrl] [--protocolVersion version] [--jsonrpcVersion version] [--name name] [--description desc] [--file file_path] [--tool tool_name] [--args args]",
+		"format": "/mcp add|ls|rm [server_name] [--file file_path]",
 		"desc":   "manage MCP server",
 		"options": map[string]string{
-			"add": "add a MCP server, usage: /mcp add <server_name> <--host host> <--port port> <--name name> <--description desc> [--file file_path] [--baseUrl baseUrl] [--protocolVersion version] [--jsonrpcVersion version]",
+			"add": "add a MCP server, usage: /mcp add <server_name> <--file file_path>",
 			"ls":  "list MCP servers, usage: /mcp ls [server_name]",
 			"rm":  "remove a MCP server, usage: /mcp rm <server_name>",
 		},
@@ -59,29 +48,8 @@ func (c *MCPCommand) WithOption(key string, value string) core.Command {
 		c.ServerName = value
 	case "filePath":
 		c.FilePath = value
-	case "host":
-		c.Host = value
-	case "port":
-		port, err := strconv.Atoi(value)
-		if err != nil {
-			core.LogStd(core.LogLevelWarn, "invalid port %v", value)
-			return c
-		}
-		c.Port = port
-	case "baseUrl":
-		c.BaseUrl = value
-	case "protocolVersion":
-		c.ProtocolVersion = value
-	case "jsonrpcVersion":
-		c.JSONRPCVersion = value
 	case "name":
-		c.Name = value
-	case "description":
-		c.Description = value
-	case "toolName":
-		c.ToolName = value
-	case "args":
-		c.Args = value
+		c.ServerName = value
 	default:
 		return c
 	}
@@ -111,9 +79,9 @@ func (c *MCPCommand) Run(app core.CommandApp) *core.Diagnostic {
 
 func (c *MCPCommand) handleAdd(app core.CommandApp) *core.Diagnostic {
 	agent := app.GetAgentCore()
-	configs := (*agent).GetMCPServerConfigs()
+	mcpConfigs := (*agent).GetMCPServerConfigs()
 
-	var config core.MCPConfig
+	var newMCPConfigs []core.MCPConfig
 
 	if c.FilePath != "" {
 		data, err := os.ReadFile(c.FilePath)
@@ -125,7 +93,7 @@ func (c *MCPCommand) handleAdd(app core.CommandApp) *core.Diagnostic {
 			}
 		}
 
-		if err := json.Unmarshal(data, &config); err != nil {
+		if err := json.Unmarshal(data, &newMCPConfigs); err != nil {
 			return &core.Diagnostic{
 				Level:   core.SeverityError,
 				Code:    core.MessageCodeDocProcessError,
@@ -134,77 +102,45 @@ func (c *MCPCommand) handleAdd(app core.CommandApp) *core.Diagnostic {
 		}
 	}
 
-	if c.Host != "" {
-		config.Host = c.Host
-	}
-	if c.Port != 0 {
-		config.Port = c.Port
-	}
-	if c.BaseUrl != "" {
-		config.BaseUrl = c.BaseUrl
-	}
-	if c.ProtocolVersion != "" {
-		config.ProtocolVersion = c.ProtocolVersion
-	}
-	if c.JSONRPCVersion != "" {
-		config.JSONRPCVersion = c.JSONRPCVersion
-	}
-	if c.Name != "" {
-		config.Name = c.Name
-	}
-	if c.Description != "" {
-		config.Description = c.Description
+	mcpConfigMap := make(map[string]core.MCPConfig)
+	for _, config := range mcpConfigs {
+		mcpConfigMap[config.Name] = config
 	}
 
-	if config.Host == "" {
-		return &core.Diagnostic{
-			Level:   core.SeverityError,
-			Code:    core.MessageCodeInvalidInput,
-			Message: "MCP server host is required",
+	// validate and add all configs from file
+	for _, config := range newMCPConfigs {
+		// apply command-line overrides if provided
+		if c.ServerName != "" {
+			config.Name = c.ServerName
 		}
-	}
-	if config.Port == 0 {
-		return &core.Diagnostic{
-			Level:   core.SeverityError,
-			Code:    core.MessageCodeInvalidInput,
-			Message: "MCP server port is required",
-		}
-	}
-	if config.Name == "" {
-		return &core.Diagnostic{
-			Level:   core.SeverityError,
-			Code:    core.MessageCodeInvalidInput,
-			Message: "MCP server name is required",
-		}
-	}
 
-	if config.ProtocolVersion == "" {
-		config.ProtocolVersion = "2026-07-28"
-	}
-	if config.JSONRPCVersion == "" {
-		config.JSONRPCVersion = "2.0"
-	}
+		if config.Host == "" {
+			core.LogStd(core.LogLevelWarn, "MCP server %s host is required", config.Name)
+			continue
+		}
 
-	for _, cfg := range configs {
-		if cfg.Name == config.Name {
+		if config.Name == "" {
+			core.LogStd(core.LogLevelWarn, "MCP server %s name is required", config.Name)
+			continue
+		}
+
+		if _, ok := mcpConfigMap[config.Name]; ok {
 			return &core.Diagnostic{
 				Level:   core.SeverityError,
 				Code:    core.MessageCodeInvalidCommand,
 				Message: fmt.Sprintf("MCP server %s already exists", config.Name),
 			}
 		}
+
+		mcpConfigs = append(mcpConfigs, config)
 	}
 
-	newConfigs := append(configs, config)
-	diag := (*agent).SetMCPClient(newConfigs)
-	if diag != nil {
-		return diag
-	}
+	(*agent).SetMCPClient(mcpConfigs)
 
 	return &core.Diagnostic{
 		Level:   core.SeverityInfo,
 		Code:    core.MessageCodeSuccess,
-		Message: fmt.Sprintf("MCP server %s added", config.Name),
+		Message: fmt.Sprintf("added %d MCP server(s). Use /new-page to start with the updated MCP servers.", len(newMCPConfigs)),
 	}
 }
 
@@ -238,36 +174,22 @@ func (c *MCPCommand) handleLs(app core.CommandApp) *core.Diagnostic {
 
 func (c *MCPCommand) handleRm(app core.CommandApp) *core.Diagnostic {
 	agent := app.GetAgentCore()
-	clients := (*agent).GetMCPClients()
 
-	client, exists := clients[c.ServerName]
-	if !exists {
-		return &core.Diagnostic{
-			Level:   core.SeverityError,
-			Code:    core.MessageCodeInvalidInput,
-			Message: fmt.Sprintf("MCP server %s not found", c.ServerName),
-		}
-	}
-
-	config := client.GetConfig()
-	configs := (*agent).GetMCPServerConfigs()
-
+	mcpConfigs := (*agent).GetMCPServerConfigs()
 	newConfigs := []core.MCPConfig{}
-	for _, cfg := range configs {
+
+	for _, cfg := range mcpConfigs {
 		if cfg.Name != c.ServerName {
 			newConfigs = append(newConfigs, cfg)
 		}
 	}
 
-	diag := (*agent).SetMCPClient(newConfigs)
-	if diag != nil {
-		return diag
-	}
+	(*agent).SetMCPClient(newConfigs)
 
 	return &core.Diagnostic{
 		Level:   core.SeverityInfo,
 		Code:    core.MessageCodeSuccess,
-		Message: fmt.Sprintf("removed MCP server %s", config.Name),
+		Message: fmt.Sprintf("removed MCP server %s", c.ServerName),
 	}
 }
 

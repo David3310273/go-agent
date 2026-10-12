@@ -28,7 +28,7 @@ type Context interface {
 	// get mcp config
 	GetMCPServerConfigs() []MCPConfig
 	// get mcp server tools
-	SetMCPClient([]MCPConfig) *Diagnostic
+	SetMCPClient([]MCPConfig)
 	// get mcp client
 	GetMCPClients() map[string]MCPAccessible
 }

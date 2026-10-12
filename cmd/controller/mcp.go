@@ -24,16 +24,8 @@ func parseMCPCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 	fs := flag.NewFlagSet("mcp", flag.ContinueOnError)
 	fs.SetOutput(nil)
 
-	host := fs.String("host", "", "MCP server host")
-	port := fs.Int("port", 0, "MCP server port")
-	baseUrl := fs.String("baseUrl", "", "MCP server base URL")
-	protocolVersion := fs.String("protocolVersion", "", "MCP protocol version")
-	jsonrpcVersion := fs.String("jsonrpcVersion", "", "JSON-RPC version")
 	name := fs.String("name", "", "MCP server name")
-	description := fs.String("description", "", "MCP server description")
 	filePath := fs.String("file", "", "load MCP config from JSON file")
-	toolName := fs.String("tool", "", "tool name for listing tools")
-	args := fs.String("args", "", "arguments for calling tool")
 
 	err := fs.Parse(cmdSlices[2:])
 	if err != nil {
@@ -47,23 +39,25 @@ func parseMCPCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 	}
 
 	argList := fs.Args()
-	var serverName string
 
 	switch subCommand {
 	case model.MCPSubCommandAdd:
-		if len(argList) < 1 {
-			return nil, []core.Diagnostic{
-				{
-					Level:   core.SeverityError,
-					Code:    core.MessageCodeInvalidCommand,
-					Message: "server name is required for /mcp add",
-				},
+		isFilePath := false
+		for _, arg := range argList {
+			if arg == "--file" {
+				isFilePath = true
+			} else if isFilePath {
+				*filePath = arg
+				isFilePath = false
+			} else {
+				if *name == "" {
+					*name = arg
+				}
 			}
 		}
-		serverName = argList[0]
 	case model.MCPSubCommandLs:
 		if len(argList) > 0 {
-			serverName = argList[0]
+			*name = argList[0]
 		}
 	case model.MCPSubCommandRm:
 		if len(argList) < 1 {
@@ -75,7 +69,9 @@ func parseMCPCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 				},
 			}
 		}
-		serverName = argList[0]
+		if *name == "" {
+			*name = argList[0]
+		}
 	default:
 		return nil, []core.Diagnostic{
 			{
@@ -86,25 +82,10 @@ func parseMCPCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 		}
 	}
 
-	portValue := 0
-	if port != nil {
-		portValue = *port
-	}
-
 	cmd := &model.MCPCommand{
-		SubCommand:      subCommand,
-		ServerName:      serverName,
-		Host:            *host,
-		Port:            portValue,
-		BaseUrl:         *baseUrl,
-		ProtocolVersion: *protocolVersion,
-		JSONRPCVersion:  *jsonrpcVersion,
-		Name:            *name,
-		Description:     *description,
-		FilePath:        *filePath,
-		ToolName:        *toolName,
-		Args:            *args,
-		ResponseChan:    make(chan core.Diagnostic, 1),
+		SubCommand: subCommand,
+		ServerName: *name,
+		FilePath:   *filePath,
 	}
 
 	return cmd, nil

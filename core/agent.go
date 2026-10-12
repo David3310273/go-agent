@@ -170,10 +170,8 @@ func InitContext(agent AgentCore, agentConfigs AgentCoreConfig) []Diagnostic {
 		diagnostics = append(diagnostics, *err)
 	}
 
-	err = agent.SetMCPClient(agentConfigs.Agent.MCPServer)
-	if err != nil {
-		diagnostics = append(diagnostics, *err)
-	}
+	// set MCP client
+	agent.SetMCPClient(agentConfigs.Agent.MCPServer)
 
 	return diagnostics
 }

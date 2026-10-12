@@ -24,7 +24,7 @@ const (
 
 // SimpleSessionContext holds session-specific context data
 type SimpleSessionContext struct {
-	SimpleAgentContext
+	*SimpleAgentContext
 
 	Conversation core.Conversation
 
@@ -82,8 +82,6 @@ type SimpleAgentSession struct {
 // NewAgentSession creates a new session from an AgentCore
 // log providers count when creating session
 func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conversation) *SimpleAgentSession {
-	providers := agent.GetModelProviders()
-
 	sessionConfig := agent.GetSessionConfig()
 	//  propagate RootPath from agent to session config
 	if a, ok := agent.(*SimpleAgent); ok {
@@ -119,16 +117,10 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 	session.RegisterEventChans()
 	go session.OnEvent()
 
-	// llm context init
-	session.Context.History = agent.GetHistory()
-	session.Context.Prompt = agent.GetPrompt()
-	session.Context.Skills = agent.GetSkills()
-	session.Context.KnowledgeBase = agent.GetKnowledgeBase()
-	session.Context.Tools = agent.GetToolsConfig()
-	session.Context.MCPServers = agent.GetMCPServerConfigs()
-	session.Context.MCPClients = agent.GetMCPClients()
-	session.Context.ModelProviders = providers
-
+	// llm context init - use pointer to share MCP configs and clients with agent
+	if agentCtx, ok := agent.(*SimpleAgent); ok {
+		session.Context.SimpleAgentContext = &agentCtx.SimpleAgentContext
+	}
 	session.Context.Conversation = core.Conversation{}
 	if memory != nil {
 		session.Context.Conversation = *memory
@@ -144,6 +136,9 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 // inherit the parent runtime config and reset every reference-typed field, so the
 // sub-session can run its own reAct loop with its own logger and event listener.
 func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
+	// create a copy of the parent's SimpleAgentContext (not sharing the pointer)
+	subSessionContext := *s.Context.SimpleAgentContext
+
 	session := &SimpleAgentSession{
 		ParentSession: s,
 		Status:        core.SessionStatusRunning,
@@ -159,14 +154,15 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		confirmedTools:   make(map[string]string),
 		pendingMCPCalls:  make(map[string]*core.PendingMCPToolCall),
-		// value copy of the parent context, reference-typed fields are reset below
-		Context: s.Context,
+		// copy of the parent context (not sharing the pointer)
+		Context: SimpleSessionContext{
+			SimpleAgentContext: &subSessionContext,
+		},
 	}
 
-	// break the references still shared with the parent after the Context value copy.
+	// break the references still shared with the parent after the Context copy.
 	// LoadedToolsMap is a map, so the sub-session used to write into the parent dedup map and
 	// made the parent skip tools in SetLoadTools.
-	session.Context.Tools = nil
 	session.Context.LoadedToolsMap = make(map[string]core.Tool)
 	session.Context.LoadedTools = []core.Tool{}
 	session.Context.Conversation = core.Conversation{}

@@ -94,10 +94,12 @@ func HandleSystemCommand(page *UIPage, input string) (bool, tea.Cmd) {
 }
 
 func handleAskCommand(page *UIPage, command *model.AskQuestionCommand) tea.Cmd {
-	page.MainPage.Messages = append(page.MainPage.Messages, view.MessageEntry{
+	entry := view.MessageEntry{
 		Content: view.FormatTimestamp() + " " + command.Query,
 		MsgType: "prompt",
-	})
+	}
+	page.MainPage.Messages = append(page.MainPage.Messages, entry)
+	page.MainPage.AllMessages = append(page.MainPage.AllMessages, entry)
 	page.enableThinking = command.EnableThinking
 	if !command.EnableThinking {
 		page.MainPage.CurrentHint = ""

@@ -17,6 +17,7 @@ type MainPage struct {
 	height       int
 	// 流式输出状态
 	Messages      []MessageEntry
+	AllMessages   []MessageEntry
 	Waiting       bool
 	Streaming     bool
 	StreamContent string

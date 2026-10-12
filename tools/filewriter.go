@@ -23,7 +23,7 @@ func init() {
 			Schema:      "filewriter.schema.json",
 			RootPath:    rootPath,
 			Session:     session,
-			IsDangerous: true,
+			IsDangerous: false,
 		}
 	})
 }

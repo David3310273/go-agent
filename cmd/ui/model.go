@@ -114,6 +114,11 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleInput()
 		case tea.KeyUp, tea.KeyDown:
 			m.MainPage.AutoScroll = false
+			if m.MainPage.Messages == nil || len(m.MainPage.Messages) == 0 {
+				m.MainPage.Messages = m.MainPage.AllMessages
+				m.MainPage.SetMessages(m.MainPage.Messages, m.MainPage.Waiting, m.MainPage.Streaming,
+					m.MainPage.CurrentHint, m.MainPage.StreamContent, m.MainPage.StreamTime)
+			}
 			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
 			return m, cmd
 		case tea.KeyLeft, tea.KeyRight:
@@ -143,7 +148,9 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						if timePrefix == "" {
 							timePrefix = view.FormatTimestamp()
 						}
-						m.MainPage.Messages = append(m.MainPage.Messages, view.MessageEntry{Content: timePrefix + " " + finalContent, MsgType: "stream"})
+						entry := view.MessageEntry{Content: timePrefix + " " + finalContent, MsgType: "stream"}
+						m.MainPage.Messages = append(m.MainPage.Messages, entry)
+						m.MainPage.AllMessages = append(m.MainPage.AllMessages, entry)
 					}
 					m.MainPage.StreamContent = ""
 					m.MainPage.StreamTime = ""
@@ -165,7 +172,9 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else {
 				if msg.Content != "" {
-					m.MainPage.Messages = append(m.MainPage.Messages, view.MessageEntry{Content: view.FormatTimestamp() + " " + msg.Content, MsgType: "stream"})
+					entry := view.MessageEntry{Content: view.FormatTimestamp() + " " + msg.Content, MsgType: "stream"}
+					m.MainPage.Messages = append(m.MainPage.Messages, entry)
+					m.MainPage.AllMessages = append(m.MainPage.AllMessages, entry)
 				}
 				m.MainPage.Waiting = false
 				m.MainPage.Footer.Input.SetValue("")
