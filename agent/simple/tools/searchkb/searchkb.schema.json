@@ -10,9 +10,17 @@
           "type": "string",
           "description": "search keyword"
         },
+        "filename": {
+          "type": "string",
+          "description": "doc filename to search"
+        },
+        "domain": {
+          "type": "string",
+          "description": "domain to search"
+        },
         "topK": {
           "type": "integer",
-          "description": "number of top results you wantto return, default is 3"
+          "description": "number of top results you want to return, default is 3. Usually, around 10 results are useful."
         }
       },
       "required": [

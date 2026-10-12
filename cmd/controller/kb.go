@@ -3,6 +3,7 @@ package controller
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/David3310273/go-agent/cmd/model"
 	"github.com/David3310273/go-agent/core"
@@ -29,7 +30,9 @@ func parseKBCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 	kbType := fs.String("type", "milvus", "storage type")
 	domain := fs.String("domain", "", "document domain")
 	name := fs.String("name", storage.MilvusKnowledgeBaseName, "knowledge base name")
+	desc := fs.String("desc", "", "document description")
 	collection := fs.String("collection", "", "collection name")
+	filePath := fs.String("file", "", "file path")
 
 	err := fs.Parse(cmdSlices[2:])
 	if err != nil {
@@ -43,11 +46,42 @@ func parseKBCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 	}
 
 	args := fs.Args()
-	var filePath string
+	if len(args) > 0 {
+		// for simplicity, first arg must be file path
+		if *filePath == "" {
+			*filePath = args[0]
+		}
+		// parse args....
+		isDesc := false
+		isDomain := false
+		for _, arg := range args[1:] {
+			if strings.HasPrefix(arg, "--") {
+				if arg == "--desc" {
+					isDesc = true
+					isDomain = false
+				} else if arg == "--domain" {
+					isDesc = false
+					isDomain = true
+				}
+			} else if isDesc {
+				if *desc == "" {
+					*desc = arg
+				} else {
+					*desc += " " + arg
+				}
+			} else if isDomain {
+				if *domain == "" {
+					*domain = arg
+				} else {
+					*domain += " " + arg
+				}
+			}
+		}
+	}
 
 	switch subCommand {
 	case model.KBSubCommandAdd:
-		if len(args) < 1 {
+		if *filePath == "" {
 			return nil, []core.Diagnostic{
 				{
 					Level:   core.SeverityError,
@@ -56,25 +90,15 @@ func parseKBCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 				},
 			}
 		}
-		filePath = args[0]
 	case model.KBSubCommandLs:
-		// no file path required, type and domain are optional filters
 	case model.KBSubCommandRm:
-		if *domain == "" {
-			if len(args) < 1 {
-				return nil, []core.Diagnostic{
-					{
-						Level:   core.SeverityError,
-						Code:    core.MessageCodeInvalidCommand,
-						Message: "file path is required for /kb rm, or use --domain to delete all docs in a domain",
-					},
-				}
-			}
-			filePath = args[0]
-		} else {
-			// --domain specified: delete all docs in that domain, file path optional
-			if len(args) > 0 {
-				filePath = args[0]
+		if *filePath == "" {
+			return nil, []core.Diagnostic{
+				{
+					Level:   core.SeverityError,
+					Code:    core.MessageCodeInvalidCommand,
+					Message: "file path is required for /kb add",
+				},
 			}
 		}
 	default:
@@ -89,12 +113,13 @@ func parseKBCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 
 	cmd := &model.KnowledgeBaseCommand{
 		SubCommand:   subCommand,
-		FilePath:     filePath,
+		FilePath:     *filePath,
 		Base:         model.KBCommandName,
 		Type:         kb.KbStorageType(*kbType),
 		Domain:       *domain,
 		Name:         *name,
 		Collection:   *collection,
+		Description:  *desc,
 		ResponseChan: make(chan core.Diagnostic, 1),
 	}
 

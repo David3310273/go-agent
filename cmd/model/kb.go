@@ -22,6 +22,7 @@ type KnowledgeBaseCommand struct {
 	Type         kb.KbStorageType
 	Domain       string
 	Name         string
+	Description  string
 	Collection   string
 	ResponseChan chan core.Diagnostic
 }
@@ -42,7 +43,7 @@ func init() {
 
 func (c KnowledgeBaseCommand) GetHelp() map[string]any {
 	return map[string]any{
-		"format": "/kb add|ls|rm [file_path] [--type storage_type] [--domain domain]",
+		"format": "/kb add|ls|rm [file_path] [--type storage_type] [--domain domain] [--desc description]",
 		"desc":   "manage knowledge base",
 		"options": map[string]string{
 			"add": "add a local file to knowledge base, usage: /kb add <file_path> [--type milvus] [--domain domain]",
@@ -62,6 +63,8 @@ func (c *KnowledgeBaseCommand) WithOption(key string, value string) core.Command
 		c.FilePath = value
 	case "collection":
 		c.Collection = value
+	case "desc":
+		c.Description = value
 	default:
 		return c
 	}
@@ -132,14 +135,15 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 				}
 
 				collection := models.MarkdownCollection{
-					ChunkID:    int64(i),
-					Privacy:    string(core.PublicKB),
-					Filename:   filename,
-					DocumentID: filename,
-					CreateAt:   time.Now().Unix(),
-					Domain:     c.Domain,
-					Embedding:  embedding,
-					Content:    chunk,
+					ChunkID:     int64(i),
+					Privacy:     string(core.PublicKB),
+					Filename:    filename,
+					DocumentID:  filename,
+					CreateAt:    time.Now().Unix(),
+					Domain:      c.Domain,
+					Embedding:   embedding,
+					Content:     chunk,
+					Description: c.Description,
 				}
 				entities = append(entities, collection)
 			}
@@ -149,7 +153,7 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 				diag = &core.Diagnostic{
 					Level:   core.SeverityInfo,
 					Code:    core.MessageCodeSuccess,
-					Message: fmt.Sprintf("added %s", filename),
+					Message: fmt.Sprintf("%s added", filename),
 				}
 			}
 			done <- *diag
@@ -245,7 +249,7 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 					diag = &core.Diagnostic{
 						Level:   core.SeverityInfo,
 						Code:    core.MessageCodeSuccess,
-						Message: fmt.Sprintf("remove %s", filename),
+						Message: fmt.Sprintf("%s removed", filename),
 					}
 				}
 				done <- *diag

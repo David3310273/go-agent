@@ -10,7 +10,7 @@ import (
 )
 
 func parseAskCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
-	// format: /ask [your question] [--enableThinking] [--stream] [--model model_name] [--questionType type]
+	// format: /ask [your question] [--enableThinking]
 	if len(cmdSlices) < 2 {
 		return nil, []core.Diagnostic{
 			{
@@ -24,10 +24,7 @@ func parseAskCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 	fs := flag.NewFlagSet("ask", flag.ContinueOnError)
 	fs.SetOutput(nil)
 
-	enableThinking := fs.Bool("enableThinking", true, "enable thinking mode")
-	stream := fs.Bool("stream", true, "enable stream mode")
-	modelName := fs.String("model", "", "model name")
-	questionType := fs.String("questionType", "normal", "question type")
+	enableThinking := fs.Bool("enableThinking", false, "enable thinking mode")
 	query := fs.String("query", "", "your question")
 
 	err := fs.Parse(cmdSlices[1:])
@@ -41,20 +38,37 @@ func parseAskCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 		}
 	}
 
-	questionParts := fs.Args()
-
-	// optional --query param
+	rawArgs := fs.Args()
 	var question string
+
 	if *query != "" {
 		question = *query
-	} else if len(questionParts) > 0 {
-		question = strings.Join(questionParts, " ")
-	} else {
+	}
+
+	isQuestionPart := true
+	for idx, arg := range rawArgs {
+		if strings.HasPrefix(arg, "--") {
+			if idx > 0 {
+				isQuestionPart = false
+			}
+			if arg == "--enableThinking" {
+				*enableThinking = true
+			}
+		} else if isQuestionPart {
+			if question != "" {
+				question = question + " " + arg
+			} else {
+				question = arg
+			}
+		}
+	}
+
+	if question == "" {
 		return nil, []core.Diagnostic{
 			{
 				Level:   core.SeverityError,
 				Code:    core.MessageCodeInvalidCommand,
-				Message: "invalid command format: /ask [your question] [--enableThinking] [--stream] [--model model_name] [--questionType type]",
+				Message: "invalid command format: /ask <your question> [--enableThinking]",
 			},
 		}
 	}
@@ -63,9 +77,9 @@ func parseAskCommand(cmdSlices []string) (core.Command, []core.Diagnostic) {
 		Query:          question,
 		Base:           model.AskCommandName,
 		EnableThinking: *enableThinking,
-		Stream:         *stream,
-		Model:          *modelName,
-		QuestionType:   core.QuestionType(*questionType),
+		Stream:         true,
+		Model:          "",
+		QuestionType:   core.QuestionTypeNormal,
 	}
 
 	return cmd, nil

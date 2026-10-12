@@ -204,7 +204,7 @@ func (c *MCPCommand) handleAdd(app core.CommandApp) *core.Diagnostic {
 	return &core.Diagnostic{
 		Level:   core.SeverityInfo,
 		Code:    core.MessageCodeSuccess,
-		Message: fmt.Sprintf("added MCP server %s", config.Name),
+		Message: fmt.Sprintf("MCP server %s added", config.Name),
 	}
 }
 

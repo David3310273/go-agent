@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/David3310273/go-agent/core"
 	"github.com/David3310273/go-agent/knowledgebase/loader"
@@ -20,6 +22,8 @@ type MilvusKnowledgebase[T any] struct {
 	Config   core.KnowledgeBaseConfig
 	Options  milvus.MilvusOptions
 	name     string
+	desc     string
+	docDesc  atomic.Pointer[map[string]map[string]any]
 }
 
 var _ core.KnowledgeBase[any] = (*MilvusKnowledgebase[any])(nil)
@@ -34,19 +38,107 @@ const (
 func NewMilvusKnowledgebase[T any](embedder core.Embedder, chunker core.Chunker, config core.KnowledgeBaseConfig, options milvus.MilvusOptions) *MilvusKnowledgebase[T] {
 	milvus.Init(config.RootPath)
 
-	return &MilvusKnowledgebase[T]{
+	milvusKnowledgebase := &MilvusKnowledgebase[T]{
 		embedder: embedder,
 		chunker:  chunker,
 		name:     MilvusKnowledgeBaseName,
+		desc:     config.Description,
 		Options:  options,
 		Config:   config,
 	}
+
+	go func() {
+		milvusKnowledgebase.SetDocDescription()
+	}()
+
+	return milvusKnowledgebase
 }
 
 // GetEmbedder returns the embedder instance.
 // getter for embedder, implements core.KnowledgeBase interface.
 func (kb *MilvusKnowledgebase[T]) GetEmedder() core.Embedder {
 	return kb.embedder
+}
+
+func (kb *MilvusKnowledgebase[T]) SetDocDescription() *core.Diagnostic {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	done := make(chan struct{})
+	go func(ctx context.Context) {
+		collectionName := kb.Options.Collection
+
+		results, diag := milvus.MilvusClientInstance.Query(context.Background(), milvus.QueryRequest{
+			MilvusOptions: milvus.MilvusOptions{
+				Type:          kb.Options.Type,
+				DBName:        kb.Options.DBName,
+				Collection:    collectionName,
+				PartitionName: kb.Options.PartitionName,
+			},
+			Filter:       "",
+			GroupFields:  []string{"domain", "filename", "description"},
+			OutputFields: []string{"domain", "filename", "description"},
+		})
+
+		if diag != nil {
+			core.LogStd(core.LogLevelWarn, "failed to query doc description: %s", diag.ToString())
+			return
+		}
+
+		descriptions := make(map[string]map[string]any)
+		for _, result := range results {
+			domain := result["domain"].(string)
+			filename := result["filename"].(string)
+			description := result["description"].(string)
+			if _, ok := descriptions[domain]; !ok {
+				descriptions[domain] = make(map[string]any)
+			}
+			descriptions[domain][filename] = description
+		}
+
+		kb.docDesc.Store(&descriptions)
+		core.LogStd(core.LogLevelInfo, "doc description of kb %s loaded: %#v", kb.name, *kb.docDesc.Load())
+		done <- struct{}{}
+	}(ctx)
+
+	select {
+	case <-ctx.Done():
+		core.LogStd(core.LogLevelWarn, "fetch doc description of kb %s failed in 30s", kb.name)
+		return &core.Diagnostic{
+			Message: "fetch doc description of kb %s failed in 30s",
+			Code:    core.MessageCodeFetchKBDescError,
+			Level:   core.SeverityError,
+		}
+	case <-done:
+		core.LogStd(core.LogLevelInfo, "fetch doc description of kb %s success", kb.name)
+		return &core.Diagnostic{
+			Message: "fetch doc description of kb %s success",
+			Code:    core.MessageCodeSuccess,
+			Level:   core.SeverityInfo,
+		}
+	}
+
+}
+
+func (kb *MilvusKnowledgebase[T]) GetDocDescription(collectionName, domain string) map[string]any {
+	desc := kb.docDesc.Load()
+	if desc == nil {
+		return nil
+	}
+
+	if domain != "" {
+		if domainDocs, ok := (*desc)[domain]; ok {
+			if domainDocs != nil {
+				return domainDocs
+			}
+		}
+		return nil
+	}
+
+	result := make(map[string]any, len(*desc))
+	for domain, docsSpec := range *desc {
+		result[domain] = docsSpec
+	}
+	return result
 }
 
 // Delete removes entities from Milvus by domain and filename filter.
@@ -64,12 +156,42 @@ func (kb *MilvusKnowledgebase[T]) Delete(collectionName, domain, filename string
 	}
 	filter := strings.Join(filterParts, " && ")
 
-	return milvus.MilvusClientInstance.Delete(context.Background(), milvus.MilvusOptions{
+	diag := milvus.MilvusClientInstance.Delete(context.Background(), milvus.MilvusOptions{
 		Type:          kb.Options.Type,
 		DBName:        kb.Options.DBName,
 		Collection:    collectionName,
 		PartitionName: kb.Options.PartitionName,
 	}, filter)
+
+	if diag == nil {
+		if domain != "" {
+			desc := kb.docDesc.Load()
+			if desc != nil {
+				newDesc := make(map[string]map[string]any, len(*desc))
+				for k, v := range *desc {
+					newDesc[k] = v
+				}
+				delete(newDesc, domain)
+				kb.docDesc.Store(&newDesc)
+			}
+		} else if filename != "" {
+			desc := kb.docDesc.Load()
+			if desc != nil {
+				newDesc := make(map[string]map[string]any, len(*desc))
+				for domain, docsSpec := range *desc {
+					newDesc[domain] = docsSpec
+				}
+				for d, dVal := range newDesc {
+					if _, ok := dVal[filename]; ok {
+						newDesc[d] = make(map[string]any)
+					}
+				}
+				kb.docDesc.Store(&newDesc)
+			}
+		}
+	}
+
+	return diag
 }
 
 // Process loads a document from binary data, chunks it, and embeds each chunk.
@@ -99,6 +221,9 @@ func (kb *MilvusKnowledgebase[T]) Process(data []byte, filename string) (*core.E
 		}
 	}
 	chunks := kb.chunker.Chunk(doc)
+
+	core.LogStd(core.LogLevelInfo, "kb finished chunk file %s, total chunks: %d", filename, len(chunks))
+
 	embedder := kb.GetEmedder()
 
 	result := &core.EmbeddingResult{
@@ -124,6 +249,8 @@ func (kb *MilvusKnowledgebase[T]) Process(data []byte, filename string) (*core.E
 		}
 	}
 
+	core.LogStd(core.LogLevelInfo, "kb finished embedding file: %s", filename)
+
 	return result, nil
 }
 
@@ -142,6 +269,14 @@ func (kb *MilvusKnowledgebase[T]) Save(entities []T) *core.Diagnostic {
 
 	count, diag := milvus.MilvusClientInstance.Insert(context.Background(), kb.Options, entities)
 	core.LogStd(core.LogLevelDebug, "milvus insert: count=%d", count)
+	// sync local doc description
+	if diag == nil {
+		go func() {
+			kb.SetDocDescription()
+		}()
+	} else {
+		core.LogStd(core.LogLevelError, "err in insert doc: %s", diag.ToString())
+	}
 	return diag
 }
 
@@ -222,6 +357,10 @@ func (kb *MilvusKnowledgebase[T]) Search(keyword any, topK int, filter string) (
 
 func (kb *MilvusKnowledgebase[T]) GetName() string {
 	return kb.name
+}
+
+func (kb *MilvusKnowledgebase[T]) GetDescription() string {
+	return kb.desc
 }
 
 // Query queries entities from Milvus by domain and filename filter.

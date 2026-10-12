@@ -27,8 +27,9 @@ type UIPage struct {
 	Width        int
 	Height       int
 	// frontend storage variables
-	commandHints []commandHint
-	language     core.LanguageType
+	commandHints   []commandHint
+	language       core.LanguageType
+	enableThinking bool
 }
 
 func NewModel(app *app.SimpleCommandApp, sessionID string) *UIPage {
@@ -84,7 +85,6 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		core.LogStd(core.LogLevelDebug, "UI KeyMsg: Type=%v String=%q", msg.Type, msg.String())
 		switch msg.Type {
 		case tea.KeyCtrlC:
 			diags := core.StopCommandApp(m.App)
@@ -113,11 +113,8 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m.handleInput()
 		case tea.KeyUp, tea.KeyDown:
-			core.LogStd(core.LogLevelDebug, "UI: routing arrow/page key to viewport: Type=%v", msg.Type)
 			m.MainPage.AutoScroll = false
-			core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.MainPage.Viewport.YOffset, m.MainPage.Viewport.TotalLineCount(), m.MainPage.Viewport.Height)
 			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
-			core.LogStd(core.LogLevelDebug, "UI: after viewport.Update: YOffset=%d", m.MainPage.Viewport.YOffset)
 			return m, cmd
 		case tea.KeyLeft, tea.KeyRight:
 			if m.MainPage.Footer.Input.Value() != "" {
@@ -129,25 +126,6 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
 			return m, cmd
 		}
-		// switch msg.String() {
-		// case "up", "down":
-		// 	core.LogStd(core.LogLevelDebug, "UI: routing String() key to viewport: %s", msg.String())
-		// 	m.MainPage.AutoScroll = false
-		// 	core.LogStd(core.LogLevelDebug, "UI: before viewport.Update: YOffset=%d TotalLines=%d Height=%d", m.MainPage.Viewport.YOffset, m.MainPage.Viewport.TotalLineCount(), m.MainPage.Viewport.Height)
-		// 	m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
-		// 	core.LogStd(core.LogLevelDebug, "UI: after viewport.Update: YOffset=%d", m.MainPage.Viewport.YOffset)
-		// 	return m, cmd
-		// case "left", "right":
-		// 	if m.MainPage.Footer.Input.Value() != "" {
-		// 		m.MainPage.Footer.Input, cmd = m.MainPage.Footer.Input.Update(msg)
-		// 		m.MainPage.SetFooterInput(m.MainPage.Footer.Input)
-		// 		return m, cmd
-		// 	}
-		// 	m.MainPage.AutoScroll = false
-		// 	m.MainPage.Viewport, cmd = m.MainPage.Viewport.Update(msg)
-		// 	return m, cmd
-		// }
-
 	case OutputMsg:
 		if msg.MsgType == "response" {
 			if m.MainPage.Streaming {
@@ -206,11 +184,15 @@ func (m *UIPage) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if strings.Contains(msg.Content, ".") {
 					m.MainPage.HintOverwrite = true
 				}
-				displayHint := m.MainPage.CurrentHint
-				if len(displayHint) > 80 {
-					displayHint = displayHint[:77] + "..."
+				if m.enableThinking {
+					displayHint := m.MainPage.CurrentHint
+					if len(displayHint) > 120 {
+						displayHint = displayHint[:115] + "..."
+					}
+					m.MainPage.CurrentHint = displayHint
+				} else {
+					m.MainPage.CurrentHint = ""
 				}
-				m.MainPage.CurrentHint = displayHint
 				m.refreshMainPage()
 				return m, waitForStreamOutput([]core.OutputChannel{
 					{Chan: m.ResponseChan, Type: "response"},
@@ -331,15 +313,19 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 	// Try system commands first
 	parts := strings.Fields(input)
 	if len(parts) > 0 {
-		sysCmd := HandleSystemCommand(m, input)
+		parsed, sysCmd := HandleSystemCommand(m, input)
 		if sysCmd != nil {
 			if m.Quitting {
 				return m, tea.Quit
 			}
-			return m, sysCmd
+			return m, nil
 		}
 		// HandleSystemCommand may activate a page handler (e.g., /help) without returning a tea.Cmd
 		if (m.HelpHandler != nil && m.HelpHandler.IsActive()) || (m.KBHandler != nil && m.KBHandler.IsActive()) || (m.SkillHandler != nil && m.SkillHandler.IsActive()) {
+			return m, nil
+		}
+
+		if parsed {
 			return m, nil
 		}
 	}
@@ -389,6 +375,8 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 		cmd = handleMCPCommand(m, c)
 	case *model.SkillCommand:
 		cmd = handleSkillCommand(m, c)
+	case *model.SystemCommand:
+		// System commands are already handled by HandleSystemCommand
 	default:
 		m.MainPage.SetLastError(fmt.Sprintf("%s: command not found", parts[0]))
 	}

@@ -35,14 +35,10 @@ func init() {
 
 func (c AskQuestionCommand) GetHelp() map[string]any {
 	return map[string]any{
-		"format": "/ask <your question> [--enableThinking] [--stream] [--model model_name] [--questionType normal]",
+		"format": "/ask <your question> [--enableThinking]",
 		"desc":   "ask the agent a question",
 		"options": map[string]string{
 			"enableThinking": "enable thinking mode if set to true",
-			"stream":         "enable stream mode if set to true",
-			"questionType":   "question type, normal or tool_confirm, default is normal",
-			"model":          "model name you want to use",
-			"query":          "your question",
 		},
 	}
 }
@@ -51,12 +47,6 @@ func (c *AskQuestionCommand) WithOption(key string, value string) core.Command {
 	switch key {
 	case "enableThinking":
 		c.EnableThinking = value == "true"
-	case "stream":
-		c.Stream = value == "true"
-	case "questionType":
-		c.QuestionType = core.QuestionType(value)
-	case "model":
-		c.Model = value
 	case "sessionID":
 		c.SessionID = value
 	default:
@@ -86,15 +76,6 @@ func (c *AskQuestionCommand) ToString() string {
 	parts := []string{AskCommandName, c.Query}
 	if c.EnableThinking {
 		parts = append(parts, "--enableThinking")
-	}
-	if c.Stream {
-		parts = append(parts, "--stream")
-	}
-	if c.Model != "" {
-		parts = append(parts, "--model", c.Model)
-	}
-	if c.QuestionType != "" && c.QuestionType != core.QuestionTypeNormal {
-		parts = append(parts, "--questionType", string(c.QuestionType))
 	}
 	return strings.Join(parts, " ")
 }
