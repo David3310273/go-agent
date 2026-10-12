@@ -67,6 +67,17 @@ func init() {
 			Session:  session,
 		}
 	})
+
+	// register FetchAllMcpInfo tool factory
+	core.RegisterTool("FetchAllMcpInfo", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, SearchMCPResourcesSchemaPath, "fetchallmcp.config.json")
+		return FetchAllMcpInfoCall{
+			Name:     config.Name,
+			Schema:   config.Schema,
+			RootPath: rootPath,
+			Session:  session,
+		}
+	})
 }
 
 // =============================================================================
@@ -623,6 +634,108 @@ func (f DiscoverMCPServerCall) GetRunner() func(args map[string]any) (string, *c
 		}
 
 		core.LogStd(core.LogLevelDebug, "mcp discover: server=%s, definition_size=%d", serverName, len(jsonResult))
+
+		return string(jsonResult), &core.Diagnostic{
+			Level:   core.SeverityInfo,
+			Code:    core.MessageCodeSuccess,
+			Message: "Success",
+		}
+	}
+}
+
+// =============================================================================
+// FetchAllMcpInfo
+// =============================================================================
+
+// interface assertion
+var _ core.Tool = (*FetchAllMcpInfoCall)(nil)
+
+// FetchAllMcpInfoCall implements core.Tool interface for fetching all MCP server information.
+type FetchAllMcpInfoCall struct {
+	Name     string `json:"name"`
+	Schema   string `json:"schema"`
+	RootPath string
+	Session  core.Session
+}
+
+func (f FetchAllMcpInfoCall) GetName() string {
+	return f.GetSchema().Function.Name
+}
+
+func (f FetchAllMcpInfoCall) IsDestructive() bool {
+	return false
+}
+
+func (f FetchAllMcpInfoCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f FetchAllMcpInfoCall) GetSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
+}
+
+func (f FetchAllMcpInfoCall) GetSchema() core.ToolSchema {
+	var schema core.ToolSchema
+	content, err := os.ReadFile(path.Join(f.RootPath, SearchMCPResourcesSchemaPath, f.Schema))
+	if err != nil {
+		core.LogStd(core.LogLevelWarn, "searchmcp: failed to read schema: %v", err)
+		return schema
+	}
+	if err := json.Unmarshal(content, &schema); err != nil {
+		return schema
+	}
+	return schema
+}
+
+func (f FetchAllMcpInfoCall) GetDescription() string {
+	return f.GetSchema().Function.Description
+}
+
+func (f FetchAllMcpInfoCall) GetContext() core.Context {
+	return f.Session.GetContext()
+}
+
+func (f FetchAllMcpInfoCall) Validate(args map[string]any) *core.Diagnostic {
+	return nil
+}
+
+// MCPServerInfo represents simplified MCP server information
+type MCPServerInfo struct {
+	ServerName  string `json:"serverName"`
+	Description string `json:"description"`
+}
+
+func (f FetchAllMcpInfoCall) GetRunner() func(args map[string]any) (string, *core.Diagnostic) {
+	return func(args map[string]any) (string, *core.Diagnostic) {
+		mcpConfigs := f.Session.GetContext().GetMCPServerConfigs()
+		core.LogStd(core.LogLevelDebug, "fetchallmcpinfo: current mcp server configs: %#v", mcpConfigs)
+
+		if len(mcpConfigs) == 0 {
+			return "No MCP servers available", &core.Diagnostic{
+				Level:   core.SeverityInfo,
+				Code:    core.MessageCodeSuccess,
+				Message: "Success",
+			}
+		}
+
+		serverInfos := make([]MCPServerInfo, 0, len(mcpConfigs))
+		for _, config := range mcpConfigs {
+			serverInfos = append(serverInfos, MCPServerInfo{
+				ServerName:  config.Name,
+				Description: config.Description,
+			})
+		}
+
+		jsonResult, err := json.Marshal(serverInfos)
+		if err != nil {
+			return "", &core.Diagnostic{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeToolRunError,
+				Message: "failed to serialize MCP server info",
+			}
+		}
+
+		core.LogStd(core.LogLevelDebug, "fetchallmcpinfo: fetched %d MCP servers", len(serverInfos))
 
 		return string(jsonResult), &core.Diagnostic{
 			Level:   core.SeverityInfo,

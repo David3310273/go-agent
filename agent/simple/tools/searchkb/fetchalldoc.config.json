@@ -1,0 +1,5 @@
+{
+    "name": "FetchAllDocInfo",
+    "schema": "fetchalldoc.schema.json",
+    "description": "Fetch all included document information from a specific knowledge base"
+}

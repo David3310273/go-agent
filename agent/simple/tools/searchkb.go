@@ -23,6 +23,17 @@ func init() {
 			Session:  session,
 		}
 	})
+
+	// register FetchAllDocInfo tool factory
+	core.RegisterTool("FetchAllDocInfo", func(rootPath string, session core.Session) core.Tool {
+		config := LoadToolConfig(rootPath, SearchKnowledgebaseSchemaPath, "fetchalldoc.config.json")
+		return FetchAllDocInfoCall{
+			Name:     config.Name,
+			Schema:   config.Schema,
+			RootPath: rootPath,
+			Session:  session,
+		}
+	})
 }
 
 // SearchKnowledgebaseCall implements core.Tool interface for searching knowledge base.
@@ -181,6 +192,147 @@ func (f SearchKnowledgebaseCall) GetRunner() func(args map[string]any) (string, 
 				Message: "failed to serialize results",
 			}
 		}
+
+		return string(jsonResult), &core.Diagnostic{
+			Level:   core.SeverityInfo,
+			Code:    core.MessageCodeSuccess,
+			Message: "Success",
+		}
+	}
+}
+
+// =============================================================================
+// FetchAllDocInfo
+// =============================================================================
+
+// interface assertion
+var _ core.Tool = (*FetchAllDocInfoCall)(nil)
+
+// FetchAllDocInfoCall implements core.Tool interface for fetching all document information from a knowledge base.
+type FetchAllDocInfoCall struct {
+	Name     string `json:"name"`
+	Schema   string `json:"schema"`
+	RootPath string
+	Session  core.Session
+}
+
+func (f FetchAllDocInfoCall) GetName() string {
+	return f.GetSchema().Function.Name
+}
+
+func (f FetchAllDocInfoCall) IsDestructive() bool {
+	return false
+}
+
+func (f FetchAllDocInfoCall) ToShellScript(args map[string]any) string {
+	return ""
+}
+
+func (f FetchAllDocInfoCall) GetSandboxEnv() core.SandboxSpec {
+	return core.SandboxSpec{}
+}
+
+func (f FetchAllDocInfoCall) GetSchema() core.ToolSchema {
+	var schema core.ToolSchema
+	content, err := os.ReadFile(path.Join(f.RootPath, SearchKnowledgebaseSchemaPath, f.Schema))
+	if err != nil {
+		core.LogStd(core.LogLevelWarn, "searchkb: failed to read schema: %v", err)
+		return schema
+	}
+	if err := json.Unmarshal(content, &schema); err != nil {
+		return schema
+	}
+	return schema
+}
+
+func (f FetchAllDocInfoCall) GetDescription() string {
+	return f.GetSchema().Function.Description
+}
+
+func (f FetchAllDocInfoCall) GetContext() core.Context {
+	return f.Session.GetContext()
+}
+
+func (f FetchAllDocInfoCall) Validate(args map[string]any) *core.Diagnostic {
+	// kbName is optional, empty means fetch all knowledge bases
+	return nil
+}
+
+// DocInfo represents document information in knowledge base
+type DocInfo struct {
+	Domain      string `json:"domain"`
+	Filename    string `json:"filename"`
+	Description string `json:"description"`
+}
+
+// KBDocInfoResponse represents the response from fetching all doc info
+type KBDocInfoResponse struct {
+	KBName        string    `json:"kbName"`
+	KBDescription string    `json:"kbDescription"`
+	Documents     []DocInfo `json:"documents"`
+}
+
+func (f FetchAllDocInfoCall) GetRunner() func(args map[string]any) (string, *core.Diagnostic) {
+	return func(args map[string]any) (string, *core.Diagnostic) {
+		kbName, _ := args["kbName"].(string)
+
+		// get knowledge bases from context
+		knowledgeBases := f.Session.GetContext().GetKnowledgeBase()
+		if len(knowledgeBases) == 0 {
+			return "", &core.Diagnostic{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeToolRunError,
+				Message: "no knowledge base available",
+			}
+		}
+
+		allKBs := make([]KBDocInfoResponse, 0, len(knowledgeBases))
+		totalDocs := 0
+
+		for _, kb := range knowledgeBases {
+			if kbName != "" && kbName != kb.GetName() {
+				continue
+			}
+
+			docDesc := kb.GetDocDescription("", "")
+			documents := make([]DocInfo, 0)
+
+			if len(docDesc) > 0 {
+				for domain, desc := range docDesc {
+					if descMap, ok := desc.(map[string]any); ok && descMap != nil {
+						for filename, description := range descMap {
+							descStr := ""
+							if desc, ok := description.(string); ok {
+								descStr = desc
+							}
+							documents = append(documents, DocInfo{
+								Domain:      domain,
+								Filename:    filename,
+								Description: descStr,
+							})
+						}
+					}
+				}
+			}
+
+			allKBs = append(allKBs, KBDocInfoResponse{
+				KBName:        kb.GetName(),
+				KBDescription: kb.GetDescription(),
+				Documents:     documents,
+			})
+			totalDocs += len(documents)
+		}
+
+		jsonResult, err := json.Marshal(allKBs)
+		if err != nil {
+			return "", &core.Diagnostic{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeToolRunError,
+				Message: "failed to serialize results",
+			}
+		}
+
+		core.LogStd(core.LogLevelDebug, "fetchalldocinfo: fetched %d knowledge bases with %d total documents", len(allKBs), totalDocs)
 
 		return string(jsonResult), &core.Diagnostic{
 			Level:   core.SeverityInfo,

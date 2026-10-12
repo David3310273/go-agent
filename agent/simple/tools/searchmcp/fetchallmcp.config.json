@@ -1,0 +1,5 @@
+{
+    "name": "FetchAllMcpInfo",
+    "schema": "fetchallmcp.schema.json",
+    "description": "Fetch all MCP server information including server names and descriptions"
+}

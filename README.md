@@ -8,17 +8,13 @@ Using param injection from outside app to start eventual tool call
 
 ![architecture](https://github.com/David3310273/go-agent/blob/main/images/layer.png?raw=true)
 
-### Design Principles
-
-- Param injection rather than variables in struct
-- Only composition on final interface, interface unit should have single responsibility.
-- Easy to extend and customize based on clear interface implementation
-
-## Thoughts
+## Design Principles
 
 - Multi-layered architecture, clear boundary and simple organization of directories, easy to understand and extend.
-- Minimal tools/prompt should be provided, dynamically load tools using MCP server, and extend backgrounds with knowledge base. 
-- **Framework process control rather than LLM process or prompt control**. For example, control the process using framework logic, rather than keep modifying the prompt hint word. 
+- Minimal skills should be provided. In this framework, only one tool provided with two skills.
+- - accquire tools using MCP server skill
+- - extend backgrounds with knowledge base skill. 
+- **Framework process control rather than LLM process or prompt control**. For example, control the process and context using framework logic, rather than keep modifying the prompt with hint words. 
 
 
 ## How to start
