@@ -151,15 +151,14 @@ func (c *SimpleAgentContext) GetTools() []core.ToolConfig {
 }
 
 // SetMCPClient creates and stores MCP clients for the given configs
-func (a *SimpleAgentContext) SetMCPClient(configs []core.MCPConfig) *core.Diagnostic {
+func (a *SimpleAgentContext) SetMCPClient(configs []core.MCPConfig) {
 	a.MCPServers = configs
 
-	if a.MCPClients == nil {
-		a.MCPClients = make(map[string]core.MCPAccessible)
-	}
+	// reset the clients map to avoid stale entries (e.g., after rm)
+	a.MCPClients = make(map[string]core.MCPAccessible)
 
 	for _, config := range configs {
-		// create new MCP client (no initialize needed for 2026-07-28 protocol)
+		// create new MCP client
 		client := &MCPRemoteUtil{
 			Config: &config,
 		}
@@ -168,8 +167,6 @@ func (a *SimpleAgentContext) SetMCPClient(configs []core.MCPConfig) *core.Diagno
 		a.MCPClients[config.Name] = client
 		core.LogStd(core.LogLevelInfo, "mcp client created: server=%s", config.Name)
 	}
-
-	return nil
 }
 
 // GetMCPClients returns all MCP clients

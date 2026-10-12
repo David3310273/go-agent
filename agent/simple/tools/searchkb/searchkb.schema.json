@@ -12,11 +12,11 @@
         },
         "filename": {
           "type": "string",
-          "description": "doc filename to search"
+          "description": "doc filename to search, if you want to search in all documents, leave it empty."
         },
         "domain": {
           "type": "string",
-          "description": "domain to search"
+          "description": "domain to search, if you want to search in all domains, leave it empty."
         },
         "topK": {
           "type": "integer",
