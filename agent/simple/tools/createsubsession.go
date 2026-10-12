@@ -22,7 +22,7 @@ func init() {
 // CreateSubSessionCall implements core.Tool interface for requesting a sub-session.
 // this tool only declares the intent. The sub-session is created and driven by
 // SimpleHarness.RunSubSession, which core.ProcessQuestion calls when it intercepts this tool
-// by name, because this package cannot import agent/simple.
+// by name
 type CreateSubSessionCall struct {
 	Name   string `json:"name"`
 	Schema string `json:"schema"`

@@ -1,17 +1,14 @@
 # Changelog
 
-## v1.1.0: (coming soon...)
+## v1.1.2: 2026-10-13
 
 feature:
 
 - add command line for simple agent, such as:
   - add skill
-  - add knowledge base
-  - add user prompt
-  - add mcp server
+  - add/ls/rm knowledge base from local config
+  - add/ls/rm mcp server from local config
   - ask question and show thoughts
-
-- move related doc to app folder to make agent more like bare cores
 
 ## v1.0.6: 2026-10-10
 
