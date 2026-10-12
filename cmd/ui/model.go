@@ -327,7 +327,7 @@ func (m *UIPage) handleInput() (tea.Model, tea.Cmd) {
 			if m.Quitting {
 				return m, tea.Quit
 			}
-			return m, nil
+			return m, sysCmd
 		}
 		// HandleSystemCommand may activate a page handler (e.g., /help) without returning a tea.Cmd
 		if (m.HelpHandler != nil && m.HelpHandler.IsActive()) || (m.KBHandler != nil && m.KBHandler.IsActive()) || (m.SkillHandler != nil && m.SkillHandler.IsActive()) {

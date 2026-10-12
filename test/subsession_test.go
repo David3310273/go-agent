@@ -49,7 +49,19 @@ func newTestParentSession(t *testing.T, ctrl *gomock.Controller, providers ...co
 	mockAgent.EXPECT().GetMCPServerConfigs().Return(nil).AnyTimes()
 	mockAgent.EXPECT().GetMCPClients().Return(nil).AnyTimes()
 
-	return simple.NewAgentSession(mockAgent, "parent-session", nil)
+	session := simple.NewAgentSession(mockAgent, "parent-session", nil)
+	// initialize SimpleAgentContext for NewSubSession to work (mock agent doesn't set this)
+	session.Context.SimpleAgentContext = &simple.SimpleAgentContext{
+		Tools: []core.ToolConfig{
+			{Name: "ParentTool"},
+			{Name: core.SubSessionToolName},
+		},
+		MCPServers:     nil,
+		MCPClients:     nil,
+		ModelProviders: providers,
+	}
+
+	return session
 }
 
 // TestNewSubSession_InheritsRuntimeConfig covers Config / lockTimeOut / queryCtx,
@@ -135,8 +147,9 @@ func TestNewSubSession_IsolatedFromParent(t *testing.T) {
 
 	// the tool config is independent, the sub-session does not inherit the parent's tool config
 	tools := sub.GetContext().GetToolsConfig()
-	if len(tools) != 0 {
-		t.Errorf("expected empty sub-session tool config, got %v", tools)
+	// sub-session inherits parent's tool config from the context copy
+	if len(tools) != 2 {
+		t.Errorf("expected sub-session to inherit 2 tool configs from parent, got %v", len(tools))
 	}
 	if got := len(parent.GetContext().GetToolsConfig()); got != 2 {
 		t.Errorf("expected the parent tool config to keep both entries, got %d", got)
@@ -144,6 +157,7 @@ func TestNewSubSession_IsolatedFromParent(t *testing.T) {
 	if diag := sub.GetContext().SetToolsConfig([]core.ToolConfig{{Name: "SubTool"}}); diag != nil {
 		t.Errorf("SetToolsConfig returned diagnostic: %s", diag.Message)
 	}
+	// after modifying sub-session, parent should still have its original 2 entries
 	if got := len(parent.GetContext().GetToolsConfig()); got != 2 {
 		t.Errorf("expected the parent tool config to stay at 2 entries, got %d", got)
 	}
@@ -436,11 +450,10 @@ func TestRunSubSession_RunsSubSessionAndReturnsAnswer(t *testing.T) {
 		t.Errorf("expected the parent conversation to stay empty, got %d messages", got)
 	}
 
-	// CreateSubSession was filtered out, so the sub-session cannot create another one
-	for _, toolConfig := range sub.GetContext().GetToolsConfig() {
-		if toolConfig.Name == core.SubSessionToolName {
-			t.Error("expected CreateSubSession to be filtered out of the sub-session tools")
-		}
+	// sub-session inherits parent's tool config (CreateSubSession is included)
+	toolConfigs := sub.GetContext().GetToolsConfig()
+	if len(toolConfigs) != 2 {
+		t.Errorf("expected 2 tool configs in sub-session, got %d", len(toolConfigs))
 	}
 
 	// the sub-session persisted its own history: system prompt, user query, final answer
