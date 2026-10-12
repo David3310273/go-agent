@@ -2,8 +2,10 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/David3310273/go-agent/core"
 	storage "github.com/David3310273/go-agent/knowledgebase/storage"
@@ -140,7 +142,17 @@ func (f SearchKnowledgebaseCall) GetRunner() func(args map[string]any) (string, 
 				continue
 			}
 
-			searchResults, diag := milvusKB.Search(keyword, topK, "")
+			filters := []string{}
+			if filename, ok := args["filename"].(string); ok && filename != "" {
+				filters = append(filters, fmt.Sprintf("filename == '%s'", filename))
+			}
+			if domain, ok := args["domain"].(string); ok && domain != "" {
+				filters = append(filters, fmt.Sprintf("domain == '%s'", domain))
+			}
+
+			filter := strings.Join(filters, " && ")
+
+			searchResults, diag := milvusKB.Search(keyword, topK, filter)
 			if diag != nil {
 				core.LogStd(core.LogLevelError, "searchkb: search error: %v", diag.Message)
 				continue

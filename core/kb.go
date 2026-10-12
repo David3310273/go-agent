@@ -72,6 +72,10 @@ type KnowledgeBase[T any] interface {
 	Delete(collectionName, domain, filename string) *Diagnostic
 	// get name
 	GetName() string
+	GetDescription() string
+	// get/set docs and descriptions
+	GetDocDescription(collectionName, domain string) map[string]any
+	SetDocDescription() *Diagnostic
 }
 
 type Readable interface {

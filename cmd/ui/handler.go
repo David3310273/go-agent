@@ -30,35 +30,35 @@ type RMResultMsg struct {
 }
 
 // HandleSystemCommand handles system commands like /quit, /help, etc.
-func HandleSystemCommand(page *UIPage, input string) tea.Cmd {
+func HandleSystemCommand(page *UIPage, input string) (bool, tea.Cmd) {
 	parts := strings.Fields(input)
 	if len(parts) == 0 {
-		return nil
+		return false, nil
 	}
 
 	switch parts[0] {
 	case "/quit", "/q":
 		page.Quitting = true
-		return tea.Quit
+		return true, tea.Quit
 	case "/help", "/h":
 		page.HelpHandler = NewHelpPageHandler(page.Width, page.Height, view.FormatHelpDoc(page.App.GetHelpDoc()))
 		page.MainPage.Footer.Input.Blur()
 		page.MainPage.Footer.Input.SetValue("")
 		page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
-		return nil
+		return true, nil
 	case "/i18n":
 		if len(parts) < 2 {
 			page.MainPage.SetLastError("Language not specified")
-			return nil
+			return true, nil
 		}
 		if parts[1] != "en" && parts[1] != "zh" {
 			page.MainPage.SetLastError("Not supported language type")
-			return nil
+			return true, nil
 		}
 		page.language = core.LanguageType(parts[1])
 		page.MainPage.SetLastError("")
-		return nil
-	case "/new-page", "/np":
+		return true, nil
+	case "/new-page":
 		id, _ := uuid.NewV4()
 		page.SessionID = id.String()
 		page.MainPage.Messages = []view.MessageEntry{}
@@ -73,7 +73,7 @@ func HandleSystemCommand(page *UIPage, input string) tea.Cmd {
 		page.MainPage.ScrollToLatest()
 		page.MainPage.Footer.Input.SetValue("")
 		page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
-		return nil
+		return true, nil
 	case "/clear", "/clr":
 		page.MainPage.Messages = []view.MessageEntry{}
 		page.MainPage.Waiting = false
@@ -87,10 +87,10 @@ func HandleSystemCommand(page *UIPage, input string) tea.Cmd {
 		page.MainPage.ScrollToLatest()
 		page.MainPage.Footer.Input.SetValue("")
 		page.MainPage.SetFooterInput(page.MainPage.Footer.Input)
-		return nil
+		return true, nil
 	}
 
-	return nil
+	return false, nil
 }
 
 func handleAskCommand(page *UIPage, command *model.AskQuestionCommand) tea.Cmd {
@@ -98,6 +98,10 @@ func handleAskCommand(page *UIPage, command *model.AskQuestionCommand) tea.Cmd {
 		Content: view.FormatTimestamp() + " " + command.Query,
 		MsgType: "prompt",
 	})
+	page.enableThinking = command.EnableThinking
+	if !command.EnableThinking {
+		page.MainPage.CurrentHint = ""
+	}
 	page.MainPage.SetMessages(page.MainPage.Messages, page.MainPage.Waiting, page.MainPage.Streaming,
 		page.MainPage.CurrentHint, page.MainPage.StreamContent, page.MainPage.StreamTime)
 	page.MainPage.ScrollToLatest()

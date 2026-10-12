@@ -133,16 +133,6 @@ func (s *MilvusKnowledgeService) CreateMilvusKnowledge(req *MilvusKnowledgeCreat
 		}
 	}
 
-	// hardcode for simplicity, check if domain is supported, only "technology" is supported for now.
-	// given domain, should know the collection name
-	if req.Domain != "technology" {
-		return nil, &core.Diagnostic{
-			Level:   core.SeverityError,
-			Code:    core.MessageCodeStorageError,
-			Message: "collection not found for domain: " + req.Domain,
-		}
-	}
-
 	// process document: load, chunk, and embed
 	embedResult, diag := s.kb.Process(req.Data, req.Filename)
 	if diag != nil {

@@ -60,6 +60,28 @@ func (h SimpleHarness) GenerateFinalPrompt(context core.Context, maxSize int) st
 		}
 	}
 
+	// fetch all docs included in knowledge base
+	if kbs := context.GetKnowledgeBase(); len(kbs) > 0 {
+		prompt.WriteString("\n\n# Available Knowledge Base\n")
+		for _, kb := range kbs {
+			fmt.Fprintf(&prompt, "- name: **%s**\n", kb.GetName())
+			fmt.Fprintf(&prompt, "- description: %s\n", kb.GetDescription())
+			docDesc := kb.GetDocDescription("", "")
+			if len(docDesc) > 0 {
+				fmt.Fprintf(&prompt, "- included docs: \n")
+				for domain, desc := range docDesc {
+					if descMap := desc.(map[string]any); descMap != nil {
+						fmt.Fprintf(&prompt, "- - domain: %s: \n", domain)
+						for filename, description := range descMap {
+							fmt.Fprintf(&prompt, "- - filename: %s\n", filename)
+							fmt.Fprintf(&prompt, "- - description: %s\n", description.(string))
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// get agent history from context
 	prompt.WriteString("\n")
 	prompt.WriteString(string(context.GetHistory()))
