@@ -1,0 +1,17 @@
+{
+  "type": "function",
+  "function": {
+    "name": "FetchAllDocInfo",
+    "description": "Fetch all document information from knowledge base(s). Use this tool first if you want to know what documents are included in the knowledge base.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "kbName": {
+          "type": "string",
+          "description": "Optional. The name of the knowledge base to fetch documents from. If omitted or empty, returns all documents from all knowledge bases."
+        }
+      },
+      "required": []
+    }
+  }
+}

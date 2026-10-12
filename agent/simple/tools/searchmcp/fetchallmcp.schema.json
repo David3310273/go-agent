@@ -1,0 +1,11 @@
+{
+  "type": "function",
+  "function": {
+    "name": "FetchAllMcpInfo",
+    "description": "Fetch information about all available MCP servers. Returns server names and descriptions for all configured MCP servers. Use this tool first to accquire more ablities if you want to use this MCP server.",
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    }
+  }
+}

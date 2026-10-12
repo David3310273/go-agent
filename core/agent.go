@@ -354,6 +354,7 @@ func runToolCalls(session Session, harness Harness, prepared []preparedToolCall,
 			}()
 
 			item := prepared[idx]
+			LogStd(LogLevelDebug, "[session=%s] running tool call currently: name=%s, args=%v", session.GetID(), item.toolCall.Function.Name, item.args)
 			// use result string from RunToolCall, check diagnostic level for error.
 			result, diag := harness.RunToolCall(session, item.toolCall, item.targetTool, item.args, model)
 			if diag != nil && diag.Level == SeverityError {
