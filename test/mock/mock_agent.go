@@ -971,11 +971,9 @@ func (mr *MockAgentCoreMockRecorder) SetLanguage(arg0 any) *gomock.Call {
 }
 
 // SetMCPClient mocks base method.
-func (m *MockAgentCore) SetMCPClient(arg0 []core.MCPConfig) *core.Diagnostic {
+func (m *MockAgentCore) SetMCPClient(arg0 []core.MCPConfig) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetMCPClient", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
+	m.ctrl.Call(m, "SetMCPClient", arg0)
 }
 
 // SetMCPClient indicates an expected call of SetMCPClient.
