@@ -8,27 +8,63 @@ import './App.css';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { messages, isLoading, sendMessage, stopGeneration, clearChat } = useChat();
-  const { sessions, activeSessionId, setActiveSessionId, createSession, updateSession, getSession } = useChatHistory();
+  const [enableThinking, setEnableThinking] = useState(false);
+  const {
+    messages,
+    currentSession,
+    isLoading,
+    thought,
+    pendingConfirms,
+    sendMessage,
+    stopGeneration,
+    confirmToolCall,
+    clearChat,
+    restoreSession,
+  } = useChat();
+  const {
+    sessions,
+    activeSessionId,
+    setActiveSessionId,
+    createSession,
+    updateSession,
+    removeSession,
+    getSession,
+  } = useChatHistory();
 
   const handleSend = (question) => {
     if (!activeSessionId) {
-      const newSession = createSession(question, [], null);
-      sendMessage(question);
-    } else {
-      sendMessage(question);
+      const newSession = createSession(question);
+      restoreSession(newSession.id, []);
     }
+    sendMessage(question, enableThinking);
   };
 
   const handleNewChat = () => {
     clearChat();
+    setActiveSessionId(crypto.randomUUID());
   };
 
-  const handleSelectSession = (sessionId) => {
-    const session = getSession(sessionId);
+  const handleSelectSession = async (sessionId) => {
+    const session = await getSession(sessionId);
     if (session) {
       setActiveSessionId(sessionId);
+      restoreSession(session.id, session.messages);
     }
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    await removeSession(sessionId);
+    if (activeSessionId === sessionId) {
+      clearChat();
+    }
+  };
+
+  const handleConfirmTool = (confirms) => {
+    confirmToolCall(confirms);
+  };
+
+  const handleToggleThinking = () => {
+    setEnableThinking(prev => !prev);
   };
 
   return (
@@ -37,6 +73,7 @@ function App() {
         sessions={sessions}
         activeSessionId={activeSessionId}
         onSelectSession={handleSelectSession}
+        onDeleteSession={handleDeleteSession}
         onNewChat={handleNewChat}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -53,12 +90,20 @@ function App() {
           <h1 className="chat-title">AI Agent</h1>
         </header>
 
-        <ChatArea messages={messages} isLoading={isLoading} />
+        <ChatArea
+          messages={messages}
+          isLoading={isLoading}
+          thought={enableThinking ? thought : null}
+          pendingConfirms={pendingConfirms}
+          onConfirmTool={handleConfirmTool}
+        />
 
         <ChatInput
           onSend={handleSend}
           onStop={stopGeneration}
           isLoading={isLoading}
+          enableThinking={enableThinking}
+          onToggleThinking={handleToggleThinking}
         />
       </main>
     </div>

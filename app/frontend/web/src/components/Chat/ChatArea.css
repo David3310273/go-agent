@@ -35,3 +35,115 @@
   color: var(--text-secondary);
   margin-bottom: 48px;
 }
+
+.thought-block {
+  margin: 12px 0;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.thought-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.thought-content {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.tool-confirm-card {
+  margin: 12px 0;
+  padding: 16px;
+  background: #fff8e1;
+  border: 1px solid #ffca28;
+  border-radius: var(--radius-md);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tool-confirm-message {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.tool-confirm-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 202, 40, 0.3);
+}
+
+.tool-confirm-item:last-child {
+  border-bottom: none;
+}
+
+.tool-confirm-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-confirm-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tool-confirm-args {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  max-height: 120px;
+}
+
+.tool-confirm-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tool-confirm-yes,
+.tool-confirm-no {
+  padding: 6px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.tool-confirm-yes {
+  background: #4caf50;
+  color: white;
+}
+
+.tool-confirm-no {
+  background: #f44336;
+  color: white;
+}
+
+.tool-confirm-yes:hover,
+.tool-confirm-no:hover {
+  opacity: 0.85;
+}

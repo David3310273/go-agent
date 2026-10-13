@@ -6,10 +6,8 @@
 }
 
 .chat-input-wrapper {
-  position: relative;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
   max-width: 800px;
   margin: 0 auto;
   background-color: var(--bg-input);
@@ -23,6 +21,12 @@
 .chat-input-wrapper:focus-within {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.chat-input-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .chat-input {
@@ -77,9 +81,47 @@
   background-color: #dc2626;
 }
 
+.chat-input-bottom {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.deepthink-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.deepthink-btn:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.deepthink-btn-active {
+  border-color: var(--primary-color);
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--primary-color);
+}
+
+.deepthink-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .input-hint {
   text-align: center;
   font-size: 12px;
   color: var(--text-tertiary);
-  margin-top: 12px;
+  margin-top: 8px;
 }
