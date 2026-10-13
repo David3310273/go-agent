@@ -71,6 +71,7 @@ const (
 	MessageCodeSessionCreateError     MessageCode = 502
 	MessageCodeSessionStopError       MessageCode = 503
 	MessageCodeSessionMultiQueryError MessageCode = 504
+	MessageCodeSessionDeleteError     MessageCode = 505
 	// 6xx: tool error
 	MessageCodeToolNotFound         MessageCode = 600
 	MessageCodeToolRunError         MessageCode = 601

@@ -448,3 +448,54 @@ func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (co
 		}
 	}
 }
+
+func (a *SimpleAgent) ListSessions() []core.Session {
+	if err := a.Acquire(); err != nil {
+		return nil
+	}
+	defer a.Release()
+
+	result := make([]core.Session, 0, len(a.sessions))
+	for _, session := range a.sessions {
+		result = append(result, session)
+	}
+	return result
+}
+
+func (a *SimpleAgent) GetSession(sessionID string) core.Session {
+	if err := a.Acquire(); err != nil {
+		return nil
+	}
+	defer a.Release()
+
+	return a.sessions[sessionID]
+}
+
+func (a *SimpleAgent) RemoveSession(sessionID string) *core.Diagnostic {
+	session := a.GetSession(sessionID)
+	if session == nil {
+		return nil
+	}
+
+	if err := a.Acquire(); err == nil {
+		defer a.Release()
+		delete(a.sessions, sessionID)
+	} else {
+		return &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeSessionDeleteError,
+			Message: "Failed to acquire lock for session deletion",
+		}
+	}
+
+	filePath := utils.ResolvePath(a.RootPath, fmt.Sprintf(session.GetConfigs().MemoryFilePathFormat, sessionID))
+	if err := os.Remove(filePath); err != nil {
+		return &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeSessionDeleteError,
+			Message: "Failed to delete session file: " + filePath,
+		}
+	}
+
+	return nil
+}

@@ -1,67 +1,79 @@
 import { useState, useCallback, useEffect } from 'react';
-
-const STORAGE_KEY = 'chatSessions';
+import { listSessions, getSessionHistory, deleteSession } from '../api/agent';
 
 export function useChatHistory() {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchSessions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await listSessions();
+      const sessionList = (data.sessionsInfo || []).map(s => ({
+        id: s.sessionID,
+        title: s.title || 'Untitled',
+      }));
+      setSessions(sessionList);
+    } catch (error) {
+      console.error('Failed to fetch sessions:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setSessions(parsed);
-      }
-    } catch (error) {
-      console.error('Failed to load chat history:', error);
-    }
-  }, []);
+    fetchSessions();
+  }, [fetchSessions]);
 
-  const saveSessions = useCallback((newSessions) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSessions));
-      setSessions(newSessions);
-    } catch (error) {
-      console.error('Failed to save chat history:', error);
-    }
-  }, []);
-
-  const createSession = useCallback((title, messages, sessionId) => {
+  const createSession = useCallback((title) => {
+    const sessionId = crypto.randomUUID();
     const newSession = {
-      id: sessionId || `session-${Date.now()}`,
+      id: sessionId,
       title: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
-      messages,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
-
-    const newSessions = [newSession, ...sessions];
-    saveSessions(newSessions);
+    setSessions(prev => [newSession, ...prev]);
     setActiveSessionId(newSession.id);
     return newSession;
-  }, [sessions, saveSessions]);
+  }, []);
 
   const updateSession = useCallback((sessionId, messages) => {
-    const newSessions = sessions.map(session =>
-      session.id === sessionId
-        ? { ...session, messages, updatedAt: new Date().toISOString() }
-        : session
+    setSessions(prev =>
+      prev.map(session =>
+        session.id === sessionId ? { ...session } : session
+      )
     );
-    saveSessions(newSessions);
-  }, [sessions, saveSessions]);
+  }, []);
 
-  const deleteSession = useCallback((sessionId) => {
-    const newSessions = sessions.filter(s => s.id !== sessionId);
-    saveSessions(newSessions);
+  const removeSession = useCallback(async (sessionId) => {
+    try {
+      await deleteSession(sessionId);
+    } catch (error) {
+      console.error('Failed to delete session on server:', error);
+    }
+    setSessions(prev => prev.filter(s => s.id !== sessionId));
     if (activeSessionId === sessionId) {
       setActiveSessionId(null);
     }
-  }, [sessions, activeSessionId, saveSessions]);
+  }, [activeSessionId]);
 
-  const getSession = useCallback((sessionId) => {
-    return sessions.find(s => s.id === sessionId);
-  }, [sessions]);
+  const getSession = useCallback(async (sessionId) => {
+    try {
+      const data = await getSessionHistory(sessionId);
+      return {
+        id: sessionId,
+        messages: (data.messages || []).map((content, index) => ({
+          id: `msg-${sessionId}-${index}`,
+          role: index % 2 === 0 ? 'user' : 'assistant',
+          content,
+          timestamp: new Date().toISOString(),
+        })),
+      };
+    } catch (error) {
+      console.error('Failed to get session history:', error);
+      return null;
+    }
+  }, []);
 
   return {
     sessions,
@@ -69,7 +81,9 @@ export function useChatHistory() {
     setActiveSessionId,
     createSession,
     updateSession,
-    deleteSession,
+    removeSession,
     getSession,
+    refreshSessions: fetchSessions,
+    loading,
   };
 }
