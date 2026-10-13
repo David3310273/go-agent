@@ -31,6 +31,20 @@ cd go-agent
 go mod download
 ```
 
+### Running the command line app
+
+```bash
+cd cmd
+go run main.go
+```
+
+#### demo
+
+![ui display](https://github.com/David3310273/go-agent/blob/main/images/cmdui.png?raw=true)
+
+Please refer to the [README.md](https://github.com/David3310273/go-agent/blob/main/cmd/README.md) in the `cmd` directory for more details.
+
+
 ### Running the example application
 
 ```bash
