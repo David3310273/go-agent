@@ -4,6 +4,14 @@
 
 - add web ui for the simple agent
 
+## v1.1.3: 2026-10-19
+
+fix:
+
+- ~~support collection name in kb, suppose domain knows the collection name. if not, create new collection.~~
+- ~~fix command parse bug, support more flexible command format.~~
+- add timer to update kb docs periodically.
+
 ## v1.1.2: 2026-10-13
 
 feature:
