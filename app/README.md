@@ -17,6 +17,24 @@ happy path for simple agent
 - no support for local knowledge base
 - no dynamic context selected from knowledge base
 
+## App
+
+### develop
+
+#### frontend
+cd app/frontend/web && npm run dev
+
+#### backend
+go run app/main.go
+
+### production
+
+#### frontend
+cd app/frontend/web && npm run build
+
+#### backend
+go run app/main.go
+
 ## API
 
 ### POST /v1/ask

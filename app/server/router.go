@@ -16,6 +16,12 @@ import (
 func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 	router := gin.Default()
 
+	// serve static frontend files (React build output)
+	router.Static("/static", "./app/frontend/web/dist")
+	router.GET("/", func(c *gin.Context) {
+		c.File("./app/frontend/web/dist/index.html")
+	})
+
 	// middleware to inject agent into gin context
 	router.Use(func(c *gin.Context) {
 		c.Set("agent", agent)
