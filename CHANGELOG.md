@@ -14,6 +14,15 @@ feature:
   - add/ls/rm mcp server from local config
   - ask question and show thoughts
 
+## v1.0.7:
+
+upgrade agent core feature:
+
+- support multiple model
+- add supervisor in harness to watch the ReAct process, such as loop detect, max limit.
+- add chat history file only for app layer
+- enhance session manager using atomic operation
+
 ## v1.0.6: 2026-10-10
 
 final fixes before new feature:
