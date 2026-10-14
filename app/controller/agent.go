@@ -231,10 +231,6 @@ func handleStreamResponse(c *gin.Context, result *services.AskResult, timeout ti
 			case simple.SimpleNormalResponse:
 				core.LogStd(core.LogLevelInfo, "stream finished: session_id=%s, prompt_tokens=%d, completion_tokens=%d, total_tokens=%d",
 					resp.SessionID, resp.Response.Usage.PromptTokens, resp.Response.Usage.CompletionTokens, resp.Response.Usage.TotalTokens)
-				// send response message if available (e.g., tool already confirmed)
-				if resp.Response.Response != "" {
-					c.SSEvent("message", resp.Response.Response)
-				}
 				c.SSEvent("done", gin.H{
 					"type":      ResponseTypeNormal,
 					"sessionID": resp.SessionID,

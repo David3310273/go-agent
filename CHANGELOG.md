@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.0.0: 2026-10-14
+
+- add web ui for the simple agent
+
 ## v1.1.2: 2026-10-13
 
 feature:

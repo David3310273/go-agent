@@ -44,20 +44,25 @@ go run main.go
 
 Please refer to the [README.md](https://github.com/David3310273/go-agent/blob/main/cmd/README.md) in the `cmd` directory for more details.
 
-
 ### Running the example application
+
+#### UI demo
+
+![ui display](https://github.com/David3310273/go-agent/blob/main/images/webui.png?raw=true)
+
+#### frontend
+
+```bash
+cd app/frontend/web
+npm install
+npm run dev
+```
+
+#### backend
 
 ```bash
 cd app
 go run main.go
-```
-
-### Make request to the agent
-
-For example:
-
-```bash
-curl -X POST -H "Content-Type: application/json" -d '{"question": "hello"}' http://localhost:8080/v1/agent/ask
 ```
 
 For mode details, see README.md under `app` directory

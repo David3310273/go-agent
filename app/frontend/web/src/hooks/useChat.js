@@ -18,20 +18,34 @@ import { askAgent, cancelSession, parseSSEStream } from '../api/agent';
 export function useChat() {
   const [messages, setMessages] = useState([]);
   const [currentSession, setCurrentSession] = useState(() => crypto.randomUUID());
+  const currentSessionRef = useRef(currentSession);
   const [isLoading, setIsLoading] = useState(false);
   const [thought, setThought] = useState('');
   const [pendingConfirms, setPendingConfirms] = useState(null);
   const [usage, setUsage] = useState(null);
   const abortControllerRef = useRef(null);
 
+  // per-session message cache: sessionId → messages[]
+  const messagesCacheRef = useRef(new Map());
+  // per-session generation counter: sessionId → gen (incremented each sendMessage/confirmToolCall)
+  const sessionGenRef = useRef(new Map());
+
+  const updateCurrentSession = (sessionID) => {
+    currentSessionRef.current = sessionID;
+    setCurrentSession(sessionID);
+  };
+
   /**
    * 发送消息
    * @param {string} question - 用户输入的问题
    * @param {boolean} enableThinking - 是否开启深度思考
-   * @param {boolean} enableSearch - 是否开启搜索
    */
   const sendMessage = useCallback(async (question, enableThinking = false) => {
     if (!question.trim() || isLoading) return;
+
+    const sid = currentSessionRef.current;
+    const gen = (sessionGenRef.current.get(sid) || 0) + 1;
+    sessionGenRef.current.set(sid, gen);
 
     const userMessage = {
       id: `msg-${Date.now()}-user`,
@@ -49,7 +63,10 @@ export function useChat() {
       isStreaming: true,
     };
 
-    setMessages(prev => [...prev, userMessage, assistantMessage]);
+    const prevMessages = messagesCacheRef.current.get(sid) || [];
+    const newMessages = [...prevMessages, userMessage, assistantMessage];
+    messagesCacheRef.current.set(sid, newMessages);
+    setMessages(newMessages);
     setIsLoading(true);
     setThought('');
     setPendingConfirms(null);
@@ -61,77 +78,113 @@ export function useChat() {
     try {
       const response = await askAgent({
         question: question.trim(),
-        sessionID: currentSession,
+        sessionID: sid,
         type: 'normal',
         stream: true,
         enableThinking,
         signal: controller.signal,
       });
 
-      // 5. 解析 SSE 流
       let accumulatedContent = '';
 
-      for await (const { event, data } of parseSSEStream(response, abortControllerRef.current.signal)) {
+      for await (const { event, data } of parseSSEStream(response, controller.signal)) {
+        if (sessionGenRef.current.get(sid) !== gen) return;
+
         switch (event) {
           case 'message':
-            // event:message → data 是字符串片段，追加到回答内容
             accumulatedContent += data;
-            setMessages(prev =>
-              prev.map(msg =>
+            {
+              const cached = messagesCacheRef.current.get(sid) || [];
+              const updated = cached.map(msg =>
                 msg.id === assistantMessageId
-                  ? { ...msg, content: accumulatedContent } // 持续追加回答内容
+                  ? { ...msg, content: accumulatedContent }
                   : msg
-              )
-            );
+              );
+              messagesCacheRef.current.set(sid, updated);
+              if (currentSessionRef.current === sid) {
+                setMessages(updated);
+              }
+            }
             break;
 
           case 'thought':
-            // event:thought → data 是思考过程字符串
             setThought(prev => prev + data);
             break;
 
           case 'done':
-            // event:done → data = { type: "normal", sessionID: "xxx", usage: {...} }
-            if (data.sessionID) {
-              setCurrentSession(data.sessionID);
+            if (data.sessionID && data.sessionID !== sid) {
+              const msgs = messagesCacheRef.current.get(sid) || [];
+              messagesCacheRef.current.delete(sid);
+              messagesCacheRef.current.set(data.sessionID, msgs);
+              if (currentSessionRef.current === sid) {
+                updateCurrentSession(data.sessionID);
+              }
+            } else if (data.sessionID) {
+              if (currentSessionRef.current === sid) {
+                updateCurrentSession(data.sessionID);
+              }
             }
             if (data.usage) {
               setUsage(data.usage);
             }
-            setMessages(prev =>
-              prev.map(msg =>
+            {
+              const finalSid = data.sessionID || sid;
+              const cached = messagesCacheRef.current.get(finalSid) || [];
+              const updated = cached.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, isStreaming: false }
                   : msg
-              )
-            );
+              );
+              messagesCacheRef.current.set(finalSid, updated);
+              if (currentSessionRef.current === finalSid) {
+                setMessages(updated);
+              }
+            }
             break;
 
           case 'tool_confirm':
-            // event:tool_confirm → data = { type, confirms, message, sessionID, usage }
             setPendingConfirms(data);
-            if (data.sessionID) {
-              setCurrentSession(data.sessionID);
+            if (data.sessionID && data.sessionID !== sid) {
+              const msgs = messagesCacheRef.current.get(sid) || [];
+              messagesCacheRef.current.delete(sid);
+              messagesCacheRef.current.set(data.sessionID, msgs);
+              if (currentSessionRef.current === sid) {
+                updateCurrentSession(data.sessionID);
+              }
+            } else if (data.sessionID) {
+              if (currentSessionRef.current === sid) {
+                updateCurrentSession(data.sessionID);
+              }
             }
-            setMessages(prev =>
-              prev.map(msg =>
+            {
+              const finalSid = data.sessionID || sid;
+              const cached = messagesCacheRef.current.get(finalSid) || [];
+              const updated = cached.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, isStreaming: false }
                   : msg
-              )
-            );
+              );
+              messagesCacheRef.current.set(finalSid, updated);
+              if (currentSessionRef.current === finalSid) {
+                setMessages(updated);
+              }
+            }
             break;
 
           case 'error':
-            // event:error → data 是错误消息字符串
             console.error('Stream error:', data);
-            setMessages(prev =>
-              prev.map(msg =>
+            {
+              const cached = messagesCacheRef.current.get(sid) || [];
+              const updated = cached.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, content: accumulatedContent || `Error: ${data}`, isStreaming: false }
                   : msg
-              )
-            );
+              );
+              messagesCacheRef.current.set(sid, updated);
+              if (currentSessionRef.current === sid) {
+                setMessages(updated);
+              }
+            }
             break;
 
           default:
@@ -139,30 +192,44 @@ export function useChat() {
         }
       }
     } catch (error) {
+      if (sessionGenRef.current.get(sid) !== gen) return;
+
       if (error.name === 'AbortError') {
         console.log('Request aborted by user');
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === assistantMessageId
-              ? { ...msg, isStreaming: false }
-              : msg
-          )
+        const cached = messagesCacheRef.current.get(sid) || [];
+        const updated = cached.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, isStreaming: false }
+            : msg
         );
+        messagesCacheRef.current.set(sid, updated);
+        if (currentSessionRef.current === sid) {
+          setMessages(updated);
+        }
       } else {
         console.error('API Error:', error);
-        setMessages(prev =>
-          prev.map(msg =>
-            msg.id === assistantMessageId
-              ? { ...msg, content: `请求失败: ${error.message}`, isStreaming: false }
-              : msg
-          )
+        const cached = messagesCacheRef.current.get(sid) || [];
+        const updated = cached.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: `请求失败: ${error.message}`, isStreaming: false }
+            : msg
         );
+        messagesCacheRef.current.set(sid, updated);
+        if (currentSessionRef.current === sid) {
+          setMessages(updated);
+        }
       }
     } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
+      if (sessionGenRef.current.get(sid) === gen) {
+        sessionGenRef.current.delete(sid);
+        messagesCacheRef.current.delete(sid);
+        if (currentSessionRef.current === sid) {
+          setIsLoading(false);
+        }
+        abortControllerRef.current = null;
+      }
     }
-  }, [currentSession, isLoading]); // 依赖项
+  }, [isLoading]);
 
   /**
    * 停止生成 - 调用后端 cancel 接口 + 前端 abort
@@ -172,26 +239,33 @@ export function useChat() {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    const sid = currentSessionRef.current;
+    sessionGenRef.current.delete(sid);
     setIsLoading(false);
     setThought('');
-    setMessages(prev =>
-      prev.map(msg =>
-        msg.isStreaming ? { ...msg, isStreaming: false } : msg
-      )
+    const cached = messagesCacheRef.current.get(sid) || [];
+    const updated = cached.map(msg =>
+      msg.isStreaming ? { ...msg, isStreaming: false } : msg
     );
-    if (currentSession) {
-      cancelSession(currentSession).catch((error) => {
+    messagesCacheRef.current.set(sid, updated);
+    setMessages(updated);
+    if (sid) {
+      cancelSession(sid).catch((error) => {
         console.error('Cancel failed:', error);
       });
     }
-  }, [currentSession]);
+  }, []);
 
   /**
    * 确认工具调用 - 用户对 tool_confirm 事件做出 Yes/No 回答
    * @param {Array} confirms - [{ toolCallID, serverName, toolName, answer: "Yes"|"No" }]
    */
   const confirmToolCall = useCallback(async (confirms) => {
-    if (!currentSession || !pendingConfirms) return;
+    if (!currentSessionRef.current || !pendingConfirms) return;
+
+    const sid = currentSessionRef.current;
+    const gen = (sessionGenRef.current.get(sid) || 0) + 1;
+    sessionGenRef.current.set(sid, gen);
 
     setIsLoading(true);
     setPendingConfirms(null);
@@ -205,7 +279,10 @@ export function useChat() {
       isStreaming: true,
     };
 
-    setMessages(prev => [...prev, assistantMessage]);
+    const prevMessages = messagesCacheRef.current.get(sid) || [];
+    const newMessages = [...prevMessages, assistantMessage];
+    messagesCacheRef.current.set(sid, newMessages);
+    setMessages(newMessages);
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -213,7 +290,7 @@ export function useChat() {
     try {
       const response = await askAgent({
         question: '',
-        sessionID: currentSession,
+        sessionID: sid,
         type: 'tool_confirm',
         stream: true,
         confirms,
@@ -222,87 +299,145 @@ export function useChat() {
 
       let accumulatedContent = '';
 
-      for await (const { event, data } of parseSSEStream(response, abortControllerRef.current.signal)) {
+      for await (const { event, data } of parseSSEStream(response, controller.signal)) {
+        if (sessionGenRef.current.get(sid) !== gen) return;
+
         switch (event) {
           case 'message':
             accumulatedContent += data;
-            setMessages(prev =>
-              prev.map(msg =>
+            {
+              const cached = messagesCacheRef.current.get(sid) || [];
+              const updated = cached.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, content: accumulatedContent }
                   : msg
-              )
-            );
+              );
+              messagesCacheRef.current.set(sid, updated);
+              if (currentSessionRef.current === sid) {
+                setMessages(updated);
+              }
+            }
             break;
 
           case 'done':
-            if (data.sessionID) {
-              setCurrentSession(data.sessionID);
+            if (data.sessionID && currentSessionRef.current === sid) {
+              updateCurrentSession(data.sessionID);
             }
-            setMessages(prev =>
-              prev.map(msg =>
+            {
+              const cached = messagesCacheRef.current.get(sid) || [];
+              const updated = cached.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, isStreaming: false }
                   : msg
-              )
-            );
+              );
+              messagesCacheRef.current.set(sid, updated);
+              if (currentSessionRef.current === sid) {
+                setMessages(updated);
+              }
+            }
             break;
 
           case 'tool_confirm':
             setPendingConfirms(data);
-            setMessages(prev =>
-              prev.map(msg =>
+            {
+              const cached = messagesCacheRef.current.get(sid) || [];
+              const updated = cached.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, isStreaming: false }
                   : msg
-              )
-            );
+              );
+              messagesCacheRef.current.set(sid, updated);
+              if (currentSessionRef.current === sid) {
+                setMessages(updated);
+              }
+            }
             break;
 
           case 'error':
             console.error('Stream error:', data);
-            setMessages(prev =>
-              prev.map(msg =>
+            {
+              const cached = messagesCacheRef.current.get(sid) || [];
+              const updated = cached.map(msg =>
                 msg.id === assistantMessageId
                   ? { ...msg, content: accumulatedContent || `Error: ${data}`, isStreaming: false }
                   : msg
-              )
-            );
+              );
+              messagesCacheRef.current.set(sid, updated);
+              if (currentSessionRef.current === sid) {
+                setMessages(updated);
+              }
+            }
             break;
         }
       }
     } catch (error) {
+      if (sessionGenRef.current.get(sid) !== gen) return;
+
       if (error.name !== 'AbortError') {
         console.error('Confirm error:', error);
       }
     } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
+      if (sessionGenRef.current.get(sid) === gen) {
+        sessionGenRef.current.delete(sid);
+        messagesCacheRef.current.delete(sid);
+        if (currentSessionRef.current === sid) {
+          setIsLoading(false);
+        }
+        abortControllerRef.current = null;
+      }
     }
-  }, [currentSession, pendingConfirms]);
+  }, [pendingConfirms]);
 
   /**
-   * 清空聊天 - 重置所有状态
+   * 清空聊天 - 重置所有状态，保留当前会话的 stream 继续运行
    */
-  const clearChat = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+  const clearChat = useCallback((newSessionId) => {
+    // save current session messages to cache before switching
+    if (currentSessionRef.current) {
+      messagesCacheRef.current.set(currentSessionRef.current, [...messages]);
     }
+    const newId = newSessionId || crypto.randomUUID();
+    messagesCacheRef.current.set(newId, []);
     setMessages([]);
-    setCurrentSession(crypto.randomUUID());
+    updateCurrentSession(newId);
     setIsLoading(false);
     setThought('');
     setPendingConfirms(null);
     setUsage(null);
-  }, []);
+  }, [messages]);
 
   const restoreSession = useCallback((sessionID, sessionMessages) => {
-    setCurrentSession(sessionID);
-    setMessages(sessionMessages || []);
+    // save current session messages to cache before switching
+    messagesCacheRef.current.set(currentSessionRef.current, [...messages]);
+
+    updateCurrentSession(sessionID);
     setThought('');
     setPendingConfirms(null);
     setUsage(null);
-  }, []);
+
+    const isStreaming = sessionGenRef.current.has(sessionID);
+    const cached = messagesCacheRef.current.get(sessionID);
+
+    if (isStreaming && cached !== undefined) {
+      // active stream — show cached messages with live rendering
+      setMessages(cached);
+      setIsLoading(true);
+    } else if (sessionMessages && sessionMessages.length > 0) {
+      // stream completed or never streamed — load from API
+      const msgs = sessionMessages.map((msg) => ({
+        id: `msg-${Date.now()}-${msg.role}-${Math.random().toString(36).slice(2, 8)}`,
+        role: msg.role,
+        content: msg.content || '',
+        timestamp: new Date().toISOString(),
+      }));
+      messagesCacheRef.current.set(sessionID, msgs);
+      setMessages(msgs);
+      setIsLoading(false);
+    } else {
+      setMessages([]);
+      setIsLoading(false);
+    }
+  }, [messages]);
 
   return {
     messages,

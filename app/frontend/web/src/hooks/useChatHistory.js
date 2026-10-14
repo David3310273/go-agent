@@ -26,10 +26,10 @@ export function useChatHistory() {
     fetchSessions();
   }, [fetchSessions]);
 
-  const createSession = useCallback((title) => {
-    const sessionId = crypto.randomUUID();
+  const createSession = useCallback((title, sessionId) => {
+    const id = sessionId || crypto.randomUUID();
     const newSession = {
-      id: sessionId,
+      id: id,
       title: title.substring(0, 50) + (title.length > 50 ? '...' : ''),
     };
     setSessions(prev => [newSession, ...prev]);
@@ -62,10 +62,10 @@ export function useChatHistory() {
       const data = await getSessionHistory(sessionId);
       return {
         id: sessionId,
-        messages: (data.messages || []).map((content, index) => ({
+        messages: (data.messages || []).map((msg, index) => ({
           id: `msg-${sessionId}-${index}`,
-          role: index % 2 === 0 ? 'user' : 'assistant',
-          content,
+          role: msg.role,
+          content: msg.content || '',
           timestamp: new Date().toISOString(),
         })),
       };
