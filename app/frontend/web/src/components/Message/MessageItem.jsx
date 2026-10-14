@@ -1,14 +1,8 @@
-import React, { useMemo } from 'react';
-import { renderMarkdown } from '../../utils/markdown';
-import '../../styles/markdown.css';
+import React from 'react';
+import { Streamdown } from 'streamdown';
 import './MessageItem.css';
 
 function MessageItem({ message }) {
-  const html = useMemo(() => {
-    if (!message.content) return '';
-    return renderMarkdown(message.content);
-  }, [message.content]);
-
   if (!message.content) {
     if (!message.isStreaming) return null;
     return (
@@ -29,7 +23,7 @@ function MessageItem({ message }) {
   return (
     <div className={`message message-${message.role}`}>
       <div className="message-content">
-        <div className="message-text markdown-content" dangerouslySetInnerHTML={{ __html: html }} />
+        <Streamdown key={message.id}>{message.content}</Streamdown>
       </div>
     </div>
   );

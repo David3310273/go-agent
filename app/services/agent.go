@@ -109,6 +109,9 @@ type SessionHistoryList struct {
 
 func GetSessionHistory(agent *simple.SimpleAgent, sessionID string) SessionHistory {
 	session := agent.GetSession(sessionID)
+	if session == nil {
+		return SessionHistory{SessionID: sessionID}
+	}
 	messages := session.GetConversation()
 
 	history := SessionHistory{
@@ -117,7 +120,10 @@ func GetSessionHistory(agent *simple.SimpleAgent, sessionID string) SessionHisto
 	for _, message := range *messages {
 		// only collect user message and response
 		if message.Role == core.RoleUser || (message.Role == core.RoleAssistant && message.ToolCalls == nil) {
-			history.Messages = append(history.Messages, message.Content)
+			history.Messages = append(history.Messages, SessionMessage{
+				Role:    message.Role,
+				Content: message.Content,
+			})
 		}
 	}
 
@@ -129,6 +135,9 @@ func GetSessionList(agent *simple.SimpleAgent) []SessionHistoryList {
 	result := make([]SessionHistoryList, 0, len(sessions))
 
 	for _, session := range sessions {
+		if session == nil {
+			continue
+		}
 		messages := session.GetConversation()
 		firstUserMessage := ""
 		for _, message := range *messages {
@@ -146,9 +155,14 @@ func GetSessionList(agent *simple.SimpleAgent) []SessionHistoryList {
 	return result
 }
 
+type SessionMessage struct {
+	Role    core.RoleType `json:"role"`
+	Content string        `json:"content"`
+}
+
 type SessionHistory struct {
-	SessionID string   `json:"sessionID"`
-	Messages  []string `json:"messages"`
+	SessionID string           `json:"sessionID"`
+	Messages  []SessionMessage `json:"messages"`
 }
 
 // SimpleToolConfirmQuestion represents the user's answers for a batch of destructive tool calls

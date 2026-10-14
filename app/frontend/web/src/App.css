@@ -1,3 +1,7 @@
+@import "tailwindcss";
+@source "../node_modules/streamdown/dist/*.js";
+@import "streamdown/styles.css";
+
 * {
   margin: 0;
   padding: 0;
@@ -31,6 +35,21 @@
   --radius-md: 10px;
   --radius-lg: 16px;
   --sidebar-width: 280px;
+  /* shadcn/ui design tokens for Streamdown */
+  --background: #ffffff;
+  --foreground: #111827;
+  --card: #ffffff;
+  --card-foreground: #111827;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #4f46e5;
+  --radius: 0.5rem;
+  --accent: #f3f4f6;
+  --accent-foreground: #111827;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
 }
 
 body {

@@ -22,6 +22,7 @@ happy path for simple agent
 ### develop
 
 #### frontend
+
 cd app/frontend/web && npm run dev
 
 #### backend

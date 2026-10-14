@@ -32,16 +32,17 @@ function App() {
   } = useChatHistory();
 
   const handleSend = (question) => {
-    if (!activeSessionId) {
-      const newSession = createSession(question);
-      restoreSession(newSession.id, []);
+    const sessionExists = sessions.some(s => s.id === currentSession);
+    if (!activeSessionId || !sessionExists) {
+      createSession(question, currentSession);
     }
     sendMessage(question, enableThinking);
   };
 
   const handleNewChat = () => {
-    clearChat();
-    setActiveSessionId(crypto.randomUUID());
+    const newSessionId = crypto.randomUUID();
+    clearChat(newSessionId);
+    setActiveSessionId(newSessionId);
   };
 
   const handleSelectSession = async (sessionId) => {
