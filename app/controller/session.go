@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/David3310273/go-agent/agent/simple"
 	"github.com/David3310273/go-agent/app/services"
@@ -60,15 +61,23 @@ func HandleDeleteSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, SessionDeleteResponse{
-		SessionID: sessionID,
-		Message:   fmt.Sprintf("session %s deleted successfully", sessionID),
+	c.JSON(http.StatusOK, core.Diagnostic{
+		Code: core.MessageCodeSuccess,
+		Data: SessionDeleteResponse{
+			SessionID: sessionID,
+			Message:   fmt.Sprintf("session %s deleted successfully", sessionID),
+		},
 	})
 }
 
 func HandleGetSession(c *gin.Context) {
 	agent, ok := extractAgent(c)
 	if !ok {
+		c.JSON(http.StatusInternalServerError, core.Diagnostic{
+			Code:    core.MessageCodeSystemError,
+			Level:   core.SeverityError,
+			Message: "agent is not ready",
+		})
 		return
 	}
 
@@ -82,7 +91,35 @@ func HandleGetSession(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, services.GetSessionHistory(agent, sessionID))
+	limit := 50
+
+	limitStr := c.Query("limit")
+	if limitStr != "" {
+		if limitFromQuery, err := strconv.Atoi(limitStr); err == nil {
+			limit = limitFromQuery
+		} else {
+			c.JSON(http.StatusBadRequest, core.Diagnostic{
+				Code:    core.MessageCodeSystemError,
+				Level:   core.SeverityError,
+				Message: "sessionID is required",
+			})
+			return
+		}
+	}
+
+	chats, diag := services.GetSessionHistory(agent, sessionID, limit)
+	if diag != nil {
+		c.JSON(http.StatusInternalServerError, core.Diagnostic{
+			Code:    core.MessageCodeSystemError,
+			Message: diag.Message,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, core.Diagnostic{
+		Code: core.MessageCodeSuccess,
+		Data: string(chats),
+	})
 }
 
 func HandleListSessions(c *gin.Context) {
@@ -93,7 +130,10 @@ func HandleListSessions(c *gin.Context) {
 
 	result := services.GetSessionList(agent)
 
-	c.JSON(http.StatusOK, SessionListResponse{
-		SessionsInfo: result,
+	c.JSON(http.StatusOK, core.Diagnostic{
+		Code: core.MessageCodeSuccess,
+		Data: SessionListResponse{
+			SessionsInfo: result,
+		},
 	})
 }

@@ -56,10 +56,34 @@ function ToolConfirmCard({ pendingConfirms, onConfirmTool }) {
 
 function ChatArea({ messages, isLoading, thought, pendingConfirms, onConfirmTool }) {
   const messagesEndRef = useRef(null);
+  const containerRef = useRef(null);
+  const userScrolledUpRef = useRef(false);
+
+  const isNearBottom = () => {
+    const el = containerRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!userScrolledUpRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, thought]);
+
+  const handleScroll = () => {
+    userScrolledUpRef.current = !isNearBottom();
+  };
+
+  useEffect(() => {
+    userScrolledUpRef.current = false;
+    requestAnimationFrame(() => {
+      const el = containerRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+  }, [messages.length]);
 
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
   const hasAssistantContent = lastAssistantMsg && lastAssistantMsg.content;
@@ -81,7 +105,7 @@ function ChatArea({ messages, isLoading, thought, pendingConfirms, onConfirmTool
   }
 
   return (
-    <div className="chat-messages">
+    <div className="chat-messages" ref={containerRef} onScroll={handleScroll}>
       {messages.map(message => (
         <MessageItem key={message.id} message={message} />
       ))}

@@ -167,6 +167,9 @@ type SessionConfig struct {
 	MemoryFileSplitter   string `json:"memoryFileSplitter"`
 	MemoryWindowSize     int64  `json:"memoryWindowSize"`
 
+	// chat history file path for current session
+	ChatHistoryFilePathFormat string `json:"chatHistoryFilePathFormat"`
+
 	// prompt file size
 	PromptFileMaxSize int64 `json:"promptFileMaxSize"`
 

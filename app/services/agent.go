@@ -16,6 +16,7 @@ type AskParams struct {
 	Stream         bool
 	EnableThinking bool
 	Type           core.QuestionType
+	Timestamp      int64
 }
 
 // ToolConfirmAskParams carries a batch of user answers for the pending destructive tool calls.
@@ -51,6 +52,7 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 			askType.Stream,
 			askType.EnableThinking,
 			askType.Type,
+			askType.Timestamp,
 		)
 	case *ToolConfirmAskParams:
 		question = &SimpleToolConfirmQuestion{
@@ -63,6 +65,7 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 				askType.Stream,
 				askType.EnableThinking,
 				core.QuestionTypeToolConfirm,
+				askType.Timestamp,
 			),
 			Confirms: askType.Confirms,
 		}
@@ -100,69 +103,6 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 		HintChan:     hintChan,
 		Question:     question,
 	}, nil
-}
-
-type SessionHistoryList struct {
-	SessionID string `json:"sessionID"`
-	Title     string `json:"title"`
-}
-
-func GetSessionHistory(agent *simple.SimpleAgent, sessionID string) SessionHistory {
-	session := agent.GetSession(sessionID)
-	if session == nil {
-		return SessionHistory{SessionID: sessionID}
-	}
-	messages := session.GetConversation()
-
-	history := SessionHistory{
-		SessionID: sessionID,
-	}
-	for _, message := range *messages {
-		// only collect user message and response
-		if message.Role == core.RoleUser || (message.Role == core.RoleAssistant && message.ToolCalls == nil) {
-			history.Messages = append(history.Messages, SessionMessage{
-				Role:    message.Role,
-				Content: message.Content,
-			})
-		}
-	}
-
-	return history
-}
-
-func GetSessionList(agent *simple.SimpleAgent) []SessionHistoryList {
-	sessions := agent.ListSessions()
-	result := make([]SessionHistoryList, 0, len(sessions))
-
-	for _, session := range sessions {
-		if session == nil {
-			continue
-		}
-		messages := session.GetConversation()
-		firstUserMessage := ""
-		for _, message := range *messages {
-			if message.Role == core.RoleUser {
-				firstUserMessage = message.Content
-				break
-			}
-		}
-		result = append(result, SessionHistoryList{
-			SessionID: session.GetID(),
-			Title:     firstUserMessage,
-		})
-	}
-
-	return result
-}
-
-type SessionMessage struct {
-	Role    core.RoleType `json:"role"`
-	Content string        `json:"content"`
-}
-
-type SessionHistory struct {
-	SessionID string           `json:"sessionID"`
-	Messages  []SessionMessage `json:"messages"`
 }
 
 // SimpleToolConfirmQuestion represents the user's answers for a batch of destructive tool calls

@@ -138,6 +138,20 @@ func (mr *MockQuestionMockRecorder) GetRetryQuery() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRetryQuery", reflect.TypeOf((*MockQuestion)(nil).GetRetryQuery))
 }
 
+// GetSendTimestamp mocks base method.
+func (m *MockQuestion) GetSendTimestamp() int64 {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSendTimestamp")
+	ret0, _ := ret[0].(int64)
+	return ret0
+}
+
+// GetSendTimestamp indicates an expected call of GetSendTimestamp.
+func (mr *MockQuestionMockRecorder) GetSendTimestamp() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSendTimestamp", reflect.TypeOf((*MockQuestion)(nil).GetSendTimestamp))
+}
+
 // GetSessionID mocks base method.
 func (m *MockQuestion) GetSessionID() string {
 	m.ctrl.T.Helper()

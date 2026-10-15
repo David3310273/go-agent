@@ -497,5 +497,14 @@ func (a *SimpleAgent) RemoveSession(sessionID string) *core.Diagnostic {
 		}
 	}
 
+	filePath = utils.ResolvePath(a.RootPath, fmt.Sprintf(session.GetConfigs().ChatHistoryFilePathFormat, sessionID))
+	if err := os.Remove(filePath); err != nil {
+		return &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeSessionDeleteError,
+			Message: "Failed to delete session file: " + filePath,
+		}
+	}
+
 	return nil
 }

@@ -62,6 +62,7 @@
         "memoryWindowSize": 10000,
         "memoryFileSplitter": "\n--------------\n",
         "memoryFilePathFormat": "app/sessionMemories/session-%s-memory.jsonl",
+        "chatHistoryFilePathFormat": "app/chatHistories/session-%s-chat.jsonl",
         "promptFileMaxSize": 10
     }
 }
