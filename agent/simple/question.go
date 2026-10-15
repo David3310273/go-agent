@@ -1,6 +1,8 @@
 package simple
 
 import (
+	uuid "github.com/gofrs/uuid/v5"
+
 	"github.com/David3310273/go-agent/core"
 )
 
@@ -11,6 +13,7 @@ import (
 
 // SimpleQuestion implements core.Question interface for HTTP requests
 type SimpleQuestion struct {
+	id             string
 	query          string
 	sessionID      string
 	model          string
@@ -18,6 +21,7 @@ type SimpleQuestion struct {
 	hintChan       chan core.Answer
 	streaming      bool
 	enableThinking bool
+	timestamp      int64
 	questionType   core.QuestionType
 }
 
@@ -34,8 +38,13 @@ func NewSimpleQuestion(
 	streaming bool,
 	enableThinking bool,
 	questionType core.QuestionType,
+	timestamp int64,
 ) *SimpleQuestion {
+	idYielder, _ := uuid.NewV4()
+	id := idYielder.String()
+
 	return &SimpleQuestion{
+		id:             id,
 		query:          query,
 		sessionID:      sessionID,
 		model:          model,
@@ -44,6 +53,7 @@ func NewSimpleQuestion(
 		streaming:      streaming,
 		enableThinking: enableThinking,
 		questionType:   questionType,
+		timestamp:      timestamp,
 	}
 }
 
@@ -54,6 +64,7 @@ func (q *SimpleQuestion) GetEnableThinking() bool           { return q.enableThi
 func (q *SimpleQuestion) GetQuery() string                  { return q.query }
 func (q *SimpleQuestion) SetQuery(query string)             { q.query = query }
 func (q *SimpleQuestion) GetRetryQuery() string             { return q.query }
+func (q *SimpleQuestion) GetSendTimestamp() int64           { return q.timestamp }
 func (q *SimpleQuestion) GetSessionID() string              { return q.sessionID }
 func (q *SimpleQuestion) GetResponseChan() chan core.Answer { return q.responseChan }
 func (q *SimpleQuestion) GetHintChan() chan core.Answer     { return q.hintChan }

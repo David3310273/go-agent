@@ -47,11 +47,20 @@ export function useChat() {
     const gen = (sessionGenRef.current.get(sid) || 0) + 1;
     sessionGenRef.current.set(sid, gen);
 
+    const now = Date.now();
     const userMessage = {
-      id: `msg-${Date.now()}-user`,
+      id: `msg-${now}-user`,
       role: 'user',
       content: question.trim(),
-      timestamp: new Date().toISOString(),
+      formattedTime: new Date(now).toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).replace(/\//g, '-'),
     };
 
     const assistantMessageId = `msg-${Date.now()}-assistant`;
@@ -93,6 +102,7 @@ export function useChat() {
         type: 'normal',
         stream: true,
         enableThinking,
+        timestamp: now,
         signal: controller.signal,
       });
 
@@ -247,7 +257,6 @@ export function useChat() {
       clearTimeout(timeoutId);
       if (sessionGenRef.current.get(sid) === gen) {
         sessionGenRef.current.delete(sid);
-        messagesCacheRef.current.delete(sid);
         if (currentSessionRef.current === sid) {
           setIsLoading(false);
         }
@@ -451,7 +460,6 @@ export function useChat() {
       clearTimeout(timeoutId);
       if (sessionGenRef.current.get(sid) === gen) {
         sessionGenRef.current.delete(sid);
-        messagesCacheRef.current.delete(sid);
         if (currentSessionRef.current === sid) {
           setIsLoading(false);
         }
@@ -500,7 +508,7 @@ export function useChat() {
         id: `msg-${Date.now()}-${msg.role}-${Math.random().toString(36).slice(2, 8)}`,
         role: msg.role,
         content: msg.content || '',
-        timestamp: new Date().toISOString(),
+        ...(msg.formattedTime ? { formattedTime: msg.formattedTime } : {}),
       }));
       messagesCacheRef.current.set(sessionID, msgs);
       setMessages(msgs);

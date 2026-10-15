@@ -52,6 +52,8 @@ type Session interface {
 	GetLoadTools() *[]Tool
 	// set load tools
 	SetLoadTools(tool Tool)
+	// export chat history bytes for avoiding large bytes unmarshal/marshal
+	ExportChatHistory(size int) ([]byte, *Diagnostic)
 }
 
 // ToolConfirmManager tracks the destructive tool calls waiting for a user answer.

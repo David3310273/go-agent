@@ -44,7 +44,8 @@ type AskRequest struct {
 	EnableThinking bool `json:"enableThinking,omitempty"`
 	// option for tool_confirm type
 	// a batch of answers replaces the single toolName/serverName pair
-	Confirms []ToolConfirmAnswerRequest `json:"confirms,omitempty"`
+	Confirms  []ToolConfirmAnswerRequest `json:"confirms,omitempty"`
+	Timestamp int64                      `json:"timestamp,omitempty"`
 }
 
 // AskResponse represents the response body for /v1/ask endpoint
@@ -141,12 +142,18 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 		return
 	}
 
+	sendTime := req.Timestamp
+	if req.Timestamp == 0 {
+		sendTime = time.Now().Unix()
+	}
+
 	// build params
 	params := &services.AskParams{
 		Question:       req.Question,
 		Type:           req.Type,
 		Stream:         req.Stream,
 		EnableThinking: req.EnableThinking,
+		Timestamp:      sendTime,
 	}
 
 	if req.SessionID != nil {

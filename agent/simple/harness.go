@@ -3,6 +3,7 @@ package simple
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	// the confirmed destructive calls of one batch run concurrently
 	"sync"
@@ -469,6 +470,7 @@ func (h SimpleHarness) RunSubSession(session core.Session, args map[string]any, 
 		false,    // streaming: the answer becomes a tool result in the parent
 		true,     // enableThinking: the reasoning reaches the hint channel
 		core.QuestionTypeNormal,
+		time.Now().Unix(),
 	)
 
 	// run the sub-session synchronously, every hint send happens inside this call
