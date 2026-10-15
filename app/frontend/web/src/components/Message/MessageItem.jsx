@@ -22,7 +22,15 @@ function MessageItem({ message }) {
   return (
     <div className={`message message-${message.role}`}>
       <div className="message-content">
-        <Streamdown key={message.id}>{message.content}</Streamdown>
+        <Streamdown key={message.id} controls={{
+            table: {
+              copy: true,
+              download: true,
+              fullscreen: false,
+            },
+          }}>
+            {message.content} 
+        </Streamdown>
       </div>
     </div>
   );
