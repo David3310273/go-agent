@@ -1,6 +1,7 @@
 .message {
   margin-bottom: 24px;
   animation: fadeIn 0.3s ease;
+  min-width: 0;
 }
 
 @keyframes fadeIn {
@@ -32,7 +33,9 @@
   line-height: 1.6;
   white-space: pre-wrap;
   word-wrap: break-word;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
 }
 
 .message-user .message-content {
@@ -94,16 +97,23 @@
   margin: 0.6em 0;
   border-radius: var(--radius-sm);
   overflow-x: auto;
+  max-width: 100%;
 }
 
 .message-content code {
   font-size: 0.9em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .message-content table {
   margin: 0.6em 0;
   border-collapse: collapse;
   width: 100%;
+  max-width: 100%;
+  table-layout: auto;
+  display: block;
+  overflow-x: auto;
 }
 
 .message-content th,
@@ -111,6 +121,8 @@
   padding: 0.4em 0.8em;
   border: 1px solid var(--border-color);
   text-align: left;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .message-content th {
@@ -131,7 +143,8 @@
 .streaming-text {
   white-space: pre-wrap;
   word-wrap: break-word;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .loading-indicator {

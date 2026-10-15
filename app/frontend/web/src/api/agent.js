@@ -104,12 +104,61 @@ export async function cancelSession(sessionID) {
 export async function* parseSSEStream(response, signal) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
+
   let buffer = '';
+  let currentEvent = 'message';
+  let dataLines = [];
+
+  const flushEvent = () => {
+    if (dataLines.length === 0) return null;
+
+    const dataStr = dataLines.join('\n');
+    dataLines = [];
+
+    const event = currentEvent;
+    currentEvent = 'message';
+
+    if (event === 'message' || event === 'thought') {
+      return { event, data: dataStr };
+    }
+
+    let data;
+    try {
+      data = JSON.parse(dataStr);
+    } catch {
+      data = dataStr;
+    }
+
+    return { event, data };
+  };
+
+  const processLine = (line) => {
+    if (line.startsWith(':')) return null;
+
+    if (line === '') {
+      return flushEvent();
+    }
+
+    const colonIndex = line.indexOf(':');
+    const field = colonIndex === -1
+      ? line
+      : line.slice(0, colonIndex);
+
+    let value = colonIndex === -1 ? '' : line.slice(colonIndex + 1);
+
+    if (field === 'event') {
+      currentEvent = value || 'message';
+    } else if (field === 'data') {
+      dataLines.push(value);
+    }
+
+    return null;
+  };
 
   try {
     while (true) {
       if (signal?.aborted) {
-        reader.cancel();
+        await reader.cancel();
         break;
       }
 
@@ -117,36 +166,42 @@ export async function* parseSSEStream(response, signal) {
       if (done) break;
 
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
 
-      let currentEvent = 'message';
-
-      for (const line of lines) {
-        const trimmed = line.trim();
-
-        if (!trimmed) continue;
-
-        if (trimmed.startsWith('event:')) {
-          currentEvent = trimmed.slice(6).trim();
-          continue;
-        }
-
-        if (trimmed.startsWith('data:')) {
-          const dataStr = trimmed.slice(5).trim();
-          if (!dataStr) continue;
-
-          let data;
-          try {
-            data = JSON.parse(dataStr);
-          } catch {
-            data = dataStr;
+      // 保留可能跨 chunk 的 CRLF
+      let start = 0;
+      for (let i = 0; i < buffer.length; i++) {
+        if (buffer[i] === '\n' || buffer[i] === '\r') {
+          if (
+            buffer[i] === '\r' &&
+            i === buffer.length - 1
+          ) {
+            break;
           }
 
-          yield { event: currentEvent, data };
+          const line = buffer.slice(start, i);
+          const event = processLine(line);
+          if (event) yield event;
+
+          if (buffer[i] === '\r' && buffer[i + 1] === '\n') {
+            i++;
+          }
+
+          start = i + 1;
         }
       }
+
+      buffer = buffer.slice(start);
     }
+
+    buffer += decoder.decode();
+
+    if (buffer.length > 0) {
+      const event = processLine(buffer);
+      if (event) yield event;
+    }
+
+    const event = flushEvent();
+    if (event) yield event;
   } finally {
     reader.releaseLock();
   }
