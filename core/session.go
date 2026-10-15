@@ -20,10 +20,6 @@ type Session interface {
 	EventManager
 
 	GetID() string
-	// get status of the session
-	GetStatus() SessionStatus
-	// set status of the session
-	SetStatus(status SessionStatus) *Diagnostic
 	// inherit from agent
 	GetConfigs() SessionConfig
 	// get session context

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/David3310273/go-agent/agent/simple/utils"
@@ -42,6 +43,9 @@ type SimpleAgentSession struct {
 	ParentSession *SimpleAgentSession
 	SubSessions   []*SimpleAgentSession
 	Status        core.SessionStatus
+
+	stopOnce  sync.Once
+	stopDiags []core.Diagnostic
 
 	// lock
 	mu          chan struct{}
@@ -115,7 +119,6 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 
 	// register event channels and start event listener
 	session.RegisterEventChans()
-	go session.OnEvent()
 
 	// llm context init - use pointer to share MCP configs and clients with agent
 	if agentCtx, ok := agent.(*SimpleAgent); ok {
@@ -305,18 +308,6 @@ func (s *SimpleAgentSession) DeletePendingMCPToolCall(toolCallID string) {
 
 func (s *SimpleSessionContext) GetModelProviders() []core.Provider {
 	return s.ModelProviders
-}
-
-func (s *SimpleAgentSession) GetStatus() core.SessionStatus {
-	return s.Status
-}
-
-func (s *SimpleAgentSession) SetStatus(status core.SessionStatus) *core.Diagnostic {
-	if s.Status != status {
-		s.Status = status
-	}
-
-	return nil
 }
 
 // return pointer so callers can modify the conversation in place
@@ -720,6 +711,9 @@ func (s *SimpleAgentSession) Start() []core.Diagnostic {
 		},
 	})
 
+	// start event listener
+	go s.OnEvent()
+
 	for {
 		select {
 		// check if channel is closed to avoid goroutine leak when ctrl+c
@@ -765,6 +759,13 @@ func (s *SimpleAgentSession) snapshotSubSessions() []*SimpleAgentSession {
 }
 
 func (s *SimpleAgentSession) Stop() []core.Diagnostic {
+	s.stopOnce.Do(func() {
+		s.stopDiags = s.doStop()
+	})
+	return s.stopDiags
+}
+
+func (s *SimpleAgentSession) doStop() []core.Diagnostic {
 	// 1. stop all sub sessions
 	diagnostics := []core.Diagnostic{}
 	for _, subSession := range s.snapshotSubSessions() {
@@ -774,7 +775,6 @@ func (s *SimpleAgentSession) Stop() []core.Diagnostic {
 	}
 
 	if len(diagnostics) > 0 {
-		// high severity error, need return
 		return []core.Diagnostic{
 			{
 				Level:   core.SeverityError,

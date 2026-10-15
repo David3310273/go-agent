@@ -6,10 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/David3310273/go-agent/agent/simple/tools"
@@ -69,9 +69,6 @@ type SimpleAgent struct {
 	// input chan
 	Question chan core.Question
 
-	// lock
-	mu chan struct{}
-
 	// context
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -79,8 +76,7 @@ type SimpleAgent struct {
 	// configs
 	Configs core.AgentCoreConfig
 
-	sessions         map[string]*SimpleAgentSession
-	mcpServerClients map[string]*MCPRemoteUtil
+	sessions sync.Map
 
 	// context fields (previously in embedded SimpleAgentContext)
 	SimpleAgentContext
@@ -135,11 +131,9 @@ func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
 		eventBufferSize:  DefaultEventBufferSize,
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		// current sessions in memory, key is session id
-		sessions:         make(map[string]*SimpleAgentSession),
-		mcpServerClients: make(map[string]*MCPRemoteUtil),
+		sessions: sync.Map{},
 		// configs
 		Configs:  allConfigs,
-		mu:       make(chan struct{}, 1),
 		Question: make(chan core.Question, allConfigs.Agent.QuestionBufferSize),
 
 		ctx:    ctx,
@@ -218,14 +212,7 @@ func (a *SimpleAgent) OnEvent() {
 		case event := <-a.eventChans[core.AgentEventDeleteSessionFailed]:
 			info := event.GetData()
 			if sessionInfo, ok := info.(AgentEventData); ok {
-				if err := a.Acquire(); err == nil {
-					delete(a.sessions, sessionInfo.SessionID)
-				} else {
-					// random sleep and retry
-					randomSec := rand.Intn(10) + 1
-					time.Sleep(time.Duration(randomSec) * time.Second)
-					core.Emit(a, event)
-				}
+				a.sessions.Delete(sessionInfo.SessionID)
 			}
 		}
 	}
@@ -298,7 +285,11 @@ func (a *SimpleAgent) Start() []core.Diagnostic {
 
 func (a *SimpleAgent) BeforeStop() []core.Diagnostic {
 	// close active sessions
-	for _, session := range a.sessions {
+	a.sessions.Range(func(key, value any) bool {
+		session, ok := value.(core.Session)
+		if !ok {
+			return true
+		}
 		if err := core.StopSession(session); len(err) > 0 {
 			core.Emit(a, core.CommonEvent[AgentEventData]{
 				SourceType: core.SessionEventStop,
@@ -307,7 +298,8 @@ func (a *SimpleAgent) BeforeStop() []core.Diagnostic {
 				},
 			})
 		}
-	}
+		return true
+	})
 	return nil
 }
 
@@ -321,21 +313,10 @@ func (a *SimpleAgent) Stop() []core.Diagnostic {
 // LockManager
 
 func (a *SimpleAgent) Acquire() *core.Diagnostic {
-	select {
-	case a.mu <- struct{}{}:
-		return nil
-	case <-a.ctx.Done():
-		return nil
-	case <-time.After(LockTimeout):
-		return &core.Diagnostic{
-			Level: core.SeverityError,
-			Code:  core.MessageCodeLockFailed,
-		}
-	}
+	return nil
 }
 
 func (a *SimpleAgent) Release() *core.Diagnostic {
-	<-a.mu
 	return nil
 }
 
@@ -354,30 +335,23 @@ func (a *SimpleAgent) CloseBenchmarkListeningChannels() {
 // SessionManager
 
 func (a *SimpleAgent) StopSession(sessionID string) *core.Diagnostic {
-	session, ok := a.sessions[sessionID]
+	value, ok := a.sessions.Load(sessionID)
 	if !ok {
 		return nil
-	} else {
-		if err := core.StopSession(session); len(err) > 0 {
-			return &core.Diagnostic{
-				Level:   core.SeverityError,
-				Code:    core.MessageCodeSessionStopError,
-				Message: "Failed to stop session",
-			}
-		}
-
-		//  acquire lock first, only release if acquired
-		if err := a.Acquire(); err == nil {
-			defer a.Release()
-			delete(a.sessions, sessionID)
-		} else {
-			event := core.CommonEvent[AgentEventData]{
-				SourceType: core.AgentEventDeleteSessionFailed,
-				Data:       AgentEventData{SessionID: sessionID},
-			}
-			core.Emit(a, event)
+	}
+	session, ok := value.(core.Session)
+	if !ok {
+		return nil
+	}
+	if err := core.StopSession(session); len(err) > 0 {
+		return &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeSessionStopError,
+			Message: "Failed to stop session",
 		}
 	}
+
+	a.sessions.Delete(sessionID)
 
 	return nil
 }
@@ -416,59 +390,53 @@ func (a *SimpleAgent) RecoverConversation(sessionID string) *core.Conversation {
 
 // get session, if not exist and forceCreate is true, create a new one
 func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (core.Session, *core.Diagnostic) {
-	if session, ok := a.sessions[sessionID]; ok {
-		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "session found, reusing: session=%s", sessionID)
-		return session, nil
-	} else if forceCreate {
-		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "session not found, creating: session=%s", sessionID)
+	// pre-check session existence, avoid unnecessary new session creation
+	if value, ok := a.sessions.Load(sessionID); ok {
+		return value.(core.Session), nil
+	}
 
-		memories := a.RecoverConversation(sessionID)
-		session := NewAgentSession(a, sessionID, memories)
-
-		// acquire lock first
-		if err := a.Acquire(); err == nil {
-			defer a.Release()
-			a.sessions[session.GetID()] = session
-			// start session after registered in agent
-			go core.StartSession(session)
-
-			return session, nil
-		}
-
+	if !forceCreate {
 		return nil, &core.Diagnostic{
 			Level:   core.SeverityError,
-			Code:    core.MessageCodeSessionCreateError,
-			Message: "Failed to acquire lock for session creation",
+			Code:    core.MessageCodeSessionNotFound,
+			Message: fmt.Sprintf("Session %s not found", sessionID),
 		}
+	}
 
+	memories := a.RecoverConversation(sessionID)
+	session := NewAgentSession(a, sessionID, memories)
+
+	newSession, ok := a.sessions.LoadOrStore(sessionID, session)
+	if ok {
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "session found, reusing: session=%s", sessionID)
+		return newSession.(core.Session), nil
 	} else {
-		return nil, &core.Diagnostic{
-			Level: core.SeverityError,
-			Code:  core.MessageCodeSessionCreateError,
-		}
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "session not found, creating: session=%s", sessionID)
+		// start session after registered in agent
+		go core.StartSession(newSession.(core.Session))
+		return session, nil
 	}
 }
 
 func (a *SimpleAgent) ListSessions() []core.Session {
-	if err := a.Acquire(); err != nil {
-		return nil
-	}
-	defer a.Release()
-
-	result := make([]core.Session, 0, len(a.sessions))
-	for _, session := range a.sessions {
-		result = append(result, session)
-	}
+	result := make([]core.Session, 0)
+	a.sessions.Range(func(key, value any) bool {
+		session, ok := value.(core.Session)
+		if ok {
+			result = append(result, session)
+		}
+		return true
+	})
 	return result
 }
 
 func (a *SimpleAgent) GetSession(sessionID string) core.Session {
-	if err := a.Acquire(); err != nil {
+	value, ok := a.sessions.Load(sessionID)
+	if !ok {
 		return nil
 	}
-	defer a.Release()
-
-	return a.sessions[sessionID]
+	session, _ := value.(core.Session)
+	return session
 }
 
 func (a *SimpleAgent) RemoveSession(sessionID string) *core.Diagnostic {
@@ -477,16 +445,7 @@ func (a *SimpleAgent) RemoveSession(sessionID string) *core.Diagnostic {
 		return nil
 	}
 
-	if err := a.Acquire(); err == nil {
-		defer a.Release()
-		delete(a.sessions, sessionID)
-	} else {
-		return &core.Diagnostic{
-			Level:   core.SeverityError,
-			Code:    core.MessageCodeSessionDeleteError,
-			Message: "Failed to acquire lock for session deletion",
-		}
-	}
+	a.sessions.Delete(sessionID)
 
 	filePath := utils.ResolvePath(a.RootPath, fmt.Sprintf(session.GetConfigs().MemoryFilePathFormat, sessionID))
 	if err := os.Remove(filePath); err != nil {

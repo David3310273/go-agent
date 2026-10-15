@@ -18,7 +18,6 @@ feature:
 
 upgrade agent core feature:
 
-- support multiple model
 - add config and thread pool for deployment
 - add supervisor in harness to watch the ReAct process, such as loop detect, max limit.
 - add chat history file with timestamp only for app layer
