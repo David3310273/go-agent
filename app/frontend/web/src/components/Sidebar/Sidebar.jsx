@@ -1,14 +1,55 @@
-import React from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import './Sidebar.css';
 
+const MIN_SIDEBAR_WIDTH = 200;
+const MAX_SIDEBAR_WIDTH = 500;
+const DEFAULT_SIDEBAR_WIDTH = 280;
+
 function Sidebar({ sessions, activeSessionId, onSelectSession, onDeleteSession, onNewChat, isOpen, onClose }) {
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const isDragging = useRef(false);
+  const sidebarRef = useRef(null);
+
   const handleDelete = (e, sessionId) => {
     e.stopPropagation();
     onDeleteSession(sessionId);
   };
 
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging.current) return;
+      const newWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(MAX_SIDEBAR_WIDTH, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (!isDragging.current) return;
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
   return (
-    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+    <aside
+      ref={sidebarRef}
+      className={`sidebar ${isOpen ? 'open' : ''}`}
+      style={{ width: sidebarWidth }}
+    >
       <div className="sidebar-header">
         <button className="new-chat-btn" onClick={() => {
           onNewChat();
@@ -31,7 +72,7 @@ function Sidebar({ sessions, activeSessionId, onSelectSession, onDeleteSession, 
               onClose();
             }}
           >
-            <span className="chat-history-title">{session.title}</span>
+            <span className="chat-history-title" title={session.title}>{session.title}</span>
             <button
               className="chat-history-delete"
               onClick={(e) => handleDelete(e, session.id)}
@@ -54,6 +95,10 @@ function Sidebar({ sessions, activeSessionId, onSelectSession, onDeleteSession, 
           <span className="user-name">User</span>
         </div>
       </div>
+      <div
+        className="sidebar-resize-handle"
+        onMouseDown={handleMouseDown}
+      />
     </aside>
   );
 }

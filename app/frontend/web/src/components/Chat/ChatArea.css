@@ -1,8 +1,10 @@
 .chat-messages {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 24px;
   scroll-behavior: smooth;
+  min-width: 0;
   min-height: 0;
 }
 
@@ -42,9 +44,10 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  max-width: 800px;
+  max-width: min(800px, 100%);
   margin-left: auto;
   margin-right: auto;
+  min-width: 0;
 }
 
 .thought-header {
@@ -62,6 +65,8 @@
   color: var(--text-secondary);
   line-height: 1.6;
   white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .tool-confirm-card {
@@ -70,9 +75,10 @@
   background: #fff8e1;
   border: 1px solid #ffca28;
   border-radius: var(--radius-md);
-  max-width: 800px;
+  max-width: min(800px, 100%);
   margin-left: auto;
   margin-right: auto;
+  min-width: 0;
 }
 
 .tool-confirm-message {

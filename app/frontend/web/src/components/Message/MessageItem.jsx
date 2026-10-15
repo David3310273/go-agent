@@ -19,7 +19,6 @@ function MessageItem({ message }) {
       </div>
     );
   }
-
   return (
     <div className={`message message-${message.role}`}>
       <div className="message-content">
