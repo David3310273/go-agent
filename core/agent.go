@@ -42,6 +42,8 @@ type Question interface {
 	GetHintChan() chan Answer
 	// get question type (normal or tool confirm)
 	GetType() QuestionType
+	// get send timestamp
+	GetSendTimestamp() int64
 }
 
 // ToolConfirmAnswer is one user answer for one pending destructive tool call.

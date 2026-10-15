@@ -4,7 +4,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
  * Ask agent a question (streaming)
  *
  * 对应后端 POST /v1/agent/ask
- * 请求体: { question, sessionID, type, stream, enableThinking }
+ * 请求体: { question, sessionID, type, stream, enableThinking, timestamp }
  * 响应: SSE 流 (event:message / event:thought / event:done / event:tool_confirm / event:error)
  *
  * @param {Object} params
@@ -13,6 +13,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
  * @param {'normal'|'tool_confirm'} [params.type] - 问题类型
  * @param {boolean} [params.stream] - 是否流式
  * @param {boolean} [params.enableThinking] - 是否开启思考
+ * @param {number} [params.timestamp] - 发送时间，Unix 毫秒时间戳
  * @param {Array} [params.confirms] - tool_confirm 类型的确认列表
  * @returns {Promise<Response>}
  */
@@ -22,6 +23,7 @@ export async function askAgent({
   type = 'normal',
   stream = true,
   enableThinking = false,
+  timestamp,
   confirms,
   signal,
 }) {
@@ -34,6 +36,10 @@ export async function askAgent({
 
   if (sessionID) {
     body.sessionID = sessionID;
+  }
+
+  if (timestamp) {
+    body.timestamp = timestamp;
   }
 
   if (type === 'tool_confirm' && confirms) {

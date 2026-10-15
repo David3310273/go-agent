@@ -379,6 +379,50 @@ func (s *SimpleAgentSession) SaveMemory(memory core.ReActMessage) *core.Diagnost
 	return &core.Diagnostic{}
 }
 
+func (s *SimpleAgentSession) saveChatMessage(message core.ChatHistory) *core.Diagnostic {
+	filePathFormat := utils.ResolvePath(s.Config.RootPath, s.Config.ChatHistoryFilePathFormat)
+	filename := fmt.Sprintf(filePathFormat, s.GetID())
+	basePath := path.Dir(filename)
+	if _, err := os.Stat(basePath); os.IsNotExist(err) {
+		err = os.MkdirAll(basePath, 0755)
+		if err != nil {
+			return &core.Diagnostic{
+				Level:   core.SeverityError,
+				Code:    core.MessageCodeWriteHistoryError,
+				Message: err.Error(),
+			}
+		}
+	}
+
+	content := []byte(message.ToString())
+	content = append(content, '\n')
+
+	if err := utils.RotateWrite(filename, s.Config.MemoryFileSplitter, 1024*1024*1024, content); err != nil {
+		return &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeWriteHistoryError,
+			Message: "save chat message failed: " + err.Error(),
+		}
+	}
+
+	return &core.Diagnostic{}
+}
+
+func (s *SimpleAgentSession) ExportChatHistory(size int) ([]byte, *core.Diagnostic) {
+	filePathFormat := utils.ResolvePath(s.Config.RootPath, s.Config.ChatHistoryFilePathFormat)
+	filename := fmt.Sprintf(filePathFormat, s.GetID())
+	chatBytes, err := utils.TailFile(filename, size)
+	if err != nil {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Code:    core.MessageCodeWriteHistoryError,
+			Message: "export chat history failed: " + err.Error(),
+		}
+	}
+
+	return chatBytes, nil
+}
+
 // select local kb given the question, merge into final context
 // searches KB and converts results to MarkdownCollection via JSON marshal/unmarshal.
 func (s *SimpleAgentSession) SelectLocalKB(query core.Question) string {
@@ -492,8 +536,10 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	core.Emit(s, core.CommonEvent[SessionEventTimeData]{
 		SourceType: core.SessionStartProcessQuestion,
 		Data: SessionEventTimeData{
-			SnapshotTime: time.Now(),
-			SessionID:    s.GetID(),
+			SnapshotTime:     time.Now(),
+			SessionID:        s.GetID(),
+			UserMsg:          query.GetQuery(),
+			UserQuestionTime: query.GetSendTimestamp(),
 		},
 	})
 
@@ -583,12 +629,42 @@ func (s *SimpleAgentSession) OnEvent() {
 					core.LogStd(core.LogLevelInfo, "[session=%s] answer generated: role=%s, content_len=%d",
 						s.GetID(), history.Role, len(history.Content))
 				}
+				if history.Role == core.RoleAssistant && history.ToolCalls == nil {
+					chatMessage := core.ChatHistory{
+						Role:      history.Role,
+						Content:   history.Content,
+						Timestamp: time.Now().UnixMilli(),
+					}
+					if diag := s.saveChatMessage(chatMessage); diag.Code != 0 {
+						core.LogStd(core.LogLevelError, "[session=%s] save chat message failed: code=%d, msg=%s", s.GetID(), diag.Code, diag.Message)
+					} else {
+						core.LogStd(core.LogLevelInfo, "[session=%s] chat message saved: role=%s, content_len=%d",
+							s.GetID(), chatMessage.Role, len(chatMessage.Content))
+					}
+				}
 			} else {
 				core.LogStd(core.LogLevelWarn, "[session=%s] failed to cast event data to ReActMessage", s.GetID())
 			}
-		case <-s.eventChans[core.SessionStartProcessQuestion]:
+		case e := <-s.eventChans[core.SessionStartProcessQuestion]:
 			// handle session start process question event
-			s.startProcessTime = time.Now()
+			message, ok := e.GetData().(SessionEventTimeData)
+			if ok {
+				s.startProcessTime = message.SnapshotTime
+
+				userChatRecord := core.ChatHistory{
+					Role:      core.RoleUser,
+					Content:   message.UserMsg,
+					Timestamp: message.UserQuestionTime,
+				}
+
+				if diag := s.saveChatMessage(userChatRecord); diag.Code != 0 {
+					core.LogStd(core.LogLevelWarn, "[session=%s] save history failed: code=%d, msg=%s", s.GetID(), diag.Code, diag.Message)
+				} else {
+					core.LogStd(core.LogLevelInfo, "[session=%s] user message saved: role=%s, content=%s",
+						s.GetID(), userChatRecord.Role, userChatRecord.Content)
+				}
+			}
+
 			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] processing question started at: %s", s.GetID(), s.startProcessTime.Format(time.RFC3339))
 		case <-s.eventChans[core.SessionFinishQuestion]:
 			// handle session finish question event

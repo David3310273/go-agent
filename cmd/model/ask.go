@@ -21,6 +21,7 @@ type AskQuestionCommand struct {
 	ResponseChan   chan core.Answer
 	HintChan       chan core.Answer
 	SessionID      string
+	Timestamp      int64
 }
 
 const (
@@ -71,6 +72,7 @@ func (c *AskQuestionCommand) GetRetryQuery() string             { return c.Query
 func (c *AskQuestionCommand) GetSessionID() string              { return c.SessionID }
 func (c *AskQuestionCommand) GetResponseChan() chan core.Answer { return c.ResponseChan }
 func (c *AskQuestionCommand) GetHintChan() chan core.Answer     { return c.HintChan }
+func (c *AskQuestionCommand) GetSendTimestamp() int64           { return c.Timestamp }
 func (c *AskQuestionCommand) GetType() core.QuestionType        { return c.QuestionType }
 func (c *AskQuestionCommand) ToString() string {
 	parts := []string{AskCommandName, c.Query}

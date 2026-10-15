@@ -29,3 +29,18 @@ func (c Conversation) ToString() string {
 
 	return string(response)
 }
+
+type ChatHistory struct {
+	Role      RoleType `json:"role"`
+	Content   string   `json:"content"`
+	Timestamp int64    `json:"timestamp"`
+}
+
+func (r ChatHistory) ToString() string {
+	response, err := json.Marshal(r)
+	if err != nil {
+		return ""
+	}
+
+	return string(response)
+}
