@@ -75,6 +75,17 @@ export function useChat() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    let isTimeout = false;
+    let timeoutId;
+    const resetTimeout = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        isTimeout = true;
+        controller.abort();
+      }, 60000);
+    };
+    resetTimeout();
+
     try {
       const response = await askAgent({
         question: question.trim(),
@@ -88,6 +99,7 @@ export function useChat() {
       let accumulatedContent = '';
 
       for await (const { event, data } of parseSSEStream(response, controller.signal)) {
+        resetTimeout();
         if (sessionGenRef.current.get(sid) !== gen) return;
 
         switch (event) {
@@ -194,7 +206,19 @@ export function useChat() {
     } catch (error) {
       if (sessionGenRef.current.get(sid) !== gen) return;
 
-      if (error.name === 'AbortError') {
+      if (isTimeout) {
+        console.error('Request timeout');
+        const cached = messagesCacheRef.current.get(sid) || [];
+        const updated = cached.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: '请求超时: Request Timeout', isStreaming: false }
+            : msg
+        );
+        messagesCacheRef.current.set(sid, updated);
+        if (currentSessionRef.current === sid) {
+          setMessages(updated);
+        }
+      } else if (error.name === 'AbortError') {
         console.log('Request aborted by user');
         const cached = messagesCacheRef.current.get(sid) || [];
         const updated = cached.map(msg =>
@@ -220,6 +244,7 @@ export function useChat() {
         }
       }
     } finally {
+      clearTimeout(timeoutId);
       if (sessionGenRef.current.get(sid) === gen) {
         sessionGenRef.current.delete(sid);
         messagesCacheRef.current.delete(sid);
@@ -287,6 +312,17 @@ export function useChat() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
+    let isTimeout = false;
+    let timeoutId;
+    const resetTimeout = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        isTimeout = true;
+        controller.abort();
+      }, 60000);
+    };
+    resetTimeout();
+
     try {
       const response = await askAgent({
         question: '',
@@ -300,6 +336,7 @@ export function useChat() {
       let accumulatedContent = '';
 
       for await (const { event, data } of parseSSEStream(response, controller.signal)) {
+        resetTimeout();
         if (sessionGenRef.current.get(sid) !== gen) return;
 
         switch (event) {
@@ -373,10 +410,45 @@ export function useChat() {
     } catch (error) {
       if (sessionGenRef.current.get(sid) !== gen) return;
 
-      if (error.name !== 'AbortError') {
+      if (isTimeout) {
+        console.error('Confirm request timeout');
+        const cached = messagesCacheRef.current.get(sid) || [];
+        const updated = cached.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: '请求超时: Request Timeout', isStreaming: false }
+            : msg
+        );
+        messagesCacheRef.current.set(sid, updated);
+        if (currentSessionRef.current === sid) {
+          setMessages(updated);
+        }
+      } else if (error.name === 'AbortError') {
+        console.log('Confirm request aborted by user');
+        const cached = messagesCacheRef.current.get(sid) || [];
+        const updated = cached.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, isStreaming: false }
+            : msg
+        );
+        messagesCacheRef.current.set(sid, updated);
+        if (currentSessionRef.current === sid) {
+          setMessages(updated);
+        }
+      } else {
         console.error('Confirm error:', error);
+        const cached = messagesCacheRef.current.get(sid) || [];
+        const updated = cached.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: `请求失败: ${error.message}`, isStreaming: false }
+            : msg
+        );
+        messagesCacheRef.current.set(sid, updated);
+        if (currentSessionRef.current === sid) {
+          setMessages(updated);
+        }
       }
     } finally {
+      clearTimeout(timeoutId);
       if (sessionGenRef.current.get(sid) === gen) {
         sessionGenRef.current.delete(sid);
         messagesCacheRef.current.delete(sid);
