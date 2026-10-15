@@ -100,7 +100,7 @@ func TestHandleUserToolConfirm_RunsApprovedBatchConcurrently(t *testing.T) {
 
 	question := &batchConfirmQuestion{
 		SimpleQuestion: *simple.NewSimpleQuestion(
-			"", session.GetID(), "", nil, nil, false, false, core.QuestionTypeToolConfirm,
+			"", session.GetID(), "", nil, nil, false, false, core.QuestionTypeToolConfirm, 0,
 		),
 		confirms: []core.ToolConfirmAnswer{
 			{ToolCallID: "call-approved-1", Answer: "Yes"},
@@ -177,7 +177,7 @@ func TestHandleUserToolConfirm_SkipsUnknownToolCallID(t *testing.T) {
 
 	question := &batchConfirmQuestion{
 		SimpleQuestion: *simple.NewSimpleQuestion(
-			"", session.GetID(), "", nil, nil, false, false, core.QuestionTypeToolConfirm,
+			"", session.GetID(), "", nil, nil, false, false, core.QuestionTypeToolConfirm, 0,
 		),
 		confirms: []core.ToolConfirmAnswer{
 			{ToolCallID: "call-unknown", Answer: "Yes"},

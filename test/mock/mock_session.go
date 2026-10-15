@@ -143,6 +143,21 @@ func (mr *MockSessionMockRecorder) DeletePendingMCPToolCall(toolCallID any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePendingMCPToolCall", reflect.TypeOf((*MockSession)(nil).DeletePendingMCPToolCall), toolCallID)
 }
 
+// ExportChatHistory mocks base method.
+func (m *MockSession) ExportChatHistory(size int) ([]byte, *core.Diagnostic) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExportChatHistory", size)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(*core.Diagnostic)
+	return ret0, ret1
+}
+
+// ExportChatHistory indicates an expected call of ExportChatHistory.
+func (mr *MockSessionMockRecorder) ExportChatHistory(size any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportChatHistory", reflect.TypeOf((*MockSession)(nil).ExportChatHistory), size)
+}
+
 // GetBenchmarkListeningChannels mocks base method.
 func (m *MockSession) GetBenchmarkListeningChannels() map[string]chan core.StatEvent[any] {
 	m.ctrl.T.Helper()
