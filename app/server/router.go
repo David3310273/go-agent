@@ -16,11 +16,40 @@ import (
 func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 	router := gin.Default()
 
+	// serve static frontend files (React build output)
+	router.Static("/static", "./app/frontend/web/dist")
+
+	// allow CORS
+	router.Use(func(c *gin.Context) {
+		c.Header("Access-Control-Allow-Origin", "*")
+		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin,Content-Type,Authorization")
+		c.Header("Access-Control-Max-Age", "86400")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	})
+
 	// middleware to inject agent into gin context
 	router.Use(func(c *gin.Context) {
 		c.Set("agent", agent)
 		c.Next()
 	})
+
+	v1Session := router.Group("/v1/session")
+	{
+
+		// DELETE /v1/session?sessionID=xxx - delete a session
+		v1Session.DELETE("", controller.HandleDeleteSession)
+
+		// GET /v1/session?sessionID=xxx - get a single session
+		v1Session.GET("", controller.HandleGetSession)
+
+		// GET /v1/session/list - list all sessions
+		v1Session.GET("/list", controller.HandleListSessions)
+	}
 
 	// v1 agent api group
 	v1Agent := router.Group("/v1/agent")

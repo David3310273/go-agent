@@ -92,7 +92,7 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 		Status:      core.SessionStatusRunning,
 		mu:          make(chan struct{}, 1),
 		lockTimeOut: LockTimeout,
-		Question:    make(chan core.Question),
+		Question:    make(chan core.Question, 1),
 		Config:      sessionConfig,
 
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
@@ -148,7 +148,7 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 		// zero Config meant ReActMaxRounds 0, empty RootPath and empty memory file format
 		Config: s.Config,
 		// Stop closes Question, close of a nil channel panics
-		Question: make(chan core.Question),
+		Question: make(chan core.Question, 1),
 		// nil maps make RegisterEventChans and SetPendingMCPToolCall panic on assignment
 		eventChans:       make(map[string]chan core.Event[any]),
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
@@ -239,6 +239,12 @@ func (s *SimpleAgentSession) SetQueryContext(ctx context.Context, cancel context
 func (s *SimpleAgentSession) CancelQuery() {
 	if s.queryCancel != nil {
 		s.queryCancel()
+	}
+	// drain pending question from channel to unblock agent's blocked send
+	select {
+	case <-s.Question:
+		core.LogStd(core.LogLevelInfo, "[session=%s] drained pending question on cancel", s.GetID())
+	default:
 	}
 }
 
