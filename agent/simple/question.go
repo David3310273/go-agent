@@ -65,7 +65,6 @@ func (q *SimpleQuestion) GetStreaming() bool                { return q.streaming
 func (q *SimpleQuestion) GetEnableThinking() bool           { return q.enableThinking }
 func (q *SimpleQuestion) GetQuery() string                  { return q.query }
 func (q *SimpleQuestion) SetQuery(query string)             { q.query = query }
-func (q *SimpleQuestion) GetRetryQuery() string             { return q.query }
 func (q *SimpleQuestion) GetSendTimestamp() int64           { return q.timestamp }
 func (q *SimpleQuestion) GetSessionID() string              { return q.sessionID }
 func (q *SimpleQuestion) GetResponseChan() chan core.Answer { return q.responseChan }

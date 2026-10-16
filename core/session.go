@@ -71,12 +71,12 @@ type ToolConfirmManager interface {
 	SetToolConfirmed(toolCallID string, answer string)
 	// clear tool confirmed
 	ClearToolConfirmed(toolCallID string)
-	// get pending MCP tool call info for confirmation flow
-	GetPendingMCPToolCall(toolCallID string) *PendingMCPToolCall
+	// get pending tool call info for confirmation flow
+	GetPendingToolCall(toolCallID string) *ConfirmToolCall
 	// save pending MCP tool call info
-	SetPendingMCPToolCall(toolCallID string, pending *PendingMCPToolCall)
+	SetPendingToolCall(toolCallID string, pending *ConfirmToolCall)
 	// delete pending MCP tool call info after tool execution
-	DeletePendingMCPToolCall(toolCallID string)
+	DeletePendingToolCall(toolCallID string)
 }
 
 // PendingMCPToolCall stores info about a destructive MCP tool waiting for user confirmation

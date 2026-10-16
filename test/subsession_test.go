@@ -9,15 +9,29 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/David3310273/go-agent/agent/simple"
 	"github.com/David3310273/go-agent/core"
 	testmock "github.com/David3310273/go-agent/test/mock"
 	"go.uber.org/mock/gomock"
 )
+
+func getSubSessions(s *simple.SimpleAgentSession) []*simple.SimpleAgentSession {
+	v := reflect.ValueOf(s).Elem()
+	f := v.FieldByName("subSessions")
+	ptr := (*atomic.Pointer[[]*simple.SimpleAgentSession])(unsafe.Pointer(f.UnsafeAddr()))
+	slice := ptr.Load()
+	if slice == nil {
+		return nil
+	}
+	return *slice
+}
 
 // newTestParentSession builds a real SimpleAgentSession on top of a mocked AgentCore.
 // auto-add: log and memory paths point into t.TempDir so the test writes nothing into the repo.
@@ -122,7 +136,7 @@ func TestNewSubSession_IsolatedFromParent(t *testing.T) {
 	})
 	// auto-add: the confirm state is keyed by the tool call ID now, not by server and tool name
 	parent.SetToolConfirmed("parent-call", "Yes")
-	parent.SetPendingMCPToolCall("parent-call", &core.PendingMCPToolCall{ToolCallID: "parent-call"})
+	parent.SetPendingToolCall("parent-call", &core.ConfirmToolCall{ToolCallID: "parent-call"})
 
 	sub := parent.NewSubSession(nil)
 
@@ -137,11 +151,11 @@ func TestNewSubSession_IsolatedFromParent(t *testing.T) {
 	}
 
 	// pendingMCPCalls was a nil map, writing to it panicked
-	sub.SetPendingMCPToolCall("sub-call", &core.PendingMCPToolCall{ToolCallID: "sub-call"})
-	if pending := sub.GetPendingMCPToolCall("sub-call"); pending == nil || pending.ToolCallID != "sub-call" {
+	sub.SetPendingToolCall("sub-call", &core.ConfirmToolCall{ToolCallID: "sub-call"})
+	if pending := sub.GetPendingToolCall("sub-call"); pending == nil || pending.ToolCallID != "sub-call" {
 		t.Error("expected the sub-session to store its own pending tool call")
 	}
-	if pending := parent.GetPendingMCPToolCall("parent-call"); pending == nil || pending.ToolCallID != "parent-call" {
+	if pending := parent.GetPendingToolCall("parent-call"); pending == nil || pending.ToolCallID != "parent-call" {
 		t.Error("expected the parent pending tool call to be untouched")
 	}
 
@@ -256,10 +270,10 @@ func TestNewSubSession_RegisteredAndStoppedByParent(t *testing.T) {
 	parent := newTestParentSession(t, ctrl)
 	sub := parent.NewSubSession(nil)
 
-	if got := len(parent.SubSessions); got != 1 {
+	if got := len(getSubSessions(parent)); got != 1 {
 		t.Fatalf("expected 1 registered sub-session, got %d", got)
 	}
-	if parent.SubSessions[0].GetID() != sub.GetID() {
+	if getSubSessions(parent)[0].GetID() != sub.GetID() {
 		t.Error("expected the registered sub-session to be the one just created")
 	}
 
@@ -315,7 +329,7 @@ func TestNewSubSession_NotRegisteredAfterParentStop(t *testing.T) {
 	if late == nil {
 		t.Fatal("expected a sub-session, got nil")
 	}
-	if got := len(parent.SubSessions); got != 0 {
+	if got := len(getSubSessions(parent)); got != 0 {
 		t.Errorf("expected no sub-session registered after the parent stopped, got %d", got)
 	}
 	if late.GetQueryCtx().Err() != context.Canceled {
@@ -346,7 +360,7 @@ func TestRunSubSession_RejectsNestedSubSession(t *testing.T) {
 	if result != "" {
 		t.Errorf("expected an empty result, got %q", result)
 	}
-	if got := len(parent.SubSessions); got != 1 {
+	if got := len(getSubSessions(parent)); got != 1 {
 		t.Errorf("expected no extra sub-session to be created, got %d registered", got)
 	}
 }
@@ -364,7 +378,7 @@ func TestRunSubSession_RequiresQuery(t *testing.T) {
 	if diag == nil || diag.Level != core.SeverityError {
 		t.Fatalf("expected an error diagnostic, got result %q and diag %v", result, diag)
 	}
-	if got := len(parent.SubSessions); got != 0 {
+	if got := len(getSubSessions(parent)); got != 0 {
 		t.Errorf("expected no sub-session to be created, got %d registered", got)
 	}
 }
@@ -437,10 +451,10 @@ func TestRunSubSession_RunsSubSessionAndReturnsAnswer(t *testing.T) {
 	}
 
 	// the sub-session is registered so the parent Stop shuts it down
-	if got := len(parent.SubSessions); got != 1 {
+	if got := len(getSubSessions(parent)); got != 1 {
 		t.Fatalf("expected 1 registered sub-session, got %d", got)
 	}
-	sub := parent.SubSessions[0]
+	sub := getSubSessions(parent)[0]
 
 	// it ran its own conversation instead of writing into the parent one
 	if got := len(*sub.GetConversation()); got == 0 {
@@ -522,10 +536,10 @@ func TestRunSubSession_FallsBackToDefaultAnswer(t *testing.T) {
 	}
 	// the sub-session is still registered even though it failed
 
-	if got := len(parent.SubSessions); got != 1 {
+	if got := len(getSubSessions(parent)); got != 1 {
 		t.Fatalf("expected 1 registered sub-session, got %d", got)
 	}
-	sub := parent.SubSessions[0]
+	sub := getSubSessions(parent)[0]
 
 	// when no provider is available, the sub-session writes only the system prompt and user query
 	// to history before failing, not the full reAct round retries
@@ -599,13 +613,13 @@ func TestCreateSubSessionTool_DeclaresIntentOnly(t *testing.T) {
 	if result != "" {
 		t.Errorf("expected an empty result from the runner, got %q", result)
 	}
-	if got := len(parent.SubSessions); got != 0 {
+	if got := len(getSubSessions(parent)); got != 0 {
 		t.Errorf("expected the runner not to create a sub-session, got %d registered", got)
 	}
 
 	// LoadTools has to pick it up from the tool config, otherwise its schema never reaches
 	// the model and the interception in core.ProcessQuestion can never be hit
-	simple.SimpleHarnessInstance.LoadTools("", parent)
+	simple.SimpleHarnessInstance.LoadDefaultTools(parent)
 	loadedTools := parent.GetLoadTools()
 	if got := len(*loadedTools); got != 1 {
 		t.Fatalf("expected 1 loaded tool, got %d", got)

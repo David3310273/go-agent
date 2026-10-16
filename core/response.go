@@ -14,10 +14,11 @@ const (
 // Uniformed AgentResponse for all agents in this framework, refer to openai api response format.
 // BE CAREFUL if you want to update/delete
 type AgentResponse struct {
-	Thought  string    `json:"thought"` // thought of agent
+	ID       string    `json:"id"`
 	Usage    Usage     `json:"usage"`
-	Response string    `json:"response"` // final answer to user
 	Choices  []Choices `json:"choices"`
+	Model    string    `json:"model"`
+	Response string    `json:"response"` // final answer to user by our agent
 }
 
 func (a AgentResponse) ToString() string {

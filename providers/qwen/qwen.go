@@ -422,7 +422,6 @@ func (q *QwenProvider) convertResponse(qwenResp *QwenResponse) core.AgentRespons
 	}
 
 	return core.AgentResponse{
-		Thought: thought,
 		Usage: core.Usage{
 			PromptTokens:     uint64(qwenResp.Usage.PromptTokens),
 			CompletionTokens: uint64(qwenResp.Usage.CompletionTokens),

@@ -1,6 +1,7 @@
 package simple
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -59,8 +60,8 @@ func (h SimpleHarness) GenerateFinalPrompt(context core.Context, maxSize int) st
 	return prompt.String()
 }
 
-func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message core.ReActMessage, windowSize int, skip int) {
-	if messages == nil || windowSize < 1 || skip < 0 {
+func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message *core.ReActMessage, windowSize int, skip int) {
+	if windowSize < 1 || skip < 0 {
 		return
 	}
 
@@ -70,7 +71,9 @@ func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message
 
 	// not full, keep appending
 	if start <= skip {
-		*messages = append(*messages, message)
+		if message != nil {
+			*messages = append(*messages, *message)
+		}
 		return
 	}
 
@@ -81,10 +84,23 @@ func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message
 
 	copy(msgs[skip:], msgs[start:end])
 
-	newLen := skip + (end - start) + 1
-	msgs[skip+(end-start)] = message
+	newLen := skip + (end - start)
+	if message != nil {
+		newLen = skip + (end - start) + 1
+		msgs[skip+(end-start)] = *message
+	}
 
 	*messages = msgs[:newLen]
+}
+
+func (h SimpleHarness) LoadDefaultTools(session core.Session) {
+	context := session.GetContext()
+	rootPath := session.GetConfigs().RootPath
+	for _, cfg := range context.GetToolsConfig() {
+		if tool := core.CreateTool(cfg.Name, rootPath, session); tool != nil {
+			session.SetLoadTools(tool)
+		}
+	}
 }
 
 // LoadTools loads tools based on skill name and registers them into session's loaded tools.
@@ -96,11 +112,6 @@ func (h SimpleHarness) LoadTools(skillName string, session core.Session) {
 	rootPath := session.GetConfigs().RootPath
 	// if skillName is empty, load default tools directly
 	if skillName == "" {
-		for _, cfg := range context.GetToolsConfig() {
-			if tool := core.CreateTool(cfg.Name, rootPath, session); tool != nil {
-				session.SetLoadTools(tool)
-			}
-		}
 		return
 	}
 
@@ -115,6 +126,10 @@ func (h SimpleHarness) LoadTools(skillName string, session core.Session) {
 			session.SetLoadTools(tool)
 		}
 	}
+}
+
+func (h SimpleHarness) GetRetryQuery() string {
+	return "No actions found, please provide a valid response."
 }
 
 func (h SimpleHarness) CheckIfHasLoop(question core.Question, toolCall core.ToolCall) bool {
@@ -133,7 +148,7 @@ func (h SimpleHarness) GetForceFinalAnswerMessage() string {
 	return "You have reached the maximum number of thinking rounds. Please provide your final answer now based on all the information gathered so far."
 }
 
-func (h SimpleHarness) HandleForceFinalAnswer(session core.Session, messages *core.Conversation, loadedTools *[]core.Tool, question core.Question) (core.AgentResponse, bool) {
+func (h SimpleHarness) HandleForceTerminate(session core.Session, messages *core.Conversation, loadedTools *[]core.Tool, question core.Question) (core.AgentResponse, bool) {
 	forceMessage := core.ReActMessage{
 		Role:    core.RoleUser,
 		Content: h.GetForceFinalAnswerMessage(),
@@ -149,7 +164,7 @@ func (h SimpleHarness) HandleForceFinalAnswer(session core.Session, messages *co
 		return core.AgentResponse{}, false
 	}
 	answer, ok := response.(core.AgentResponse)
-	if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil {
+	if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil || answer.Choices[0].Message.Content == "" {
 		return core.AgentResponse{}, false
 	}
 
@@ -186,8 +201,8 @@ func (h SimpleHarness) GetUserToolConfirmMessage(toolName string) string {
 	return fmt.Sprintf("The tool %s may be destructive, are you sure you want to proceed?", toolName)
 }
 
-func (h SimpleHarness) GetConfirmDestructiveToolAnswer(toolName string) string {
-	return fmt.Sprintf("The tool %s is destructive, should make sure if user want to use. Keep running if user responses yes.", toolName)
+func (h SimpleHarness) GetConfirmToolMessage(toolCall core.ConfirmToolCall) string {
+	return fmt.Sprintf("The tool %s is destructive (tool call id: %s), should make sure if user want to use. Keep running if user responses yes.", toolCall.ToolName, toolCall.ToolCallID)
 }
 
 // GenerateToolConfirmResponse generates one confirmation response for a batch of destructive tool
@@ -197,20 +212,13 @@ func (h SimpleHarness) GetConfirmDestructiveToolAnswer(toolName string) string {
 // pending calls moved here, the reAct loop does not write them anymore.
 func (h SimpleHarness) GenerateToolConfirmResponse(
 	session core.Session,
-	calls []core.ToolConfirmCall,
+	calls []core.ConfirmToolCall,
 	usage core.Usage,
 ) core.Answer {
 	items := make([]ToolConfirmItem, 0, len(calls))
 	messages := make([]string, 0, len(calls))
 
 	for _, call := range calls {
-		// save pending MCP tool call info to session for later reference
-		session.SetPendingMCPToolCall(call.ToolCallID, &core.PendingMCPToolCall{
-			Args:       call.Args,
-			Tool:       call.Tool,
-			ToolCallID: call.ToolCallID,
-		})
-
 		// a local destructive tool has no server and no inner tool name
 		toolLabel := call.MCPTool
 		if toolLabel == "" {
@@ -245,147 +253,258 @@ func (h SimpleHarness) GenerateToolConfirmResponse(
 // HandleUserQuestion handles question types and returns the user message to append
 // for normal questions: constructs message from query
 // for confirm questions: records every answer of the batch and constructs the confirmation message
-func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Question) (*core.ReActMessage, core.Diagnostic) {
+func (h SimpleHarness) HandleUserQuestion(session core.Session, question core.Question, messages *core.Conversation) *core.Diagnostic {
+	confirmMsg := core.ReActMessage{Role: core.RoleUser, Content: question.GetQuery()}
+	toolCalls := []core.PreparedToolCall{}
+
+	var diag *core.Diagnostic
 	if question.GetType() == core.QuestionTypeToolConfirm {
-		confirmQuestion, ok := question.(core.ToolConfirmable)
-		// not a tool confirm question, treat it as normal question
-		if !ok || !confirmQuestion.ValidateConfirmAnswers() {
-			return nil, core.Diagnostic{
-				Code:    core.MessageCodeInvalidConfirmAnswer,
-				Level:   core.SeverityError,
-				Message: "Invalid confirm answers, every item needs a toolCallID and Yes or No.",
-			}
+		confirmMsg, toolCalls, diag = h.HandleUserToolConfirmMessage(session, question)
+		if diag != nil {
+			return diag
 		}
-
-		// the answers of one batch are recorded together. An answer whose call was
-		// already executed is skipped instead of failing the whole batch.
-		answers := confirmQuestion.GetConfirmAnswers()
-		confirmMessages := make([]string, 0, len(answers))
-		for _, answer := range answers {
-			if pending := session.GetPendingMCPToolCall(answer.ToolCallID); pending == nil {
-				core.LogStd(core.LogLevelWarn, "[session=%s] HandleUserQuestion: no pending tool call found: call=%s", session.GetID(), answer.ToolCallID)
-				continue
-			}
-
-			// record user's answer (Yes or No) - either way counts as confirmed
-			session.SetToolConfirmed(answer.ToolCallID, answer.Answer)
-
-			// simple confirmation message - the tools are executed directly by HandleUserToolConfirm
-			if answer.ServerName != "" {
-				confirmMessages = append(confirmMessages, fmt.Sprintf(
-					"The user's answer about the tool call %s (%s from mcp server %s) is: %s",
-					answer.ToolCallID, answer.ToolName, answer.ServerName, answer.Answer))
-			} else {
-				confirmMessages = append(confirmMessages, fmt.Sprintf(
-					"The user's answer about the tool call %s (%s from local) is: %s",
-					answer.ToolCallID, answer.ToolName, answer.Answer))
-			}
-
-		}
-
-		if len(confirmMessages) == 0 {
-			// every call of the batch is gone, return diagnostic to skip LLM
-			diag := core.Diagnostic{
-				Code:    core.MessageCodeToolAlreadyConfirmed,
-				Level:   core.SeverityInfo,
-				Message: "Every tool call of this confirmation batch has already been confirmed and executed.",
-			}
-			return nil, diag
-		}
-
-		return &core.ReActMessage{Role: core.RoleUser, Content: strings.Join(confirmMessages, "\n")}, core.Diagnostic{}
 	}
 
-	// normal question: construct message from query
-	return &core.ReActMessage{Role: core.RoleUser, Content: question.GetQuery()}, core.Diagnostic{}
+	*messages = append(*messages, confirmMsg)
+	core.Emit(session, core.CommonEvent[core.ReActMessage]{
+		SourceType: core.SessionHistory,
+		Data:       confirmMsg,
+	})
+
+	toolResultMessages, diag := h.RunToolCalls(session, question, toolCalls)
+	if diag != nil {
+		return diag
+	}
+
+	for _, toolMessage := range toolResultMessages {
+		*messages = append(*messages, toolMessage)
+		core.Emit(session, core.CommonEvent[core.ReActMessage]{
+			SourceType: core.SessionHistory,
+			Data:       toolMessage,
+		})
+	}
+
+	return nil
 }
 
-// HandleUserToolConfirm replays a confirmed batch and returns one tool response message per
-// answered call, in the order the user answered them.
-// the calls answered Yes run concurrently, they are independent tool calls the user just
-// approved as one batch. A call answered No only produces a declined tool response, so its
-// tool_call stays matched in the conversation.
-func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core.Question) []core.ReActMessage {
+func (h SimpleHarness) GetToolCallRejectedMessage(toolCall core.ConfirmToolCall) string {
+	return fmt.Sprintf("the tool call %s was rejected by user, don't need to execute.", toolCall.ToolCallID)
+}
+
+func (h SimpleHarness) GetAlreadyConfirmedMessage(toolCallID string) string {
+	return fmt.Sprintf("tool call %s was already responded (duplicate request), ignoring.", toolCallID)
+}
+
+// HandleUserToolConfirmMessage replays a confirmed batch and returns one tool response message per
+// answered call
+func (h SimpleHarness) HandleUserToolConfirmMessage(session core.Session, question core.Question) (core.ReActMessage, []core.PreparedToolCall, *core.Diagnostic) {
 	confirmQuestion, ok := question.(core.ToolConfirmable)
 	if !ok {
-		return nil
+		return core.ReActMessage{}, nil, &core.Diagnostic{
+			Code:    core.MessageCodeInvalidConfirmAnswer,
+			Level:   core.SeverityError,
+			Message: "Invalid confirm question, every item needs a toolCallID and Yes or No.",
+		}
 	}
 
 	answers := confirmQuestion.GetConfirmAnswers()
-	// one slot per answer, filled in answer order so the conversation keeps the batch order
-	toolResultMessages := make([]core.ReActMessage, len(answers))
-	pendings := make([]*core.PendingMCPToolCall, len(answers))
-	var wg sync.WaitGroup
 
-	for idx, answer := range answers {
-		pending := session.GetPendingMCPToolCall(answer.ToolCallID)
+	toolCalls := []core.PreparedToolCall{}
+	userConfirmMessages := []string{}
+	hasValidPending := false
+	confirmMessages := core.ReActMessage{
+		Role: core.RoleUser,
+	}
+
+	for _, answer := range answers {
+		pending := session.GetPendingToolCall(answer.ToolCallID)
 		if pending == nil {
-			core.LogStd(core.LogLevelWarn, "[session=%s] HandleUserToolConfirm: no pending tool call found: call=%s", session.GetID(), answer.ToolCallID)
+			core.LogStd(core.LogLevelWarn, "[session=%s] HandleUserToolConfirmMessage: no pending tool call found: call=%s", session.GetID(), answer.ToolCallID)
+			userConfirmMessages = append(userConfirmMessages, h.GetAlreadyConfirmedMessage(answer.ToolCallID))
 			continue
 		}
-		pendings[idx] = pending
 
-		if answer.Answer == "No" {
-			// user declined - return cancellation message, nothing runs for this call
-			toolResultMessages[idx] = core.ReActMessage{
+		hasValidPending = true
+
+		confirmMessage := ""
+		if answer.ServerName == "" {
+			confirmMessage = fmt.Sprintf("The user's answer about the tool call %s (%s) is: %s", answer.ToolCallID, answer.ToolName, answer.Answer)
+		} else {
+			confirmMessage = fmt.Sprintf("The user's answer about the tool call %s (%s from mcp server %s) is: %s", answer.ToolCallID, answer.ToolName, answer.ServerName, answer.Answer)
+		}
+
+		userConfirmMessages = append(userConfirmMessages, confirmMessage)
+		arguments, _ := json.Marshal(pending.Args)
+
+		if answer.Answer == "Yes" {
+			toolCall := core.PreparedToolCall{
+				ToolCall: core.ToolCall{
+					ID:   pending.ToolCallID,
+					Type: "function",
+					Function: core.Function{
+						Name:      pending.Tool.GetName(),
+						Arguments: string(arguments),
+					},
+				},
+				TargetTool: pending.Tool,
+				Args:       pending.Args,
+				Runnable:   true,
+			}
+			toolCalls = append(toolCalls, toolCall)
+		} else {
+			// when the user says No, the ReAct loop still needs a tool result for this
+			// tool_call_id so the LLM knows the call was resolved and does not retry.
+			rejectMsg := core.ReActMessage{
 				Role:       core.RoleTool,
-				Content:    fmt.Sprintf("Tool call %s has been declined by user", pending.ToolCallID),
+				Content:    h.GetToolCallRejectedMessage(*pending),
 				ToolCallID: pending.ToolCallID,
 			}
+
+			messages := session.GetConversation()
+			*messages = append(*messages, rejectMsg)
+			core.Emit(session, core.CommonEvent[core.ReActMessage]{
+				SourceType: core.SessionHistory,
+				Data:       rejectMsg,
+			})
+		}
+
+		session.DeletePendingToolCall(answer.ToolCallID)
+		session.ClearToolConfirmed(answer.ToolCallID)
+	}
+
+	// when every answer in the batch is a duplicate, return without asking the LLM to
+	// prevent it from hallucinating about whether the tool was executed.
+	if !hasValidPending {
+		return confirmMessages, nil, &core.Diagnostic{
+			Code:    core.MessageCodeToolAlreadyConfirmed,
+			Level:   core.SeverityInfo,
+			Message: strings.Join(userConfirmMessages, "\n"),
+		}
+	}
+
+	confirmMessages.Content = strings.Join(userConfirmMessages, "\n")
+	return confirmMessages, toolCalls, nil
+}
+
+func (h SimpleHarness) WatchReActCancel(session core.Session, toolCalls []core.PreparedToolCall) bool {
+	ctx := session.GetQueryCtx()
+	select {
+	case <-ctx.Done():
+		core.LogStd(core.LogLevelInfo, "[session=%s] cancelled by user", session.GetID())
+		messages := session.GetConversation()
+		if len(toolCalls) == 0 {
+			cancelMessage := core.ReActMessage{
+				Role:    core.RoleTool,
+				Content: "Operation has been canceled by user",
+			}
+			*messages = append(*messages, cancelMessage)
+			core.Emit(session, core.CommonEvent[core.ReActMessage]{
+				SourceType: core.SessionHistory,
+				Data:       cancelMessage,
+			})
+		} else {
+			for _, toolCall := range toolCalls {
+				cancelMessage := core.ReActMessage{
+					Role:       core.RoleTool,
+					Content:    fmt.Sprintf("Tool call id %s cancelled by user", toolCall.ToolCall.ID),
+					ToolCallID: toolCall.ToolCall.ID,
+				}
+				*messages = append(*messages, cancelMessage)
+				core.Emit(session, core.CommonEvent[core.ReActMessage]{
+					SourceType: core.SessionHistory,
+					Data:       cancelMessage,
+				})
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+// given tool calls, run them concurrently
+func (h SimpleHarness) RunToolCalls(
+	session core.Session,
+	question core.Question,
+	toolCalls []core.PreparedToolCall,
+) ([]core.ReActMessage, *core.Diagnostic) {
+	// last round: force model to produce final answer, skip tool execution
+	// check if session has been cancelled, once for the whole batch
+	if h.WatchReActCancel(session, toolCalls) {
+		return nil, &core.Diagnostic{
+			Level:   core.SeverityError,
+			Message: "Operation has been canceled by user",
+		}
+	}
+
+	toolResultMessages := make([]core.ReActMessage, len(toolCalls))
+	succeeded := make([]bool, len(toolCalls))
+	var wg sync.WaitGroup
+
+	model := question.GetModelName()
+
+	for idx := range toolCalls {
+		toolResultMessages[idx] = core.ReActMessage{
+			Role:       core.RoleTool,
+			ToolCallID: toolCalls[idx].ToolCall.ID,
+		}
+
+		if toolCalls[idx].ToolCall.Function.Name == "" {
+			toolResultMessages[idx].Content = "Error: empty tool name"
 			continue
 		}
 
-		// user confirmed - execute the tool concurrently, each worker writes only its own slot
+		if !toolCalls[idx].Runnable {
+			toolResultMessages[idx].Content = toolCalls[idx].Result
+			continue
+		}
+
+		arguments := make(map[string]any)
+		if err := json.Unmarshal([]byte(toolCalls[idx].ToolCall.Function.Arguments), &arguments); err != nil {
+			toolResultMessages[idx].Content = "Error: invalid arguments format - " + err.Error()
+			continue
+		}
+
 		wg.Add(1)
-		go func(idx int, pending *core.PendingMCPToolCall) {
+		go func(idx int, arguments map[string]any) {
 			defer wg.Done()
 			// a panicking tool must not take the process down, and this slot must still
-			// carry a tool response so the tool_call stays matched
+			// carry a tool response so every tool_call keeps its matching response
 			defer func() {
 				if recovered := recover(); recovered != nil {
-					core.LogStd(core.LogLevelError, "[session=%s] HandleUserToolConfirm: tool panicked: name=%s, panic=%v", session.GetID(), pending.Tool.GetName(), recovered)
-					toolResultMessages[idx] = core.ReActMessage{
-						Role:       core.RoleTool,
-						Content:    fmt.Sprintf("Error: tool execution failed for %s with args %v - %v", pending.ToolCallID, pending.Args, recovered),
-						ToolCallID: pending.ToolCallID,
-					}
+					core.LogStd(core.LogLevelWarn, "[session=%s] tool panicked: name=%s, panic=%v", session.GetID(), toolCalls[idx].ToolCall.Function.Name, recovered)
+					toolResultMessages[idx].Content = fmt.Sprintf("Error: tool panicked - %v", recovered)
 				}
 			}()
 
-			// confirmed destructive tool calls run in sandbox
-			sandbox, diag := core.BuildSandboxForToolCall(session.GetConfigs().RootPath, pending.Tool, pending.Args)
-			if diag != nil {
-				core.LogStd(core.LogLevelWarn, "[session=%s] HandleUserToolConfirm: failed to build sandbox, err: %v", session.GetID(), diag.Message)
+			item := toolCalls[idx]
+			core.LogStd(core.LogLevelDebug, "[session=%s] running tool call currently: name=%s, args=%v", session.GetID(), item.ToolCall.Function.Name, item.ToolCall.Function.Arguments)
+			// use result string from RunToolCall, check diagnostic level for error.
+			if h.CheckIfHasLoop(question, item.ToolCall) {
+				toolResultMessages[idx].Content = h.GetToolCallLoopMessage(item.ToolCall)
+				return
 			}
 
-			result, diag := core.CallTool(pending.Tool, pending.Args, sandbox)
-			content := result
+			result, diag := h.RunToolCall(session, item.TargetTool, arguments, model)
 			if diag != nil && diag.Level == core.SeverityError {
-				content = diag.Message
+				toolResultMessages[idx].Content = "Error: " + diag.Message
+				return
 			}
-			toolResultMessages[idx] = core.ReActMessage{
-				Role:       core.RoleTool,
-				Content:    content,
-				ToolCallID: pending.ToolCallID,
-			}
-		}(idx, pending)
+
+			toolResultMessages[idx].Content = result
+			succeeded[idx] = true
+		}(idx, arguments)
 	}
 
 	wg.Wait()
 
-	// the pending state is cleared only once every worker is done, these maps carry no
-	// lock. Clearing an already declined call again is a no-op.
-	confirmedMessages := make([]core.ReActMessage, 0, len(answers))
-	for idx, answer := range answers {
-		if pendings[idx] == nil {
-			continue
+	for idx := range toolCalls {
+		if succeeded[idx] {
+			question.SetToolCalls(toolCalls[idx].ToolCall)
 		}
-		session.DeletePendingMCPToolCall(answer.ToolCallID)
-		session.ClearToolConfirmed(answer.ToolCallID)
-		confirmedMessages = append(confirmedMessages, toolResultMessages[idx])
 	}
 
-	return confirmedMessages
+	return toolResultMessages, nil
 }
 
 func (h SimpleHarness) GetToolCallLoopMessage(toolCall core.ToolCall) string {
@@ -399,7 +518,6 @@ func (h SimpleHarness) GetToolCallLoopMessage(toolCall core.ToolCall) string {
 // tool call order.
 func (h SimpleHarness) RunToolCall(
 	session core.Session,
-	toolCall core.ToolCall,
 	targetTool core.Tool,
 	args map[string]any,
 	model string,
@@ -408,7 +526,7 @@ func (h SimpleHarness) RunToolCall(
 	// declares the intent, the harness creates and drives the sub-session, because the tool package
 	// cannot import the agent package that owns the concrete Session and Question types.
 	// Only the model name crosses the boundary, never the caller question.
-	if toolCall.Function.Name == core.SubSessionToolName {
+	if targetTool.GetName() == core.SubSessionToolName {
 		return h.RunSubSession(session, args, model)
 	}
 

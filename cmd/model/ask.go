@@ -69,7 +69,6 @@ func (c *AskQuestionCommand) GetStreaming() bool                { return c.Strea
 func (c *AskQuestionCommand) GetEnableThinking() bool           { return c.EnableThinking }
 func (c *AskQuestionCommand) GetQuery() string                  { return c.Query }
 func (c *AskQuestionCommand) SetQuery(query string)             { c.Query = query }
-func (c *AskQuestionCommand) GetRetryQuery() string             { return c.Query }
 func (c *AskQuestionCommand) GetSessionID() string              { return c.SessionID }
 func (c *AskQuestionCommand) GetResponseChan() chan core.Answer { return c.ResponseChan }
 func (c *AskQuestionCommand) GetHintChan() chan core.Answer     { return c.HintChan }

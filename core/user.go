@@ -12,6 +12,8 @@ type Plan struct {
 	ExpiryDate time.Time `json:"expiryDate"`
 	// available models
 	AvailableModels []string `json:"availableModels"`
+	// max rounds of reAct
+	MaxRoundsReAct int `json:"maxRoundsReAct"`
 }
 
 // user info manager

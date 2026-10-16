@@ -236,12 +236,17 @@ func handleStreamResponse(c *gin.Context, result *services.AskResult, timeout ti
 					c.SSEvent("message", resp.Choices[0].Message.Content)
 				}
 			case simple.SimpleNormalResponse:
+				answer := resp.Response.Response
+				if len(resp.Response.Choices) > 0 && resp.Response.Choices[0].Message != nil {
+					answer = resp.Response.Choices[0].Message.Content
+				}
 				core.LogStd(core.LogLevelInfo, "stream finished: session_id=%s, prompt_tokens=%d, completion_tokens=%d, total_tokens=%d",
 					resp.SessionID, resp.Response.Usage.PromptTokens, resp.Response.Usage.CompletionTokens, resp.Response.Usage.TotalTokens)
 				c.SSEvent("done", gin.H{
 					"type":      ResponseTypeNormal,
 					"sessionID": resp.SessionID,
 					"usage":     resp.Response.Usage,
+					"answer":    answer,
 				})
 				return false
 			case simple.SimpleToolConfirmResponse:
@@ -296,11 +301,12 @@ func handleNonStreamResponse(c *gin.Context, result *services.AskResult, timeout
 					Type:      ResponseTypeNormal,
 					SessionID: resp.SessionID,
 					Answer:    agentResponse.Response,
-					Thought:   agentResponse.Thought,
+					Thought:   "",
 					Usage:     agentResponse.Usage,
 				}
 				if len(agentResponse.Choices) > 0 && agentResponse.Choices[0].Message != nil {
 					response.Answer = agentResponse.Choices[0].Message.Content
+					response.Thought = *agentResponse.Choices[0].Message.ReasoningContent
 				}
 				c.JSON(http.StatusOK, response)
 			case simple.SimpleToolConfirmResponse:

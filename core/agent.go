@@ -4,9 +4,7 @@ import (
 	json "encoding/json"
 	"fmt"
 	"slices"
-
 	// the tool calls of one assistant message run concurrently now
-	"sync"
 )
 
 // QuestionType distinguishes between normal questions and tool confirmation questions
@@ -28,8 +26,6 @@ type Question interface {
 	GetQuery() string
 	// set original question for reAct
 	SetQuery(string)
-	// get retry query for reAct if llm returns wrong format
-	GetRetryQuery() string
 	// get session Name
 	GetSessionID() string
 	// get stream flag
@@ -240,19 +236,92 @@ func StopAgentCore(agent AgentCore) []Diagnostic {
 // ReAct loop functions
 // =============================================================================
 
-// preparedToolCall is one tool call resolved by the serial prepare pass.
-// everything that touches shared state (the loaded tool list, the session confirm maps,
-// the skill name of the next round) is resolved on the caller goroutine, so the concurrent workers
-// only run a tool and write their own result slot.
-type preparedToolCall struct {
-	toolCall   ToolCall
-	targetTool Tool
-	args       map[string]any
-	// result is the tool response text, pre-filled by the prepare pass when the call cannot run at
-	// all: unknown tool, invalid arguments, or waiting for a destructive confirmation
-	result string
-	// runnable reports whether a worker goroutine has to execute this call
-	runnable bool
+func processResponse(
+	answer AgentResponse,
+	session Session,
+	question Question,
+	harness Harness,
+) (Answer, []Diagnostic) {
+	diagnostics := []Diagnostic{}
+	messages := session.GetConversation()
+	defaultAnswer := harness.GetDefaultAnswer()
+
+	// send thoughts to hint chan only when thinking is enabled
+	if question.GetEnableThinking() {
+		if hintChan := question.GetHintChan(); hintChan != nil {
+			hintChan <- answer
+		}
+	}
+
+	// TODO: support multiple choices
+	operation := answer.Choices[0]
+	if operation.FinishReason == FinishReasonStop {
+		// append final assistant message to conversation so next question has full history
+		finalMessage := ReActMessage{
+			Role:    RoleAssistant,
+			Content: operation.Message.Content,
+		}
+
+		*messages = append(*messages, finalMessage)
+		Emit(session, CommonEvent[ReActMessage]{
+			SourceType: SessionHistory,
+			Data:       finalMessage,
+		})
+
+		return answer, nil
+	} else if operation.Message.ToolCalls != nil && len(*operation.Message.ToolCalls) > 0 {
+		// append assistant message with tool_calls
+		toolMessage := ReActMessage{
+			Role:      RoleAssistant,
+			Content:   operation.Message.Content,
+			ToolCalls: operation.Message.ToolCalls,
+		}
+		*messages = append(*messages, toolMessage)
+		Emit(session, CommonEvent[ReActMessage]{
+			SourceType: SessionHistory,
+			Data:       toolMessage,
+		})
+
+		// prepare tool calls is as same size as original tool calls
+		preparedCalls, confirmCalls := prepareToolCalls(session, harness, *operation.Message.ToolCalls)
+		// so does toolResultMessages
+		toolResultMessages, diag := harness.RunToolCalls(session, question, preparedCalls)
+		if diag != nil {
+			diagnostics = append(diagnostics, *diag)
+			return defaultAnswer, diagnostics
+		}
+
+		for _, toolMessage := range toolResultMessages {
+			*messages = append(*messages, toolMessage)
+			Emit(session, CommonEvent[ReActMessage]{
+				SourceType: SessionHistory,
+				Data:       toolMessage,
+			})
+		}
+
+		if len(confirmCalls) > 0 {
+			for _, confirmCall := range confirmCalls {
+				session.SetPendingToolCall(confirmCall.ToolCallID, &confirmCall)
+			}
+
+			confirmAnswer := harness.GenerateToolConfirmResponse(session, confirmCalls, answer.Usage)
+			return confirmAnswer, nil
+		}
+
+		return nil, nil
+	} else {
+		// append answer directly
+		assistantMessage := ReActMessage{
+			Role:    RoleAssistant,
+			Content: operation.Message.Content,
+		}
+		*messages = append(*messages, assistantMessage)
+		Emit(session, CommonEvent[ReActMessage]{
+			SourceType: SessionHistory,
+			Data:       assistantMessage,
+		})
+		return nil, nil
+	}
 }
 
 // prepareToolCalls resolves every tool call of one assistant message on the caller goroutine.
@@ -263,166 +332,73 @@ func prepareToolCalls(
 	session Session,
 	harness Harness,
 	toolCalls []ToolCall,
-	loadedTools *[]Tool,
-) ([]preparedToolCall, []ToolConfirmCall) {
-	prepared := make([]preparedToolCall, 0, len(toolCalls))
-	confirmCalls := []ToolConfirmCall{}
+) ([]PreparedToolCall, []ConfirmToolCall) {
+	prepared := make([]PreparedToolCall, 0, len(toolCalls))
+	confirmCalls := []ConfirmToolCall{}
+	loadedTools := session.GetLoadTools()
 
 	for _, toolCall := range toolCalls {
-		item := preparedToolCall{toolCall: toolCall}
-
 		// find the tool from loaded tools by name
+		item := PreparedToolCall{
+			ToolCall: toolCall,
+		}
+		var targetTool Tool
 		for _, tool := range *loadedTools {
 			if tool.GetName() == toolCall.Function.Name {
-				item.targetTool = tool
+				targetTool = tool
 				break
 			}
 		}
-		if item.targetTool == nil {
-			item.result = "Error: tool not found - " + toolCall.Function.Name
+		if targetTool == nil {
+			item.Result = "Error: tool not found - " + toolCall.Function.Name
 			prepared = append(prepared, item)
 			continue
 		}
 
 		// parse arguments
-		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &item.args); err != nil {
-			item.result = "Error: invalid arguments format - " + err.Error()
+		if err := json.Unmarshal([]byte(toolCall.Function.Arguments), &item.Args); err != nil {
+			item.Result = "Error: invalid arguments format - " + err.Error()
 			prepared = append(prepared, item)
 			continue
 		}
 
 		// check if tool is destructive and needs user confirmation
-		isDestructive := item.targetTool.IsDestructive()
+		item.TargetTool = targetTool
+		isDestructive := item.TargetTool.IsDestructive()
 		serverName := ""
 		mcpToolName := ""
 		// for remote mcp call, the isDestructive should be determined by inner tool
 		if toolCall.Function.Name == "UseMCPServerTools" {
-			innerDestructive, ok := item.args["isDestructive"].(bool)
+			innerDestructive, ok := item.Args["isDestructive"].(bool)
 			isDestructive = ok && innerDestructive
 			// checked assertions, a missing key used to panic here and a panic inside a
 			// worker goroutine takes the whole process down
-			serverName, _ = item.args["serverName"].(string)
-			mcpToolName, _ = item.args["toolName"].(string)
+			serverName, _ = item.Args["serverName"].(string)
+			mcpToolName, _ = item.Args["toolName"].(string)
 		}
 
 		// keyed by the tool call ID, the server and tool name pair is not unique inside
 		// one batch of destructive calls
 		if isDestructive && !session.IsToolConfirmed(toolCall.ID) {
-			item.result = harness.GetConfirmDestructiveToolAnswer(toolCall.Function.Name)
-			confirmCalls = append(confirmCalls, ToolConfirmCall{
+			confirmedCall := ConfirmToolCall{
 				ToolCallID: toolCall.ID,
 				ServerName: serverName,
-				ToolName:   item.targetTool.GetName(),
+				ToolName:   item.TargetTool.GetName(),
 				MCPTool:    mcpToolName,
-				Args:       item.args,
-				Tool:       item.targetTool,
-			})
+				Args:       item.Args,
+				Tool:       item.TargetTool,
+			}
+			item.Result = harness.GetConfirmToolMessage(confirmedCall)
+			confirmCalls = append(confirmCalls, confirmedCall)
 			prepared = append(prepared, item)
 			continue
 		}
 
-		item.runnable = true
+		item.Runnable = true
 		prepared = append(prepared, item)
 	}
 
 	return prepared, confirmCalls
-}
-
-// runToolCalls executes a prepared batch concurrently and returns one tool response message per
-// call, in tool call order.
-// every worker writes only its own slot and the messages are built here, so the caller
-// appends them to the conversation on a single goroutine, the events stay ordered and each tool
-// response stays matched with its tool_call ID.
-func runToolCalls(session Session, harness Harness, prepared []preparedToolCall, question Question) []ReActMessage {
-	toolResultMessages := make([]ReActMessage, len(prepared))
-	succeeded := make([]bool, len(prepared))
-	var wg sync.WaitGroup
-
-	model := question.GetModelName()
-	for idx := range prepared {
-		toolResultMessages[idx] = ReActMessage{
-			Role:       RoleTool,
-			Content:    prepared[idx].result,
-			ToolCallID: prepared[idx].toolCall.ID,
-		}
-		if !prepared[idx].runnable {
-			continue
-		}
-
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			// a panicking tool must not take the process down, and this slot must still
-			// carry a tool response so every tool_call keeps its matching response
-			defer func() {
-				if recovered := recover(); recovered != nil {
-					LogStd(LogLevelWarn, "[session=%s] tool panicked: name=%s, panic=%v", session.GetID(), prepared[idx].toolCall.Function.Name, recovered)
-					toolResultMessages[idx].Content = fmt.Sprintf("Error: tool panicked - %v", recovered)
-				}
-			}()
-
-			item := prepared[idx]
-			LogStd(LogLevelDebug, "[session=%s] running tool call currently: name=%s, args=%v", session.GetID(), item.toolCall.Function.Name, item.args)
-			// use result string from RunToolCall, check diagnostic level for error.
-			if harness.CheckIfHasLoop(question, item.toolCall) {
-				toolResultMessages[idx].Content = harness.GetToolCallLoopMessage(item.toolCall)
-				return
-			}
-			result, diag := harness.RunToolCall(session, item.toolCall, item.targetTool, item.args, model)
-			if diag != nil && diag.Level == SeverityError {
-				toolResultMessages[idx].Content = "Error: " + diag.Message
-				return
-			}
-			toolResultMessages[idx].Content = result
-			succeeded[idx] = true
-		}(idx)
-	}
-
-	wg.Wait()
-
-	for idx := range prepared {
-		if succeeded[idx] {
-			question.SetToolCalls(prepared[idx].toolCall)
-		}
-	}
-
-	return toolResultMessages
-}
-
-func watchCancel(session Session, toolCalls []ToolCall) bool {
-	ctx := session.GetQueryCtx()
-	select {
-	case <-ctx.Done():
-		LogStd(LogLevelInfo, "[session=%s] cancelled by user", session.GetID())
-		messages := session.GetConversation()
-		if len(toolCalls) == 0 {
-			cancelMessage := ReActMessage{
-				Role:    RoleTool,
-				Content: "Operation has been canceled by user",
-			}
-			*messages = append(*messages, cancelMessage)
-			Emit(session, CommonEvent[ReActMessage]{
-				SourceType: SessionHistory,
-				Data:       cancelMessage,
-			})
-		} else {
-			for _, toolCall := range toolCalls {
-				cancelMessage := ReActMessage{
-					Role:       RoleTool,
-					Content:    fmt.Sprintf("Tool call %s cancelled by user", toolCall.Function.Name),
-					ToolCallID: toolCall.ID,
-				}
-				*messages = append(*messages, cancelMessage)
-				Emit(session, CommonEvent[ReActMessage]{
-					SourceType: SessionHistory,
-					Data:       cancelMessage,
-				})
-			}
-		}
-		return true
-	default:
-		return false
-	}
 }
 
 // ProcessQuestion is the reAct loop of AskQuestion
@@ -449,48 +425,34 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	// use harness to get default answer for fallback
 	defaultAnswer := harness.GetDefaultAnswer()
 	// check if query has been cancelled at the start of each round
-	if watchCancel(session, nil) {
+	if harness.WatchReActCancel(session, nil) {
 		cancelledMessage := harness.GetCancelledAnswer()
 		return cancelledMessage, diagnostics
 	}
 
 	// harness constructs user message from question (handles both normal and confirm types)
-	userMessage, handleDiag := harness.HandleUserQuestion(session, question)
+	// for ToolConfirm questions it also executes pending tool calls internally
+	handleDiag := harness.HandleUserQuestion(session, question, messages)
 	// check if harness returned a diagnostic indicating special case
-	switch handleDiag.Code {
-	case MessageCodeInvalidConfirmAnswer:
-		return defaultAnswer, diagnostics
-	case MessageCodeToolAlreadyConfirmed:
-		return AgentResponse{Response: "This tool operation has already been confirmed and executed, do you want to execute it again?"}, nil
-	}
-
-	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
-
-	Emit(session, CommonEvent[ReActMessage]{
-		SourceType: SessionHistory,
-		Data:       *userMessage,
-	})
-
-	// for ToolConfirm questions with UseMCPServerTools, execute the pending tool directly
-	// a batch of destructive calls is confirmed in one request now, so the harness
-	// returns one tool response message per answered call and they are appended in that order
-	if question.GetType() == QuestionTypeToolConfirm {
-		toolResultMessages := harness.HandleUserToolConfirm(session, question)
-		for _, toolResultMessage := range toolResultMessages {
-			*messages = append(*messages, toolResultMessage)
-			Emit(session, CommonEvent[ReActMessage]{
-				SourceType: SessionHistory,
-				Data:       toolResultMessage,
-			})
+	if handleDiag != nil {
+		switch handleDiag.Code {
+		case MessageCodeInvalidConfirmAnswer:
+			return defaultAnswer, diagnostics
+		case MessageCodeToolAlreadyConfirmed:
+			return AgentResponse{Response: "This tool operation has already been confirmed, do you want to execute it again?"}, nil
 		}
 	}
 
+	// apply sliding window
+	harness.SetCurrRoundMessages(messages, nil, int(session.GetConfigs().MemoryWindowSize), 1)
+
 	loadedTools := session.GetLoadTools()
 	if len(*loadedTools) == 0 {
-		harness.LoadTools("", session)
+		harness.LoadDefaultTools(session)
 	}
 
-	for i := 0; i < maxReActRounds; i++ {
+	// main loop of reAct
+	for round := 0; round < maxReActRounds; round++ {
 		response, errs := AskQuestion(session, *messages, *loadedTools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
@@ -498,11 +460,17 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		}
 
 		answer, ok := response.(AgentResponse)
-
 		if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil {
+			// force final answer if reached max rounds
+			if round == maxReActRounds-1 {
+				if answer, handled := harness.HandleForceTerminate(session, messages, loadedTools, question); handled {
+					return answer, diagnostics
+				}
+				return harness.GetDefaultAnswer(), diagnostics
+			}
 			// retry with retry query when response format is invalid
-			question.SetQuery(question.GetRetryQuery())
-			retryMessage := ReActMessage{Role: RoleUser, Content: question.GetRetryQuery()}
+			question.SetQuery(harness.GetRetryQuery())
+			retryMessage := ReActMessage{Role: RoleUser, Content: harness.GetRetryQuery()}
 			*messages = append(*messages, retryMessage)
 			// emit each message event before returning
 			Emit(session, CommonEvent[ReActMessage]{
@@ -511,89 +479,21 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 			})
 			continue
 		} else {
-			// send thoughts to hint chan only when thinking is enabled
-			if question.GetEnableThinking() {
-				if hintChan := question.GetHintChan(); hintChan != nil {
-					hintChan <- answer
-				}
-			}
-			// for simplicity, only use the first choice
-			// TODO: support multiple choices
 			operation := answer.Choices[0]
-			if operation.Message.ToolCalls != nil && len(*operation.Message.ToolCalls) > 0 {
-				// handle tool calls
-				// 1. append assistant message with tool_calls
-				toolMessage := ReActMessage{
-					Role:      RoleAssistant,
-					Content:   operation.Message.Content,
-					ToolCalls: operation.Message.ToolCalls,
+			// force final answer if reached max rounds
+			if operation.FinishReason != FinishReasonStop && round == maxReActRounds-1 {
+				if answer, handled := harness.HandleForceTerminate(session, messages, loadedTools, question); handled {
+					return answer, diagnostics
 				}
+				return harness.GetDefaultAnswer(), diagnostics
+			}
 
-				*messages = append(*messages, toolMessage)
-				Emit(session, CommonEvent[ReActMessage]{
-					SourceType: SessionHistory,
-					Data:       toolMessage,
-				})
-
-				// last round: force model to produce final answer, skip tool execution
-				if i == maxReActRounds-1 {
-					if answer, handled := harness.HandleForceFinalAnswer(session, messages, loadedTools, question); handled {
-						return answer, diagnostics
-					}
-					return defaultAnswer, diagnostics
-				}
-
-				// 2. execute the tool calls of this assistant message and append every response
-				// the prompt lets the model return several tool calls that are meant to
-				// run concurrently, so the batch is resolved serially, executed in parallel and
-				// appended in tool call order, which keeps a single writer for the conversation.
-				toolCalls := *operation.Message.ToolCalls
-
-				// check if session has been cancelled, once for the whole batch
-				if watchCancel(session, toolCalls) {
-					cancelledMessage := harness.GetCancelledAnswer()
-					return cancelledMessage, diagnostics
-				}
-
-				// resolve the batch on this goroutine, it reads the loaded tools and the session
-				// confirm state, and collects the destructive calls that wait for an answer
-				prepared, confirmCalls := prepareToolCalls(session, harness, toolCalls, loadedTools)
-
-				// 3. run the batch concurrently, then append the tool responses in tool call order
-				toolResultMessages := runToolCalls(session, harness, prepared, question)
-				for _, toolResultMessage := range toolResultMessages {
-					*messages = append(*messages, toolResultMessage)
-					Emit(session, CommonEvent[ReActMessage]{
-						SourceType: SessionHistory,
-						Data:       toolResultMessage,
-					})
-				}
-
-				// 4. ask the user about the whole destructive batch at once and terminate this
-				// round. The harness registers every pending call, keyed by its tool call ID.
-				if len(confirmCalls) > 0 {
-					// delegate to harness to generate the confirmation response for the batch
-					confirmResponse := harness.GenerateToolConfirmResponse(session, confirmCalls, answer.Usage)
-					if responseChan := question.GetResponseChan(); responseChan != nil {
-						responseChan <- confirmResponse
-					}
-					// return to terminate reAct loop
-					return confirmResponse, diagnostics
-				}
-			} else if operation.FinishReason == FinishReasonStop {
-				// append final assistant message to conversation so next question has full history
-				finalMessage := ReActMessage{
-					Role:    RoleAssistant,
-					Content: operation.Message.Content,
-				}
-
-				*messages = append(*messages, finalMessage)
-				Emit(session, CommonEvent[ReActMessage]{
-					SourceType: SessionHistory,
-					Data:       finalMessage,
-				})
-
-				return answer, nil
+			finalResponse, diag := processResponse(answer, session, question, harness)
+			if diag != nil {
+				diagnostics = append(diagnostics, diag...)
+				return defaultAnswer, diagnostics
+			} else if finalResponse != nil {
+				return finalResponse, nil
 			}
 		}
 	}
@@ -699,8 +599,6 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 
 	// generate prompt context and build initial messages
 	prompt := harness.GenerateFinalPrompt(contextMessages, int(config.PromptFileMaxSize))
-
-	// use pointer to conversation so modifications are reflected in session
 	messages := session.GetConversation()
 	if len(*messages) == 0 {
 		contextMessage := ReActMessage{Role: RoleSystem, Content: prompt}
@@ -714,52 +612,35 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 	// use harness to get default answer for fallback
 	defaultAnswer := harness.GetDefaultAnswer()
 	// check if query has been cancelled at the start of each round
-	if watchCancel(session, nil) {
+	if harness.WatchReActCancel(session, nil) {
 		cancelledMessage := harness.GetCancelledAnswer()
 		return cancelledMessage, diagnostics
 	}
 
 	// harness constructs user message from question (handles both normal and confirm types)
-	userMessage, handleDiag := harness.HandleUserQuestion(session, question)
+	// for ToolConfirm questions it also executes pending tool calls internally
+	handleDiag := harness.HandleUserQuestion(session, question, messages)
 	// check if harness returned a diagnostic indicating special case
-	switch handleDiag.Code {
-	case MessageCodeInvalidConfirmAnswer:
-		return defaultAnswer, diagnostics
-	case MessageCodeToolAlreadyConfirmed:
-		return AgentResponse{Response: "This tool operation has already been confirmed and executed, please send the new message if you want to execute it again."}, nil
-	}
-
-	LogStd(LogLevelDebug, "[session=%s] current message: role=%s, content_len=%d", session.GetID(), userMessage.Role, len(userMessage.Content))
-	harness.SetCurrRoundMessages(messages, *userMessage, int(config.MemoryWindowSize), 1)
-
-	Emit(session, CommonEvent[ReActMessage]{
-		SourceType: SessionHistory,
-		Data:       *userMessage,
-	})
-
-	// for ToolConfirm questions with UseMCPServerTools, execute the pending tool directly
-	// a batch of destructive calls is confirmed in one request now and every answer is
-	// handled per call, so the Yes/No check moved into the harness. A declined call still gets its
-	// tool response, otherwise its tool_call stays unmatched in the conversation.
-	if question.GetType() == QuestionTypeToolConfirm {
-		toolResultMessages := harness.HandleUserToolConfirm(session, question)
-		for _, toolResultMessage := range toolResultMessages {
-			*messages = append(*messages, toolResultMessage)
-			Emit(session, CommonEvent[ReActMessage]{
-				SourceType: SessionHistory,
-				Data:       toolResultMessage,
-			})
+	if handleDiag != nil {
+		switch handleDiag.Code {
+		case MessageCodeInvalidConfirmAnswer:
+			return defaultAnswer, diagnostics
+		case MessageCodeToolAlreadyConfirmed:
+			return AgentResponse{Response: "This tool operation has already been confirmed, do you want to execute it again?"}, nil
 		}
 	}
 
+	// apply sliding window
+	harness.SetCurrRoundMessages(messages, nil, int(session.GetConfigs().MemoryWindowSize), 1)
+
 	loadedTools := session.GetLoadTools()
 	if len(*loadedTools) == 0 {
-		harness.LoadTools("", session)
+		harness.LoadDefaultTools(session)
 	}
 
-	for i := 0; i < maxReActRounds; i++ {
+	// main loop of reAct process
+	for round := 0; round < maxReActRounds; round++ {
 		LogStd(LogLevelDebug, "[session=%s] init messages (stream): count=%d", session.GetID(), len(*messages))
-
 		acc, errs := AskQuestionStream(session, *messages, *loadedTools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
@@ -792,72 +673,19 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 			},
 		}
 
-		if acc.finishReason == FinishReasonFunction && len(acc.toolCalls) > 0 {
-			toolMessage := ReActMessage{
-				Role:      RoleAssistant,
-				Content:   acc.content,
-				ToolCalls: &acc.toolCalls,
+		if acc.finishReason != FinishReasonStop && round == maxReActRounds-1 {
+			if answer, handled := harness.HandleForceTerminate(session, messages, loadedTools, question); handled {
+				return answer, diagnostics
 			}
-			*messages = append(*messages, toolMessage)
-			Emit(session, CommonEvent[ReActMessage]{
-				SourceType: SessionHistory,
-				Data:       toolMessage,
-			})
+			return harness.GetDefaultAnswer(), diagnostics
+		}
 
-			// last round: force model to produce final answer, skip tool execution
-			if i == maxReActRounds-1 {
-				if answer, handled := harness.HandleForceFinalAnswer(session, messages, loadedTools, question); handled {
-					return answer, diagnostics
-				}
-				return defaultAnswer, diagnostics
-			}
-
-			// same batch handling as ProcessQuestion, the tool calls of one assistant
-			// message are resolved serially, executed concurrently and appended in tool call order.
-			toolCalls := acc.toolCalls
-
-			// check if session has been cancelled, once for the whole batch
-			if watchCancel(session, toolCalls) {
-				cancelledMessage := harness.GetCancelledAnswer()
-				return cancelledMessage, diagnostics
-			}
-
-			// resolve the batch on this goroutine, it reads the loaded tools and the session
-			// confirm state, and collects the destructive calls that wait for an answer
-			prepared, confirmCalls := prepareToolCalls(session, harness, toolCalls, loadedTools)
-
-			// run the batch concurrently, then append the tool responses in tool call order
-			toolResultMessages := runToolCalls(session, harness, prepared, question)
-			for _, toolResultMessage := range toolResultMessages {
-				*messages = append(*messages, toolResultMessage)
-				Emit(session, CommonEvent[ReActMessage]{
-					SourceType: SessionHistory,
-					Data:       toolResultMessage,
-				})
-			}
-
-			// ask the user about the whole destructive batch at once and terminate this round.
-			// The harness registers every pending call, keyed by its tool call ID.
-			if len(confirmCalls) > 0 {
-				// delegate to harness to generate the confirmation response for the batch
-				confirmResponse := harness.GenerateToolConfirmResponse(session, confirmCalls, acc.usage)
-				if responseChan := question.GetResponseChan(); responseChan != nil {
-					responseChan <- confirmResponse
-				}
-				// return to terminate reAct loop
-				return confirmResponse, diagnostics
-			}
-		} else if acc.finishReason == FinishReasonStop {
-			finalMessage := ReActMessage{
-				Role:    RoleAssistant,
-				Content: acc.content,
-			}
-			*messages = append(*messages, finalMessage)
-			Emit(session, CommonEvent[ReActMessage]{
-				SourceType: SessionHistory,
-				Data:       finalMessage,
-			})
-			return accumulatedResp, nil
+		finalAnswer, diag := processResponse(accumulatedResp, session, question, harness)
+		if diag != nil {
+			diagnostics = append(diagnostics, diag...)
+			return defaultAnswer, diagnostics
+		} else if finalAnswer != nil {
+			return finalAnswer, nil
 		}
 	}
 
