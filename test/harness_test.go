@@ -1,10 +1,7 @@
-// auto-add: test cases for the core.Harness tool confirm batch.
-// A batch of destructive tool calls is confirmed in one request now, so HandleUserQuestion records
-// every answer at once and HandleUserToolConfirm replays the approved calls concurrently while a
-// declined call only produces its tool response.
 package test
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -16,9 +13,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// batchConfirmQuestion is a tool_confirm question carrying a batch of answers.
-// auto-add: the app layer builds the same shape out of the HTTP request, the harness only needs
-// the core.ToolConfirmable half of it.
 type batchConfirmQuestion struct {
 	simple.SimpleQuestion
 	confirms []core.ToolConfirmAnswer
@@ -46,19 +40,15 @@ func (q *batchConfirmQuestion) ValidateConfirmAnswers() bool {
 	return true
 }
 
-// TestHandleUserToolConfirm_RunsApprovedBatchConcurrently covers the replay of a confirmed batch:
-// the calls answered Yes run concurrently, a call answered No only produces a declined tool
-// response and never runs, the messages come back in the order the user answered, and the pending
-// state of the whole batch is cleared afterwards.
-func TestHandleUserToolConfirm_RunsApprovedBatchConcurrently(t *testing.T) {
+func TestHandleUserToolConfirmMessage_RunsApprovedBatchConcurrently(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	session := newTestParentSession(t, ctrl)
+	session.SetQueryContext(context.Background(), nil)
 
 	const toolSleep = 200 * time.Millisecond
 
-	// running counts the runners currently inside a tool, maxRunning is the highest overlap seen
 	var running, maxRunning int32
 	approvedTool := testmock.NewMockTool(ctrl)
 	approvedTool.EXPECT().GetName().Return("approved_tool").AnyTimes()
@@ -77,22 +67,20 @@ func TestHandleUserToolConfirm_RunsApprovedBatchConcurrently(t *testing.T) {
 		return fmt.Sprintf("approved %v", args["name"]), nil
 	}).AnyTimes()
 
-	// the declined call must never run, so no Validate and no GetRunner expectation is registered
 	declinedTool := testmock.NewMockTool(ctrl)
 	declinedTool.EXPECT().GetName().Return("declined_tool").AnyTimes()
 
-	// the batch as the reAct loop stored it, keyed by the tool call ID
-	session.SetPendingMCPToolCall("call-approved-1", &core.PendingMCPToolCall{
+	session.SetPendingToolCall("call-approved-1", &core.ConfirmToolCall{
 		Args:       map[string]any{"name": "one"},
 		Tool:       approvedTool,
 		ToolCallID: "call-approved-1",
 	})
-	session.SetPendingMCPToolCall("call-declined", &core.PendingMCPToolCall{
+	session.SetPendingToolCall("call-declined", &core.ConfirmToolCall{
 		Args:       map[string]any{"name": "two"},
 		Tool:       declinedTool,
 		ToolCallID: "call-declined",
 	})
-	session.SetPendingMCPToolCall("call-approved-2", &core.PendingMCPToolCall{
+	session.SetPendingToolCall("call-approved-2", &core.ConfirmToolCall{
 		Args:       map[string]any{"name": "three"},
 		Tool:       approvedTool,
 		ToolCallID: "call-approved-2",
@@ -109,27 +97,26 @@ func TestHandleUserToolConfirm_RunsApprovedBatchConcurrently(t *testing.T) {
 		},
 	}
 
-	// the whole batch is recorded before any tool runs
-	userMessage, userDiag := simple.SimpleHarnessInstance.HandleUserQuestion(session, question)
-	if userMessage == nil {
-		t.Fatalf("expected the confirmation user message, got nil (diagnostic: %s)", userDiag.Message)
+	confirmMsg, preparedCalls, diag := simple.SimpleHarnessInstance.HandleUserToolConfirmMessage(session, question)
+	if diag != nil {
+		t.Fatalf("HandleUserToolConfirmMessage returned unexpected diagnostic: %s", diag.Message)
 	}
-	for _, toolCallID := range []string{"call-approved-1", "call-declined", "call-approved-2"} {
-		if !session.IsToolConfirmed(toolCallID) {
-			t.Errorf("expected the answer for %s to be recorded", toolCallID)
-		}
+	if confirmMsg.Role != core.RoleUser {
+		t.Errorf("expected confirm message role %v, got %v", core.RoleUser, confirmMsg.Role)
 	}
 
 	started := time.Now()
-	toolMessages := simple.SimpleHarnessInstance.HandleUserToolConfirm(session, question)
+	toolMessages, runDiag := simple.SimpleHarnessInstance.RunToolCalls(session, question, preparedCalls)
 	elapsed := time.Since(started)
+	if runDiag != nil {
+		t.Fatalf("RunToolCalls returned unexpected diagnostic: %s", runDiag.Message)
+	}
 
 	expected := []struct {
 		toolCallID string
 		content    string
 	}{
 		{"call-approved-1", "approved one"},
-		{"call-declined", "Tool call call-declined has been declined by user"},
 		{"call-approved-2", "approved three"},
 	}
 	if len(toolMessages) != len(expected) {
@@ -147,33 +134,26 @@ func TestHandleUserToolConfirm_RunsApprovedBatchConcurrently(t *testing.T) {
 		}
 	}
 
-	// the two approved calls have to be inside their tool at the same time
 	if got := atomic.LoadInt32(&maxRunning); got != 2 {
 		t.Errorf("expected the 2 approved calls to overlap, only %d ran at the same time", got)
 	}
-	// a serial replay would take 2 * toolSleep
 	if elapsed >= 2*toolSleep {
 		t.Errorf("expected the approved calls to run concurrently, it took %v", elapsed)
 	}
 
-	// the pending state and the recorded answers of the whole batch are gone
 	for _, toolCallID := range []string{"call-approved-1", "call-declined", "call-approved-2"} {
-		if pending := session.GetPendingMCPToolCall(toolCallID); pending != nil {
+		if pending := session.GetPendingToolCall(toolCallID); pending != nil {
 			t.Errorf("expected the pending call %s to be deleted", toolCallID)
-		}
-		if session.IsToolConfirmed(toolCallID) {
-			t.Errorf("expected the confirmed answer %s to be cleared", toolCallID)
 		}
 	}
 }
 
-// TestHandleUserToolConfirm_SkipsUnknownToolCallID covers an answer whose pending call is gone, it
-// is skipped instead of producing a tool response with an empty tool_call ID.
-func TestHandleUserToolConfirm_SkipsUnknownToolCallID(t *testing.T) {
+func TestHandleUserToolConfirmMessage_SkipsUnknownToolCallID(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	session := newTestParentSession(t, ctrl)
+	session.SetQueryContext(context.Background(), nil)
 
 	question := &batchConfirmQuestion{
 		SimpleQuestion: *simple.NewSimpleQuestion(
@@ -184,16 +164,23 @@ func TestHandleUserToolConfirm_SkipsUnknownToolCallID(t *testing.T) {
 		},
 	}
 
-	if toolMessages := simple.SimpleHarnessInstance.HandleUserToolConfirm(session, question); len(toolMessages) != 0 {
-		t.Errorf("expected no tool message for an unknown tool call ID, got %d", len(toolMessages))
+	_, preparedCalls, diag := simple.SimpleHarnessInstance.HandleUserToolConfirmMessage(session, question)
+	if diag == nil {
+		t.Fatal("expected a diagnostic for an unknown tool call ID, got nil")
+	}
+	if diag.Code != core.MessageCodeToolAlreadyConfirmed {
+		t.Errorf("expected the already confirmed code, got %v", diag.Code)
+	}
+	if len(preparedCalls) != 0 {
+		t.Errorf("expected no prepared tool calls, got %d", len(preparedCalls))
 	}
 
-	// with nothing pending the batch is reported as already confirmed, so the reAct loop is skipped
-	userMessage, userDiag := simple.SimpleHarnessInstance.HandleUserQuestion(session, question)
-	if userMessage != nil {
-		t.Error("expected no user message when every answer of the batch is unknown")
+	messages := core.Conversation{}
+	userDiag := simple.SimpleHarnessInstance.HandleUserQuestion(session, question, &messages)
+	if userDiag == nil {
+		t.Fatal("expected a diagnostic from HandleUserQuestion for an unknown answer, got nil")
 	}
 	if userDiag.Code != core.MessageCodeToolAlreadyConfirmed {
-		t.Errorf("expected the already confirmed code, got %v", userDiag.Code)
+		t.Errorf("expected the already confirmed code from HandleUserQuestion, got %v", userDiag.Code)
 	}
 }

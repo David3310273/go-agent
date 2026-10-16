@@ -81,7 +81,7 @@ type SimpleAgentSession struct {
 	// track confirmed destructive tools, value is user's answer (Yes/No)
 	confirmedTools map[string]string
 	// store pending MCP tool calls waiting for user confirmation, key: "serverName:toolName"
-	pendingMCPCalls map[string]*core.PendingMCPToolCall
+	pendingCalls map[string]*core.ConfirmToolCall
 }
 
 // NewAgentSession creates a new session from an AgentCore
@@ -103,8 +103,8 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		eventChans:       make(map[string]chan core.Event[any]),
 		// initialize confirmation tracking maps
-		confirmedTools:  make(map[string]string),
-		pendingMCPCalls: make(map[string]*core.PendingMCPToolCall),
+		confirmedTools: make(map[string]string),
+		pendingCalls:   make(map[string]*core.ConfirmToolCall),
 	}
 	session.subSessions.Store(&[]*SimpleAgentSession{})
 
@@ -154,11 +154,11 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 		Config: s.Config,
 		// Stop closes Question, close of a nil channel panics
 		Question: make(chan core.Question, 1),
-		// nil maps make RegisterEventChans and SetPendingMCPToolCall panic on assignment
+		// nil maps make RegisterEventChans and SetPendingToolCall panic on assignment
 		eventChans:       make(map[string]chan core.Event[any]),
 		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
 		confirmedTools:   make(map[string]string),
-		pendingMCPCalls:  make(map[string]*core.PendingMCPToolCall),
+		pendingCalls:     make(map[string]*core.ConfirmToolCall),
 		// copy of the parent context (not sharing the pointer)
 		Context: SimpleSessionContext{
 			SimpleAgentContext: &subSessionContext,
@@ -300,19 +300,19 @@ func (s *SimpleAgentSession) ClearToolConfirmed(toolCallID string) {
 	delete(s.confirmedTools, toolCallID)
 }
 
-// GetPendingMCPToolCall retrieves pending MCP tool call info
-func (s *SimpleAgentSession) GetPendingMCPToolCall(toolCallID string) *core.PendingMCPToolCall {
-	return s.pendingMCPCalls[toolCallID]
+// GetPendingToolCall retrieves pending MCP tool call info
+func (s *SimpleAgentSession) GetPendingToolCall(toolCallID string) *core.ConfirmToolCall {
+	return s.pendingCalls[toolCallID]
 }
 
-// SetPendingMCPToolCall saves pending MCP tool call info
-func (s *SimpleAgentSession) SetPendingMCPToolCall(toolCallID string, pending *core.PendingMCPToolCall) {
-	s.pendingMCPCalls[toolCallID] = pending
+// SetPendingToolCall saves pending MCP tool call info
+func (s *SimpleAgentSession) SetPendingToolCall(toolCallID string, pending *core.ConfirmToolCall) {
+	s.pendingCalls[toolCallID] = pending
 }
 
-// DeletePendingMCPToolCall deletes pending MCP tool call info after tool execution
-func (s *SimpleAgentSession) DeletePendingMCPToolCall(toolCallID string) {
-	delete(s.pendingMCPCalls, toolCallID)
+// DeletePendingToolCall deletes pending MCP tool call info after tool execution
+func (s *SimpleAgentSession) DeletePendingToolCall(toolCallID string) {
+	delete(s.pendingCalls, toolCallID)
 }
 
 func (s *SimpleSessionContext) GetModelProviders() []core.Provider {
@@ -546,27 +546,34 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 	// run the query synchronously
 	response, diagnostics := s.RunQuery(query)
 
-	// default answer if failed
-	defaultAnswer := SimpleHarnessInstance.GetDefaultAnswer()
-	finalAnswer := SimpleNormalResponse{
-		SessionID: s.GetID(),
-		Response:  defaultAnswer,
-	}
+	// determine what to send back; wrap non-confirm results in SimpleNormalResponse, but send
+	// confirm responses directly so the stream consumer can type-switch on them.
+	var finalResult core.Answer
 
 	if len(diagnostics) > 0 {
 		core.LogError(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] process question failed: diagnostics=%v", s.GetID(), diagnostics)
-	} else {
-		answer, ok := response.(core.AgentResponse)
-		if ok {
-			finalAnswer.Response = answer
+	}
+
+	switch resp := response.(type) {
+	case core.AgentResponse:
+		finalResult = SimpleNormalResponse{
+			SessionID: s.GetID(),
+			Response:  resp,
+		}
+	case SimpleToolConfirmResponse:
+		finalResult = resp
+	default:
+		finalResult = SimpleNormalResponse{
+			SessionID: s.GetID(),
+			Response:  SimpleHarnessInstance.GetDefaultAnswer(),
 		}
 	}
 
-	// always send finalAnswer to responseChan so streaming handler can extract sessionID and usage
+	// always send finalResult to responseChan so streaming handler can extract sessionID and usage
 	// use goroutine to avoid deadlock when channel is full
 	go func() {
 		select {
-		case query.GetResponseChan() <- finalAnswer:
+		case query.GetResponseChan() <- finalResult:
 			// finished process question
 			core.Emit(s, core.CommonEvent[SessionEventTimeData]{
 				SourceType: core.SessionFinishQuestion,

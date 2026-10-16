@@ -6,6 +6,7 @@ import (
 
 	// auto-add: the tool call batch tests assert the concurrency and the ordering of a batch
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -433,9 +434,9 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any()).Return(false).AnyTimes()
 	mockSession.EXPECT().SetToolConfirmed(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().ClearToolConfirmed(gomock.Any()).AnyTimes()
-	mockSession.EXPECT().GetPendingMCPToolCall(gomock.Any()).Return(nil).AnyTimes()
-	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
-	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
+	mockSession.EXPECT().GetPendingToolCall(gomock.Any()).Return(nil).AnyTimes()
+	mockSession.EXPECT().SetPendingToolCall(gomock.Any(), gomock.Any()).AnyTimes()
+	mockSession.EXPECT().DeletePendingToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
@@ -456,12 +457,16 @@ func TestProcessQuestion_InvalidResponse_Retry(t *testing.T) {
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
+	mockHarness.EXPECT().WatchReActCancel(gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadDefaultTools(gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
+	mockHarness.EXPECT().HandleForceTerminate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 	// auto-add: the reAct loop runs a tool call through the harness now, delegate back to CallTool
 	// so the mocked tool runner is still the one being exercised
-	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
+	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(session core.Session, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
 			return core.CallTool(targetTool, args, nil)
 		}).AnyTimes()
 
@@ -515,9 +520,9 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any()).Return(false).AnyTimes()
 	mockSession.EXPECT().SetToolConfirmed(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().ClearToolConfirmed(gomock.Any()).AnyTimes()
-	mockSession.EXPECT().GetPendingMCPToolCall(gomock.Any()).Return(nil).AnyTimes()
-	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
-	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
+	mockSession.EXPECT().GetPendingToolCall(gomock.Any()).Return(nil).AnyTimes()
+	mockSession.EXPECT().SetPendingToolCall(gomock.Any(), gomock.Any()).AnyTimes()
+	mockSession.EXPECT().DeletePendingToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetID().Return("test-session").AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
@@ -537,12 +542,16 @@ func TestProcessQuestion_StopReason(t *testing.T) {
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	mockHarness.EXPECT().GetConfirmDestructiveToolAnswer(gomock.Any()).Return("").AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockHarness.EXPECT().GetConfirmToolMessage(gomock.Any()).Return("").AnyTimes()
+	mockHarness.EXPECT().WatchReActCancel(gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadDefaultTools(gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
+	mockHarness.EXPECT().HandleForceTerminate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	// auto-add: the reAct loop runs a tool call through the harness now, delegate back to CallTool
 	// so the mocked tool runner is still the one being exercised
-	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
+	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(session core.Session, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
 			return core.CallTool(targetTool, args, nil)
 		}).AnyTimes()
 
@@ -623,9 +632,9 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any()).Return(false).AnyTimes()
 	mockSession.EXPECT().SetToolConfirmed(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().ClearToolConfirmed(gomock.Any()).AnyTimes()
-	mockSession.EXPECT().GetPendingMCPToolCall(gomock.Any()).Return(nil).AnyTimes()
-	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
-	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
+	mockSession.EXPECT().GetPendingToolCall(gomock.Any()).Return(nil).AnyTimes()
+	mockSession.EXPECT().SetPendingToolCall(gomock.Any(), gomock.Any()).AnyTimes()
+	mockSession.EXPECT().DeletePendingToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
@@ -643,11 +652,30 @@ func TestProcessQuestion_ToolCall_Success(t *testing.T) {
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
-			return core.CallTool(targetTool, args, nil)
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockHarness.EXPECT().WatchReActCancel(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	mockHarness.EXPECT().RunToolCalls(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(session core.Session, question core.Question, toolCalls []core.PreparedToolCall) ([]core.ReActMessage, *core.Diagnostic) {
+			messages := make([]core.ReActMessage, len(toolCalls))
+			for i, tc := range toolCalls {
+				var result string
+				if tc.Runnable {
+					result, _ = core.CallTool(tc.TargetTool, tc.Args, nil)
+				} else {
+					result = tc.Result
+				}
+				messages[i] = core.ReActMessage{
+					Role:       core.RoleTool,
+					ToolCallID: tc.ToolCall.ID,
+					Content:    result,
+				}
+			}
+			return messages, nil
 		}).AnyTimes()
+	mockHarness.EXPECT().WatchReActCancel(gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadDefaultTools(gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
+	mockHarness.EXPECT().HandleForceTerminate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool").AnyTimes()
@@ -729,9 +757,9 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any()).Return(false).AnyTimes()
 	mockSession.EXPECT().SetToolConfirmed(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().ClearToolConfirmed(gomock.Any()).AnyTimes()
-	mockSession.EXPECT().GetPendingMCPToolCall(gomock.Any()).Return(nil).AnyTimes()
-	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
-	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
+	mockSession.EXPECT().GetPendingToolCall(gomock.Any()).Return(nil).AnyTimes()
+	mockSession.EXPECT().SetPendingToolCall(gomock.Any(), gomock.Any()).AnyTimes()
+	mockSession.EXPECT().DeletePendingToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
@@ -751,11 +779,16 @@ func TestProcessQuestion_ToolCall_ToolNotFound(t *testing.T) {
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockHarness.EXPECT().WatchReActCancel(gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadDefaultTools(gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
+	mockHarness.EXPECT().HandleForceTerminate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().RunToolCalls(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	// auto-add: the reAct loop runs a tool call through the harness now, delegate back to CallTool
 	// so the mocked tool runner is still the one being exercised
-	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
+	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(session core.Session, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
 			return core.CallTool(targetTool, args, nil)
 		}).AnyTimes()
 
@@ -833,9 +866,9 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockSession.EXPECT().IsToolConfirmed(gomock.Any()).Return(false).AnyTimes()
 	mockSession.EXPECT().SetToolConfirmed(gomock.Any(), gomock.Any()).AnyTimes()
 	mockSession.EXPECT().ClearToolConfirmed(gomock.Any()).AnyTimes()
-	mockSession.EXPECT().GetPendingMCPToolCall(gomock.Any()).Return(nil).AnyTimes()
-	mockSession.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
-	mockSession.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
+	mockSession.EXPECT().GetPendingToolCall(gomock.Any()).Return(nil).AnyTimes()
+	mockSession.EXPECT().SetPendingToolCall(gomock.Any(), gomock.Any()).AnyTimes()
+	mockSession.EXPECT().DeletePendingToolCall(gomock.Any()).AnyTimes()
 	mockSession.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	mockContext.EXPECT().GetPrompt().Return([]byte("system prompt")).AnyTimes()
 	mockContext.EXPECT().GetSkills().Return([]core.SkillDefinition{}).AnyTimes()
@@ -855,14 +888,24 @@ func TestProcessQuestion_ToolCall_InvalidArguments(t *testing.T) {
 	mockHarness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	mockHarness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
-	mockHarness.EXPECT().GetConfirmDestructiveToolAnswer(gomock.Any()).Return("").AnyTimes()
+	mockHarness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	mockHarness.EXPECT().GetConfirmToolMessage(gomock.Any()).Return("").AnyTimes()
+	mockHarness.EXPECT().WatchReActCancel(gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadDefaultTools(gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
+	mockHarness.EXPECT().HandleForceTerminate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().RunToolCalls(gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	// auto-add: the reAct loop runs a tool call through the harness now, delegate back to CallTool
 	// so the mocked tool runner is still the one being exercised
-	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
+	mockHarness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(session core.Session, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
 			return core.CallTool(targetTool, args, nil)
 		}).AnyTimes()
+
+	mockHarness.EXPECT().WatchReActCancel(gomock.Any(), gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().LoadDefaultTools(gomock.Any()).AnyTimes()
+	mockHarness.EXPECT().GetRetryQuery().Return("retry query").AnyTimes()
+	mockHarness.EXPECT().HandleForceTerminate(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 
 	mockProvider.EXPECT().Complete(gomock.Any(), gomock.Any(), gomock.Any()).Return(firstResponse, nil)
 	mockTool.EXPECT().GetName().Return("test_tool")
@@ -917,9 +960,9 @@ func newToolCallBatchFixture(ctrl *gomock.Controller, loadedTools []core.Tool, r
 	fixture.session.EXPECT().IsToolConfirmed(gomock.Any()).Return(false).AnyTimes()
 	fixture.session.EXPECT().SetToolConfirmed(gomock.Any(), gomock.Any()).AnyTimes()
 	fixture.session.EXPECT().ClearToolConfirmed(gomock.Any()).AnyTimes()
-	fixture.session.EXPECT().GetPendingMCPToolCall(gomock.Any()).Return(nil).AnyTimes()
-	fixture.session.EXPECT().SetPendingMCPToolCall(gomock.Any(), gomock.Any()).AnyTimes()
-	fixture.session.EXPECT().DeletePendingMCPToolCall(gomock.Any()).AnyTimes()
+	fixture.session.EXPECT().GetPendingToolCall(gomock.Any()).Return(nil).AnyTimes()
+	fixture.session.EXPECT().SetPendingToolCall(gomock.Any(), gomock.Any()).AnyTimes()
+	fixture.session.EXPECT().DeletePendingToolCall(gomock.Any()).AnyTimes()
 	fixture.session.EXPECT().GetEventChans().Return(map[string]chan core.Event[any]{}).AnyTimes()
 	fixture.session.EXPECT().GetID().Return("test-session-id").AnyTimes()
 
@@ -947,12 +990,36 @@ func newToolCallBatchFixture(ctrl *gomock.Controller, loadedTools []core.Tool, r
 	fixture.harness.EXPECT().LoadTools(gomock.Any(), gomock.Any()).AnyTimes()
 	fixture.harness.EXPECT().SetCurrRoundMessages(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes()
 	fixture.harness.EXPECT().GetDefaultAnswer().Return(core.AgentResponse{Response: "default"}).AnyTimes()
-	fixture.harness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any()).
-		Return(&core.ReActMessage{Role: core.RoleUser, Content: "test query"}, core.Diagnostic{}).AnyTimes()
+	fixture.harness.EXPECT().HandleUserQuestion(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+	fixture.harness.EXPECT().WatchReActCancel(gomock.Any(), gomock.Any()).Return(false).AnyTimes()
+	fixture.harness.EXPECT().RunToolCalls(gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(session core.Session, question core.Question, toolCalls []core.PreparedToolCall) ([]core.ReActMessage, *core.Diagnostic) {
+			messages := make([]core.ReActMessage, len(toolCalls))
+			var wg sync.WaitGroup
+			for i, tc := range toolCalls {
+				wg.Add(1)
+				go func(i int, tc core.PreparedToolCall) {
+					defer wg.Done()
+					var result string
+					if tc.Runnable {
+						result, _ = core.CallTool(tc.TargetTool, tc.Args, nil)
+					} else {
+						result = tc.Result
+					}
+					messages[i] = core.ReActMessage{
+						Role:       core.RoleTool,
+						ToolCallID: tc.ToolCall.ID,
+						Content:    result,
+					}
+				}(i, tc)
+			}
+			wg.Wait()
+			return messages, nil
+		}).AnyTimes()
 	// the reAct loop runs a tool call through the harness, delegate back to CallTool so the mocked
 	// tool runner is still the one being exercised
-	fixture.harness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(session core.Session, toolCall core.ToolCall, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
+	fixture.harness.EXPECT().RunToolCall(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(session core.Session, targetTool core.Tool, args map[string]any, model string) (string, *core.Diagnostic) {
 			return core.CallTool(targetTool, args, nil)
 		}).AnyTimes()
 
@@ -1104,10 +1171,10 @@ func TestProcessQuestion_DestructiveBatch_ConfirmsWholeBatch(t *testing.T) {
 
 	fixture := newToolCallBatchFixture(ctrl, []core.Tool{mockDestructiveTool, mockTool}, toolCallBatchResponse(&toolCalls))
 
-	var confirmCalls []core.ToolConfirmCall
-	fixture.harness.EXPECT().GetConfirmDestructiveToolAnswer(gomock.Any()).Return("waiting for confirmation").AnyTimes()
+	var confirmCalls []core.ConfirmToolCall
+	fixture.harness.EXPECT().GetConfirmToolMessage(gomock.Any()).Return("waiting for confirmation").AnyTimes()
 	fixture.harness.EXPECT().GenerateToolConfirmResponse(gomock.Any(), gomock.Any(), gomock.Any()).
-		DoAndReturn(func(session core.Session, calls []core.ToolConfirmCall, usage core.Usage) core.Answer {
+		DoAndReturn(func(session core.Session, calls []core.ConfirmToolCall, usage core.Usage) core.Answer {
 			confirmCalls = calls
 			return core.AgentResponse{Response: "confirm the batch"}
 		}).Times(1)
