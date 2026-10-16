@@ -22,6 +22,7 @@ type AskQuestionCommand struct {
 	HintChan       chan core.Answer
 	SessionID      string
 	Timestamp      int64
+	toolCalls      map[string]any
 }
 
 const (
@@ -73,7 +74,15 @@ func (c *AskQuestionCommand) GetSessionID() string              { return c.Sessi
 func (c *AskQuestionCommand) GetResponseChan() chan core.Answer { return c.ResponseChan }
 func (c *AskQuestionCommand) GetHintChan() chan core.Answer     { return c.HintChan }
 func (c *AskQuestionCommand) GetSendTimestamp() int64           { return c.Timestamp }
-func (c *AskQuestionCommand) GetType() core.QuestionType        { return c.QuestionType }
+func (c *AskQuestionCommand) GetToolCalls() map[string]any      { return c.toolCalls }
+func (c *AskQuestionCommand) SetToolCalls(toolCall core.ToolCall) {
+	if c.toolCalls[toolCall.Function.Name] == nil {
+		c.toolCalls[toolCall.Function.Name] = make(map[string]bool)
+	}
+	toolCallMap := c.toolCalls[toolCall.Function.Name].(map[string]bool)
+	toolCallMap[toolCall.Function.Arguments] = true
+}
+func (c *AskQuestionCommand) GetType() core.QuestionType { return c.QuestionType }
 func (c *AskQuestionCommand) ToString() string {
 	parts := []string{AskCommandName, c.Query}
 	if c.EnableThinking {

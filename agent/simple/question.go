@@ -23,6 +23,7 @@ type SimpleQuestion struct {
 	enableThinking bool
 	timestamp      int64
 	questionType   core.QuestionType
+	toolCalls      map[string]any
 }
 
 var _ core.Question = (*SimpleQuestion)(nil)
@@ -54,6 +55,7 @@ func NewSimpleQuestion(
 		enableThinking: enableThinking,
 		questionType:   questionType,
 		timestamp:      timestamp,
+		toolCalls:      make(map[string]any),
 	}
 }
 
@@ -68,6 +70,19 @@ func (q *SimpleQuestion) GetSendTimestamp() int64           { return q.timestamp
 func (q *SimpleQuestion) GetSessionID() string              { return q.sessionID }
 func (q *SimpleQuestion) GetResponseChan() chan core.Answer { return q.responseChan }
 func (q *SimpleQuestion) GetHintChan() chan core.Answer     { return q.hintChan }
+
+func (q *SimpleQuestion) GetToolCalls() map[string]any {
+	return q.toolCalls
+}
+
+// SetToolCalls sets the tool calls
+func (q *SimpleQuestion) SetToolCalls(toolCall core.ToolCall) {
+	if q.toolCalls[toolCall.Function.Name] == nil {
+		q.toolCalls[toolCall.Function.Name] = make(map[string]bool)
+	}
+	toolCallMap := q.toolCalls[toolCall.Function.Name].(map[string]bool)
+	toolCallMap[toolCall.Function.Arguments] = true
+}
 
 // GetType returns the question type (normal for SimpleQuestion)
 func (q *SimpleQuestion) GetType() core.QuestionType { return q.questionType }

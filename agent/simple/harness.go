@@ -117,6 +117,55 @@ func (h SimpleHarness) LoadTools(skillName string, session core.Session) {
 	}
 }
 
+func (h SimpleHarness) CheckIfHasLoop(question core.Question, toolCall core.ToolCall) bool {
+	toolCallsMap := question.GetToolCalls()
+	functionCalls, ok := toolCallsMap[toolCall.Function.Name]
+	if !ok {
+		return false
+	}
+
+	functionCallsItem := functionCalls.(map[string]bool)
+
+	return functionCallsItem[toolCall.Function.Arguments]
+}
+
+func (h SimpleHarness) GetForceFinalAnswerMessage() string {
+	return "You have reached the maximum number of thinking rounds. Please provide your final answer now based on all the information gathered so far."
+}
+
+func (h SimpleHarness) HandleForceFinalAnswer(session core.Session, messages *core.Conversation, loadedTools *[]core.Tool, question core.Question) (core.AgentResponse, bool) {
+	forceMessage := core.ReActMessage{
+		Role:    core.RoleUser,
+		Content: h.GetForceFinalAnswerMessage(),
+	}
+	*messages = append(*messages, forceMessage)
+	core.Emit(session, core.CommonEvent[core.ReActMessage]{
+		SourceType: core.SessionHistory,
+		Data:       forceMessage,
+	})
+
+	response, errs := core.AskQuestion(session, *messages, *loadedTools, question)
+	if len(errs) > 0 {
+		return core.AgentResponse{}, false
+	}
+	answer, ok := response.(core.AgentResponse)
+	if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil {
+		return core.AgentResponse{}, false
+	}
+
+	finalMessage := core.ReActMessage{
+		Role:    core.RoleAssistant,
+		Content: answer.Choices[0].Message.Content,
+	}
+	*messages = append(*messages, finalMessage)
+	core.Emit(session, core.CommonEvent[core.ReActMessage]{
+		SourceType: core.SessionHistory,
+		Data:       finalMessage,
+	})
+
+	return answer, true
+}
+
 func (h SimpleHarness) SetNextRoundMessages(question *core.Question, messages *core.Conversation) {
 }
 
@@ -337,6 +386,10 @@ func (h SimpleHarness) HandleUserToolConfirm(session core.Session, question core
 	}
 
 	return confirmedMessages
+}
+
+func (h SimpleHarness) GetToolCallLoopMessage(toolCall core.ToolCall) string {
+	return fmt.Sprintf("Tool call loop detected at func %s with args %s. Please check the tool call history and replan the next step.", toolCall.Function.Name, toolCall.Function.Arguments)
 }
 
 // RunToolCall executes one tool call already resolved by the reAct loop and returns the text that
