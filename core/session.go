@@ -12,30 +12,18 @@ const (
 	SessionStatusKilled                // deleted from agent session manager
 )
 
-type Session interface {
-	WorkFlow
-	Observable
-	LockManager
-	ToolConfirmManager
-	EventManager
-
-	GetID() string
-	// inherit from agent
-	GetConfigs() SessionConfig
-	// get session context
-	GetContext() Context
-	// session support tree structure
-	NewSubSession(tool []Tool) Session
-	// runtime query related
-	GetQueryCtx() context.Context
-	// set query ctx for query cancellation
-	SetQueryContext(ctx context.Context, cancel context.CancelFunc) *Diagnostic
-	// cancel current query processing
-	CancelQuery()
-	// process query
-	ProcessQuery(query Question)
+type QueryManager interface {
 	// get question chan
 	GetQuestionChan() chan Question
+	// process query
+	ProcessQuery(query Question)
+	// runtime query context for cancellation
+	GetQueryCtx() context.Context
+	SetQueryContext(ctx context.Context, cancel context.CancelFunc) *Diagnostic
+	CancelQuery()
+}
+
+type ReActDataManager interface {
 	// runtime message related
 	// return pointer so ProcessQuestion can modify session conversation in place
 	GetConversation() *Conversation
@@ -50,6 +38,26 @@ type Session interface {
 	SetLoadTools(tool Tool)
 	// export chat history bytes for avoiding large bytes unmarshal/marshal
 	ExportChatHistory(size int) ([]byte, *Diagnostic)
+}
+
+type Session interface {
+	WorkFlow
+	Observable
+	LockManager
+	ToolConfirmManager
+	EventManager
+	QueryManager
+	ReActDataManager
+
+	// session identity
+	GetID() string
+	// session configuration inherited from agent
+	GetConfigs() SessionConfig
+	// session runtime context
+	GetContext() Context
+
+	// session support tree structure
+	NewSubSession(tool []Tool) Session
 }
 
 // ToolConfirmManager tracks the destructive tool calls waiting for a user answer.

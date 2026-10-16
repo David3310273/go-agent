@@ -30,7 +30,6 @@ type PromptBuilder interface {
 type MessageManager interface {
 	SetCurrRoundMessages(messages *Conversation, message ReActMessage, windowSize int, skip int)
 	SetNextRoundMessages(question *Question, messages *Conversation)
-	GetCurrRoundKnowledges(question Question) string
 	// HandleUserQuestion handles question types and returns the user message to append
 	// returns (*ReActMessage, Diagnostic) where Diagnostic indicates special cases like already confirmed
 	HandleUserQuestion(session Session, question Question) (*ReActMessage, Diagnostic)

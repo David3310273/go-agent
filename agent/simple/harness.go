@@ -117,10 +117,6 @@ func (h SimpleHarness) LoadTools(skillName string, session core.Session) {
 	}
 }
 
-func (h SimpleHarness) GetCurrRoundKnowledges(question core.Question) string {
-	return ""
-}
-
 func (h SimpleHarness) SetNextRoundMessages(question *core.Question, messages *core.Conversation) {
 }
 

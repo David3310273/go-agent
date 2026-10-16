@@ -8,6 +8,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/David3310273/go-agent/agent/simple/utils"
@@ -41,7 +42,7 @@ type SimpleSessionContext struct {
 type SimpleAgentSession struct {
 	ID            string
 	ParentSession *SimpleAgentSession
-	SubSessions   []*SimpleAgentSession
+	subSessions   atomic.Pointer[[]*SimpleAgentSession]
 	Status        core.SessionStatus
 
 	stopOnce  sync.Once
@@ -105,6 +106,7 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 		confirmedTools:  make(map[string]string),
 		pendingMCPCalls: make(map[string]*core.PendingMCPToolCall),
 	}
+	session.subSessions.Store(&[]*SimpleAgentSession{})
 
 	// use provided sessionID or generate new one
 	if sessionID != "" {
@@ -162,6 +164,7 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 			SimpleAgentContext: &subSessionContext,
 		},
 	}
+	session.subSessions.Store(&[]*SimpleAgentSession{})
 
 	// break the references still shared with the parent after the Context copy.
 	// LoadedToolsMap is a map, so the sub-session used to write into the parent dedup map and
@@ -194,15 +197,21 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 	go session.OnEvent()
 
 	// register into the parent so its Stop can shut the sub-session down.
-	// Uses the session channel lock, the same one SetQueryContext takes. Skipped when the
-	// parent is already stopping, since a sub-session registered after Stop is never shut down.
+	// Uses atomic append (copy-on-write) so concurrent Stop can safely snapshot.
+	// Skipped when the parent is already stopping.
 	if s.ctx.Err() != nil {
 		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] parent is stopping, sub-session=%s not registered", s.ID, session.ID)
-	} else if diag := s.Acquire(); diag != nil {
-		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] lock timeout, sub-session not registered: %s", session.ID, diag.Message)
 	} else {
-		s.SubSessions = append(s.SubSessions, session)
-		s.Release()
+		for {
+			// optimistic lock update
+			old := s.subSessions.Load()
+			newSlice := make([]*SimpleAgentSession, len(*old)+1)
+			copy(newSlice, *old)
+			newSlice[len(*old)] = session
+			if s.subSessions.CompareAndSwap(old, &newSlice) {
+				break
+			}
+		}
 	}
 
 	return session
@@ -741,20 +750,12 @@ func (s *SimpleAgentSession) BeforeStop() []core.Diagnostic {
 	return nil
 }
 
-// snapshotSubSessions copies SubSessions under the session channel lock.
-// NewSubSession appends from the query goroutine while Stop ranges from another one.
-// The copy is returned so the lock is not held across the nested StopSession calls.
+// snapshotSubSessions returns a copy of the sub-sessions slice via atomic load.
+// Copy-on-write append in NewSubSession guarantees the returned snapshot is consistent.
 func (s *SimpleAgentSession) snapshotSubSessions() []*SimpleAgentSession {
-	if diag := s.Acquire(); diag == nil {
-		defer s.Release()
-	} else {
-		// best effort: still stop the sub-sessions we know about instead of leaking them
-		core.LogWarn(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] lock timeout while snapshotting sub-sessions: %s", s.GetID(), diag.Message)
-	}
-
-	subSessions := make([]*SimpleAgentSession, len(s.SubSessions))
-	copy(subSessions, s.SubSessions)
-
+	old := s.subSessions.Load()
+	subSessions := make([]*SimpleAgentSession, len(*old))
+	copy(subSessions, *old)
 	return subSessions
 }
 
