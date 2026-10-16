@@ -44,6 +44,10 @@ type Question interface {
 	GetType() QuestionType
 	// get send timestamp
 	GetSendTimestamp() int64
+	// get called tools
+	GetToolCalls() map[string]any
+	// set called tools
+	SetToolCalls(ToolCall)
 }
 
 // ToolConfirmAnswer is one user answer for one pending destructive tool call.
@@ -329,10 +333,12 @@ func prepareToolCalls(
 // every worker writes only its own slot and the messages are built here, so the caller
 // appends them to the conversation on a single goroutine, the events stay ordered and each tool
 // response stays matched with its tool_call ID.
-func runToolCalls(session Session, harness Harness, prepared []preparedToolCall, model string) []ReActMessage {
+func runToolCalls(session Session, harness Harness, prepared []preparedToolCall, question Question) []ReActMessage {
 	toolResultMessages := make([]ReActMessage, len(prepared))
+	succeeded := make([]bool, len(prepared))
 	var wg sync.WaitGroup
 
+	model := question.GetModelName()
 	for idx := range prepared {
 		toolResultMessages[idx] = ReActMessage{
 			Role:       RoleTool,
@@ -358,16 +364,28 @@ func runToolCalls(session Session, harness Harness, prepared []preparedToolCall,
 			item := prepared[idx]
 			LogStd(LogLevelDebug, "[session=%s] running tool call currently: name=%s, args=%v", session.GetID(), item.toolCall.Function.Name, item.args)
 			// use result string from RunToolCall, check diagnostic level for error.
+			if harness.CheckIfHasLoop(question, item.toolCall) {
+				toolResultMessages[idx].Content = harness.GetToolCallLoopMessage(item.toolCall)
+				return
+			}
 			result, diag := harness.RunToolCall(session, item.toolCall, item.targetTool, item.args, model)
 			if diag != nil && diag.Level == SeverityError {
 				toolResultMessages[idx].Content = "Error: " + diag.Message
 				return
 			}
 			toolResultMessages[idx].Content = result
+			succeeded[idx] = true
 		}(idx)
 	}
 
 	wg.Wait()
+
+	for idx := range prepared {
+		if succeeded[idx] {
+			question.SetToolCalls(prepared[idx].toolCall)
+		}
+	}
+
 	return toolResultMessages
 }
 
@@ -517,6 +535,14 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 					Data:       toolMessage,
 				})
 
+				// last round: force model to produce final answer, skip tool execution
+				if i == maxReActRounds-1 {
+					if answer, handled := harness.HandleForceFinalAnswer(session, messages, loadedTools, question); handled {
+						return answer, diagnostics
+					}
+					return defaultAnswer, diagnostics
+				}
+
 				// 2. execute the tool calls of this assistant message and append every response
 				// the prompt lets the model return several tool calls that are meant to
 				// run concurrently, so the batch is resolved serially, executed in parallel and
@@ -534,7 +560,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 				prepared, confirmCalls := prepareToolCalls(session, harness, toolCalls, loadedTools)
 
 				// 3. run the batch concurrently, then append the tool responses in tool call order
-				toolResultMessages := runToolCalls(session, harness, prepared, question.GetModelName())
+				toolResultMessages := runToolCalls(session, harness, prepared, question)
 				for _, toolResultMessage := range toolResultMessages {
 					*messages = append(*messages, toolResultMessage)
 					Emit(session, CommonEvent[ReActMessage]{
@@ -778,6 +804,14 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 				Data:       toolMessage,
 			})
 
+			// last round: force model to produce final answer, skip tool execution
+			if i == maxReActRounds-1 {
+				if answer, handled := harness.HandleForceFinalAnswer(session, messages, loadedTools, question); handled {
+					return answer, diagnostics
+				}
+				return defaultAnswer, diagnostics
+			}
+
 			// same batch handling as ProcessQuestion, the tool calls of one assistant
 			// message are resolved serially, executed concurrently and appended in tool call order.
 			toolCalls := acc.toolCalls
@@ -793,7 +827,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 			prepared, confirmCalls := prepareToolCalls(session, harness, toolCalls, loadedTools)
 
 			// run the batch concurrently, then append the tool responses in tool call order
-			toolResultMessages := runToolCalls(session, harness, prepared, question.GetModelName())
+			toolResultMessages := runToolCalls(session, harness, prepared, question)
 			for _, toolResultMessage := range toolResultMessages {
 				*messages = append(*messages, toolResultMessage)
 				Emit(session, CommonEvent[ReActMessage]{

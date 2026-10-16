@@ -26,6 +26,17 @@ type PromptBuilder interface {
 	GenerateFinalPrompt(context Context, maxSize int) string
 }
 
+type ReActAnswerBase interface {
+	// GetDefaultAnswer returns the default answer when agent fails to produce a valid response
+	GetDefaultAnswer() AgentResponse
+	// GetCancelledAnswer returns the answer when question is cancelled by user
+	GetCancelledAnswer() AgentResponse
+	// GetUserToolConfirmMessage returns the confirmation message for user to confirm destructive tool call
+	GetUserToolConfirmMessage(toolName string) string
+	// Get tool call loop error message
+	GetToolCallLoopMessage(toolCall ToolCall) string
+}
+
 // MessageManager handles conversation window and message rotation.
 type MessageManager interface {
 	SetCurrRoundMessages(messages *Conversation, message ReActMessage, windowSize int, skip int)
@@ -33,9 +44,15 @@ type MessageManager interface {
 	// HandleUserQuestion handles question types and returns the user message to append
 	// returns (*ReActMessage, Diagnostic) where Diagnostic indicates special cases like already confirmed
 	HandleUserQuestion(session Session, question Question) (*ReActMessage, Diagnostic)
-	// GetDefaultAnswer returns the default answer when agent fails to produce a valid response
-	GetDefaultAnswer() AgentResponse
-	GetCancelledAnswer() AgentResponse
+}
+
+type ReActSupervisor interface {
+	// check if there is a tool call loop in the reAct process
+	CheckIfHasLoop(question Question, toolCall ToolCall) bool
+	// handle the case when max ReAct rounds are reached: injects a force message,
+	// calls the model one more time for a final answer, and appends it to conversation.
+	// returns (answer, handled) — if handled is false, caller should fall back to default.
+	HandleForceFinalAnswer(session Session, messages *Conversation, loadedTools *[]Tool, question Question) (AgentResponse, bool)
 }
 
 // ToolRunner handles tool loading and execution.
@@ -51,7 +68,6 @@ type ToolRunner interface {
 
 // ConfirmHandler handles user questions, confirmations and tool confirm responses.
 type ConfirmHandler interface {
-	GetUserToolConfirmMessage(toolName string) string
 	// GetDestructiveConfirmMessage returns the confirmation message for destructive tools
 	GetConfirmDestructiveToolAnswer(toolName string) string
 	// GenerateToolConfirmResponse generates the confirmation response for a batch of destructive
@@ -73,4 +89,6 @@ type Harness interface {
 	MessageManager
 	ToolRunner
 	ConfirmHandler
+	ReActSupervisor
+	ReActAnswerBase
 }

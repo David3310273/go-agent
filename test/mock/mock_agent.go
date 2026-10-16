@@ -180,6 +180,20 @@ func (mr *MockQuestionMockRecorder) GetStreaming() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStreaming", reflect.TypeOf((*MockQuestion)(nil).GetStreaming))
 }
 
+// GetToolCalls mocks base method.
+func (m *MockQuestion) GetToolCalls() map[string]any {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetToolCalls")
+	ret0, _ := ret[0].(map[string]any)
+	return ret0
+}
+
+// GetToolCalls indicates an expected call of GetToolCalls.
+func (mr *MockQuestionMockRecorder) GetToolCalls() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetToolCalls", reflect.TypeOf((*MockQuestion)(nil).GetToolCalls))
+}
+
 // GetType mocks base method.
 func (m *MockQuestion) GetType() core.QuestionType {
 	m.ctrl.T.Helper()
@@ -204,6 +218,18 @@ func (m *MockQuestion) SetQuery(arg0 string) {
 func (mr *MockQuestionMockRecorder) SetQuery(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetQuery", reflect.TypeOf((*MockQuestion)(nil).SetQuery), arg0)
+}
+
+// SetToolCalls mocks base method.
+func (m *MockQuestion) SetToolCalls(arg0 core.ToolCall) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetToolCalls", arg0)
+}
+
+// SetToolCalls indicates an expected call of SetToolCalls.
+func (mr *MockQuestionMockRecorder) SetToolCalls(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetToolCalls", reflect.TypeOf((*MockQuestion)(nil).SetToolCalls), arg0)
 }
 
 // ToString mocks base method.
