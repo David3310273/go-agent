@@ -1,0 +1,8 @@
+{{- if not (lookup "v1" "Namespace" "" .Values.global.namespace) }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.global.namespace }}
+  labels:
+    {{- include "go-agent.labels" . | nindent 4 }}
+{{- end }}

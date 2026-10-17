@@ -1,0 +1,228 @@
+# =============================================================================
+# Go-Agent Helm Chart - 默认配置
+# =============================================================================
+# 覆盖配置:
+#   helm install go-agent ./deploy/helm/go-agent -f custom-values.yaml
+#   helm upgrade go-agent ./deploy/helm/go-agent --set server.replicas=5
+# =============================================================================
+
+# 全局配置
+global:
+  namespace: go-agent
+  timezone: Asia/Shanghai
+
+# 命名覆盖
+nameOverride: ""
+fullnameOverride: ""
+
+# ===========================================================================
+# Go-Agent Server 配置
+# ===========================================================================
+server:
+  enabled: true
+  # 副本数 (或由 HPA 自动管理)
+  replicas: 3
+
+  image:
+    repository: ghcr.io/David3310273/go-agent-server
+    tag: latest
+    pullPolicy: IfNotPresent
+    # pullSecrets:
+    #   - name: ghcr-secret
+
+  # 资源限制
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "256Mi"
+    limits:
+      cpu: "2"
+      memory: "1Gi"
+
+  # 优雅终止
+  terminationGracePeriodSeconds: 60
+
+  # 服务配置
+  service:
+    type: ClusterIP
+    port: 8080
+    # SSE 长连接会话亲和
+    sessionAffinity: ClientIP
+    sessionAffinityTimeout: 10800
+
+  # Agent Worker 数量
+  workerCount: 4
+
+  # 应用配置 (对应 config.json)
+  config:
+    rootPath: "/app"
+    language: "zh-CN"
+    logPath: "logs/app-%s.log"
+    maxWaitingRequest: 10
+    maxWaitingSeconds: 60
+    requestQueueLength: 10
+    maxCloseWaitingSeconds: 60
+
+  # Agent 运行时配置 (agent/simple/config.json → 热更新)
+  # 修改后 helm upgrade 即可生效，无需重新构建镜像
+  agentConfig:
+    agent:
+      version: "1.0.1"
+      name: "go-agent"
+      questionBufferSize: 10
+      logPath: "app/agentLogs/agent-%s.log"
+      questionProvider:
+        - "qwen"
+      mcpServer:
+        - host: "http://localhost"
+          port: 8080
+          protocolVersion: "2026-07-28"
+          jsonrpcVersion: "2.0"
+          name: "mcp-server-1"
+          description: "Connect this server if you want to know current time."
+      skill:
+        - name: "searchkb"
+          description: "search knowledge base for the knowledge about technology or algorithms field"
+          tools:
+            - "SearchKnowledgeBase"
+      prompt:
+        paths:
+          - "prompt.md"
+        bufferSizeInKB: 10
+      knowledgeBase:
+        - domain: "technology"
+          description: "Knowledge about programming and algorithms"
+          storageOptions:
+            type: "[Your storage type]"
+            dbName: "[Your db name]"
+            collection: "[Your collection name]"
+            partitionName: ""
+      tool:
+        - name: "UseSkill"
+          schema: "useskill.schema.json"
+          description: "load skill in agent when you want to do something"
+    session:
+      logPath: "app/sessionLogs/session-%s.log"
+      reActMaxRounds: 10
+      maxRetryOnLock: 3
+      memoryWindowSize: 10000
+      memoryFilePathFormat: "app/sessionMemories/session-%s-memory.jsonl"
+      chatHistoryFilePathFormat: "app/chatHistories/session-%s-chat.jsonl"
+      promptFileMaxSize: 10
+
+  # 健康检查
+  healthCheck:
+    liveness:
+      path: /v1/session/list
+      initialDelaySeconds: 30
+      periodSeconds: 30
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readiness:
+      path: /v1/session/list
+      initialDelaySeconds: 10
+      periodSeconds: 10
+      timeoutSeconds: 3
+      failureThreshold: 3
+    startup:
+      path: /v1/session/list
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 30
+
+  # Prometheus 指标 (如果部署了 Prometheus)
+  prometheus:
+    enabled: false
+    port: 8080
+    path: /metrics
+
+# ===========================================================================
+# Ingress 配置
+# ===========================================================================
+ingress:
+  enabled: true
+  className: nginx
+  host: go-agent.example.com
+
+  # 速率限制 (由 Ingress Controller 实现)
+  rateLimit:
+    enabled: false
+    rps: "30"
+    burst: "20"
+
+  # 代理配置
+  proxy:
+    bodySize: 50m
+
+  tls:
+    enabled: false
+    secretName: go-agent-tls
+    certManager:
+      enabled: false
+      issuer: letsencrypt-prod
+
+# ===========================================================================
+# HPA (水平自动伸缩) 配置
+# ===========================================================================
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+
+  metrics:
+    cpu:
+      enabled: true
+      averageUtilization: 70
+    memory:
+      enabled: true
+      averageUtilization: 80
+    # 每 Pod 活跃会话数 (需要 Prometheus + Prometheus Adapter)
+    # Prometheus Adapter rule example:
+    #   - seriesQuery: 'go_agent_active_sessions'
+    #     resources:
+    #       overrides:
+    #         namespace: {resource: "namespace"}
+    #         pod: {resource: "pod"}
+    #     metricsQuery: 'sum(<<.Series>>) by (<<.GroupBy>>)'
+    sessions:
+      enabled: false
+      averageValue: 50
+
+  # 扩容策略
+  scaleUp:
+    stabilizationWindowSeconds: 30
+    policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 4
+        periodSeconds: 30
+    selectPolicy: Max
+
+  # 缩容策略
+  scaleDown:
+    stabilizationWindowSeconds: 300
+    policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    selectPolicy: Min
+
+# ===========================================================================
+# 持久化存储
+# ===========================================================================
+persistence:
+  logs:
+    enabled: true
+    size: 10Gi
+    accessModes:
+      - ReadWriteMany
+    # storageClassName: nfs-client
+  data:
+    enabled: true
+    size: 5Gi
+    accessModes:
+      - ReadWriteMany
+    # storageClassName: nfs-client

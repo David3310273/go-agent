@@ -75,6 +75,7 @@ type AgentConfig struct {
 	// question buffer size
 	QuestionBufferSize int      `json:"questionBufferSize"`
 	QuestionProvider   []string `json:"questionProvider"`
+	WorkerCount        int      `json:"workerCount"`
 }
 
 type PromptConfig struct {

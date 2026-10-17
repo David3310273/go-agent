@@ -1,0 +1,45 @@
+# =============================================================================
+# Go-Agent CLI - Multi-Stage Docker Build
+# =============================================================================
+# 构建: docker build -f Dockerfile.cli -t go-agent-cli .
+# 运行: docker run -it --rm -v $(pwd)/config.json:/app/config.json go-agent-cli
+# =============================================================================
+
+# ---- Stage 1: Build Go Binary ----
+FROM golang:1.25-alpine AS go-builder
+
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+# 编译 CLI (静态链接, 精简体积)
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -ldflags="-s -w" -o /go-agent-cli ./cmd
+
+# ---- Stage 2: Runtime ----
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+
+RUN addgroup -g 1000 goagent && \
+    adduser -D -u 1000 -G goagent goagent
+
+WORKDIR /app
+
+COPY --from=go-builder /go-agent-cli .
+COPY agent/simple/prompt.md ./agent/simple/prompt.md
+COPY agent/simple/config.template.json ./agent/simple/config.template.json
+COPY agent/simple/tools/ ./agent/simple/tools/
+
+RUN mkdir -p /app/logs /app/data && \
+    chown -R goagent:goagent /app
+
+USER goagent
+
+ENTRYPOINT ["./go-agent-cli"]
