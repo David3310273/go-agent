@@ -3,6 +3,7 @@
         "version": "1.0.1",
         "name": "go-agent",
         "questionBufferSize": 10,
+        "workerCount": 4,
         "logPath": "app/agentLogs/agent-%s.log",
         "questionProvider": [
             "qwen"

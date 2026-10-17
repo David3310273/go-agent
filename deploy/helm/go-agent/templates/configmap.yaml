@@ -1,0 +1,26 @@
+{{- if .Values.server.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "go-agent.fullname" . }}-app-config
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "go-agent.server.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {
+      "rootPath": {{ .Values.server.config.rootPath | quote }},
+      "timeZone": {{ .Values.global.timezone | quote }},
+      "language": {{ .Values.server.config.language | quote }},
+      "logPath": {{ .Values.server.config.logPath | quote }},
+      "maxWaitingRequest": {{ .Values.server.config.maxWaitingRequest }},
+      "maxWaitingSeconds": {{ .Values.server.config.maxWaitingSeconds }},
+      "requestQueueLength": {{ .Values.server.config.requestQueueLength }},
+      "service": {
+        "port": {{ .Values.server.service.port }},
+        "maxCloseWaitingSeconds": {{ .Values.server.config.maxCloseWaitingSeconds }}
+      }
+    }
+  agent-config.json: |
+    {{ .Values.server.agentConfig | toPrettyJson | indent 4 | trim }}
+{{- end }}

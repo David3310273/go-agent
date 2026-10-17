@@ -1,0 +1,39 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+bin/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+agent/simple/agentLogs/
+agent/simple/sessionLogs/
+agent/simple/chatHistories/
+agent/simple/sessionMemories/
+
+# Node modules (前端 node_modules 在 Docker 构建中重新安装)
+app/frontend/web/node_modules/
+
+# Tests
+test/
+*.test
+
+# Documentation
+*.md
+docs/
+
+# Others
+.qwen/
+deploy/

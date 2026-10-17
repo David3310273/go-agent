@@ -1,0 +1,53 @@
+{{- if and .Values.server.enabled .Values.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "go-agent.fullname" . }}-server-hpa
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "go-agent.server.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "go-agent.fullname" . }}-server
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    {{- if .Values.hpa.metrics.cpu.enabled }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.metrics.cpu.averageUtilization }}
+    {{- end }}
+    {{- if .Values.hpa.metrics.memory.enabled }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.metrics.memory.averageUtilization }}
+    {{- end }}
+    {{- if .Values.hpa.metrics.sessions.enabled }}
+    - type: Pods
+      pods:
+        metric:
+          name: go_agent_active_sessions
+        target:
+          type: AverageValue
+          averageValue: {{ .Values.hpa.metrics.sessions.averageValue | quote }}
+    {{- end }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: {{ .Values.hpa.scaleUp.stabilizationWindowSeconds }}
+      policies:
+        {{- toYaml .Values.hpa.scaleUp.policies | nindent 8 }}
+      selectPolicy: {{ .Values.hpa.scaleUp.selectPolicy }}
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.hpa.scaleDown.stabilizationWindowSeconds }}
+      policies:
+        {{- toYaml .Values.hpa.scaleDown.policies | nindent 8 }}
+      selectPolicy: {{ .Values.hpa.scaleDown.selectPolicy }}
+{{- end }}

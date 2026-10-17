@@ -246,7 +246,7 @@ func (a *SimpleAgent) Start() []core.Diagnostic {
 	// get input from question, listen session output outside
 	relativePath := fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))
 	core.LogInfo(utils.ResolvePath(a.RootPath, relativePath), "agent started: id=%s", a.GetID())
-	core.LogStd(core.LogLevelDebug, "agent Start() method entered, waiting for questions on channel, agentID=%s", a.GetID())
+
 	// emit start event for benchmark
 	core.Emit(a, core.CommonEvent[AgentEventTimeData]{
 		SourceType: core.AgentEventStart,
@@ -256,30 +256,56 @@ func (a *SimpleAgent) Start() []core.Diagnostic {
 		},
 	})
 
-	for {
-		select {
-		case query := <-a.Question:
-			core.LogStd(core.LogLevelDebug, "agent received question: sessionID=%s, query=%s", query.GetSessionID(), query.GetQuery())
-			sessionID := query.GetSessionID()
-			// organize session
-			session, err := a.GetSessionOnCreate(sessionID, true)
-			if err != nil {
-				// send error to question's response channel when session creation fails
-				core.LogStd(core.LogLevelError, "failed to create session: %s", err.Message)
-				query.GetResponseChan() <- err
-			} else {
-				core.LogStd(core.LogLevelDebug, "session created/found, forwarding question to session: sessionID=%s", session.GetID())
-				session.GetQuestionChan() <- query
-			}
+	// determine worker count: config value or default to 1
+	workerCount := a.Configs.Agent.WorkerCount
+	if workerCount <= 0 {
+		workerCount = 1
+	}
+	core.LogStd(core.LogLevelInfo, "agent starting with %d dispatcher workers, agentID=%s", workerCount, a.GetID())
 
-		case <-a.ctx.Done():
-			return []core.Diagnostic{
-				{
-					Level: core.SeverityWarn,
-					Code:  core.MessageSystemClosed,
-				},
+	// launch worker goroutines to consume from the shared Question channel
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			core.LogStd(core.LogLevelDebug, "agent dispatcher worker %d started, agentID=%s", workerID, a.GetID())
+
+			for {
+				select {
+				case query, ok := <-a.Question:
+					if !ok {
+						core.LogStd(core.LogLevelDebug, "agent Question channel closed, worker %d exiting, agentID=%s", workerID, a.GetID())
+						return
+					}
+					core.LogStd(core.LogLevelDebug, "agent worker %d received question: sessionID=%s, query=%s", workerID, query.GetSessionID(), query.GetQuery())
+					sessionID := query.GetSessionID()
+					session, err := a.GetSessionOnCreate(sessionID, true)
+					if err != nil {
+						core.LogStd(core.LogLevelError, "failed to create session: %s", err.Message)
+						query.GetResponseChan() <- err
+					} else {
+						core.LogStd(core.LogLevelDebug, "worker %d forwarding question to session: sessionID=%s", workerID, session.GetID())
+						session.GetQuestionChan() <- query
+					}
+
+				case <-a.ctx.Done():
+					core.LogStd(core.LogLevelDebug, "agent context done, worker %d exiting, agentID=%s", workerID, a.GetID())
+					return
+				}
 			}
-		}
+		}(i)
+	}
+
+	// wait for all workers to finish before returning
+	wg.Wait()
+	core.LogStd(core.LogLevelDebug, "all dispatcher workers exited, agentID=%s", a.GetID())
+
+	return []core.Diagnostic{
+		{
+			Level: core.SeverityWarn,
+			Code:  core.MessageSystemClosed,
+		},
 	}
 }
 

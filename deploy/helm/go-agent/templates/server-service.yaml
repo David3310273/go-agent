@@ -1,0 +1,25 @@
+{{- if .Values.server.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "go-agent.fullname" . }}-server
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "go-agent.server.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.server.service.type }}
+  selector:
+    {{- include "go-agent.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+  ports:
+    - name: http
+      port: {{ .Values.server.service.port }}
+      targetPort: {{ .Values.server.service.port }}
+      protocol: TCP
+  {{- if eq .Values.server.service.sessionAffinity "ClientIP" }}
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: {{ .Values.server.service.sessionAffinityTimeout }}
+  {{- end }}
+{{- end }}

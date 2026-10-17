@@ -16,8 +16,21 @@ import (
 func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 	router := gin.Default()
 
-	// serve static frontend files (React build output)
-	router.Static("/static", "./app/frontend/web/dist")
+	// serve static frontend assets (React/Vite build output)
+	// hashed filenames are immutable → cache aggressively
+	assets := router.Group("/assets")
+	assets.Use(func(c *gin.Context) {
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.Next()
+	})
+	assets.Static("", "./app/frontend/web/dist/assets")
+	router.StaticFile("/favicon.svg", "./app/frontend/web/dist/favicon.svg")
+
+	// SPA fallback: all non-API routes return index.html (no cache, must stay fresh)
+	router.NoRoute(func(c *gin.Context) {
+		c.Header("Cache-Control", "no-cache")
+		c.File("./app/frontend/web/dist/index.html")
+	})
 
 	// allow CORS
 	router.Use(func(c *gin.Context) {

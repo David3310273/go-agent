@@ -1,0 +1,13 @@
+apiVersion: v2
+name: go-agent
+description: Go-Agent - AI Agent full stack solution (CLI + Web Server + Web app + Agent Framework)
+type: application
+version: 1.0.0
+appVersion: "1.0.1"
+keywords:
+  - ai-agent
+  - llm
+  - microservice
+maintainers:
+  - name: go-agent-team
+home: https://github.com/David3310273/go-agent

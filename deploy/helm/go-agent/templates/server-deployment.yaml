@@ -1,0 +1,103 @@
+{{- if .Values.server.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "go-agent.fullname" . }}-server
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "go-agent.server.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.server.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "go-agent.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        {{- include "go-agent.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: server
+      {{- if .Values.server.prometheus.enabled }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.server.prometheus.port | quote }}
+        prometheus.io/path: {{ .Values.server.prometheus.path | quote }}
+      {{- end }}
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.server.terminationGracePeriodSeconds }}
+      containers:
+        - name: go-agent-server
+          image: "{{ .Values.server.image.repository }}:{{ .Values.server.image.tag }}"
+          imagePullPolicy: {{ .Values.server.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.service.port }}
+              protocol: TCP
+          env:
+            - name: TZ
+              value: {{ .Values.global.timezone | quote }}
+            - name: GO_AGENT_WORKER_COUNT
+              value: {{ .Values.server.workerCount | quote }}
+          volumeMounts:
+            - name: app-config
+              mountPath: /app/config.json
+              subPath: config.json
+              readOnly: true
+            - name: app-config
+              mountPath: /agent/simple/config.json
+              subPath: agent-config.json
+              readOnly: true
+            {{- if .Values.persistence.logs.enabled }}
+            - name: agent-logs
+              mountPath: /agent/simple/sessionLogs
+            {{- end }}
+            {{- if .Values.persistence.data.enabled }}
+            - name: agent-data
+              mountPath: /agent/simple/sessionMemories
+            {{- end }}
+          resources:
+            {{- toYaml .Values.server.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.server.healthCheck.liveness.path }}
+              port: {{ .Values.server.service.port }}
+            initialDelaySeconds: {{ .Values.server.healthCheck.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.server.healthCheck.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.server.healthCheck.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.server.healthCheck.liveness.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.server.healthCheck.readiness.path }}
+              port: {{ .Values.server.service.port }}
+            initialDelaySeconds: {{ .Values.server.healthCheck.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.server.healthCheck.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.server.healthCheck.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.server.healthCheck.readiness.failureThreshold }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.server.healthCheck.startup.path }}
+              port: {{ .Values.server.service.port }}
+            initialDelaySeconds: {{ .Values.server.healthCheck.startup.initialDelaySeconds }}
+            periodSeconds: {{ .Values.server.healthCheck.startup.periodSeconds }}
+            timeoutSeconds: {{ .Values.server.healthCheck.startup.timeoutSeconds }}
+            failureThreshold: {{ .Values.server.healthCheck.startup.failureThreshold }}
+      volumes:
+        - name: app-config
+          configMap:
+            name: {{ include "go-agent.fullname" . }}-app-config
+        {{- if .Values.persistence.logs.enabled }}
+        - name: agent-logs
+          persistentVolumeClaim:
+            claimName: {{ include "go-agent.fullname" . }}-logs-pvc
+        {{- end }}
+        {{- if .Values.persistence.data.enabled }}
+        - name: agent-data
+          persistentVolumeClaim:
+            claimName: {{ include "go-agent.fullname" . }}-data-pvc
+        {{- end }}
+{{- end }}
