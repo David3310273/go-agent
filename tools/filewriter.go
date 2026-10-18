@@ -17,13 +17,12 @@ const (
 
 func init() {
 	// register FileWriterCall tool factory
-	core.RegisterTool("WriteToFile", func(rootPath string, session core.Session) core.Tool {
+	core.RegisterTool("WriteToFile", func(ctx core.Context) core.Tool {
 		return FileWriterCall{
 			Name:        "filewriter",
 			Schema:      "filewriter.schema.json",
-			RootPath:    rootPath,
-			Session:     session,
-			IsDangerous: false,
+			Context:     ctx,
+			IsDangerous: true,
 		}
 	})
 }
@@ -32,10 +31,8 @@ func init() {
 type FileWriterCall struct {
 	Name   string `json:"name"`
 	Schema string `json:"schema"`
-	//  project root path for resolving schema file path
-	RootPath string
-	// session for accessing runtime resources.
-	Session core.Session
+	// context for accessing runtime resources.
+	Context core.Context
 	// is destructive tool
 	IsDangerous bool `json:"isDestructive"` // default is false
 }
@@ -53,7 +50,7 @@ func (f FileWriterCall) IsDestructive() bool {
 func (f FileWriterCall) GetSchema() core.ToolSchema {
 	var schema core.ToolSchema
 
-	content, err := os.ReadFile(path.Join(f.RootPath, SchemaPath, f.Schema))
+	content, err := os.ReadFile(path.Join(f.Context.GetRootPath(), SchemaPath, f.Schema))
 	if err != nil {
 		core.LogStd(core.LogLevelWarn, "filewriter: failed to read schema: %v", err)
 		return schema
@@ -74,7 +71,7 @@ func (f FileWriterCall) GetDescription() string {
 // GetContext returns the agent session runtime context.
 // implements core.Tool interface.
 func (f FileWriterCall) GetContext() core.Context {
-	return f.Session.GetContext()
+	return f.Context
 }
 
 func (f FileWriterCall) ToShellScript(args map[string]any) string {

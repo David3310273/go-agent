@@ -78,15 +78,11 @@ type ReActSupervisor interface {
 	CheckIfHasLoop(question Question, toolCall ToolCall) bool
 	WatchReActCancel(session Session, toolCalls []PreparedToolCall) bool
 	// handle the case when max ReAct rounds are reached: injects a force message,
-	HandleForceTerminate(session Session, messages *Conversation, loadedTools *[]Tool, question Question) (AgentResponse, bool)
+	HandleForceTerminate(session Session, messages *Conversation, RuntimeTools *[]Tool, question Question) (AgentResponse, bool)
 }
 
 // ToolRunner handles tool loading and execution.
 type ToolRunner interface {
-	// LoadTools loads tools based on skill name and registers them into session's loaded tools.
-	LoadTools(skillName string, session Session)
-	// LoadDefaultTools loads default tools from system and registers them into session's loaded tools.
-	LoadDefaultTools(session Session)
 	// RunToolCall executes one tool call already resolved by the reAct loop and returns
 	RunToolCall(session Session, targetTool Tool, args map[string]any, model string) (string, *Diagnostic)
 	// RunToolCalls executes a batch of tool calls already prepared by the reAct loop and returns

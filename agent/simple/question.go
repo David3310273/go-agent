@@ -77,10 +77,10 @@ func (q *SimpleQuestion) GetToolCalls() map[string]any {
 // SetToolCalls sets the tool calls
 func (q *SimpleQuestion) SetToolCalls(toolCall core.ToolCall) {
 	if q.toolCalls[toolCall.Function.Name] == nil {
-		q.toolCalls[toolCall.Function.Name] = make(map[string]bool)
+		q.toolCalls[toolCall.Function.Name] = make(map[string]int)
 	}
-	toolCallMap := q.toolCalls[toolCall.Function.Name].(map[string]bool)
-	toolCallMap[toolCall.Function.Arguments] = true
+	toolCallMap := q.toolCalls[toolCall.Function.Name].(map[string]int)
+	toolCallMap[toolCall.Function.Arguments]++
 }
 
 // GetType returns the question type (normal for SimpleQuestion)

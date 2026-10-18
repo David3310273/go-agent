@@ -1,6 +1,9 @@
 package core
 
+// context only includes runtime hot data, for static configs, use AgentCoreConfig.
 type Context interface {
+	// get project root path
+	GetRootPath() string
 	// load resources from history
 	SetHistory(HistoryConfig) *Diagnostic
 	GetHistory() []byte
@@ -10,25 +13,22 @@ type Context interface {
 	// load knowledge base
 	SetKnowledgeBase([]KnowledgeBaseConfig) *Diagnostic
 	// returns knowledge bases
-	GetKnowledgeBase() []KnowledgeBase[any]
-	// skill definitions for dynamic tool loading
-	SetSkills([]SkillDefinition)
-	GetSkill(name string) *SkillDefinition
-	GetSkills() []SkillDefinition
-
+	GetKnowledgeBase() *[]KnowledgeBase[any]
 	// get model providers
 	GetModelProviders() []Provider
 	// set initialized model providers
 	SetProviders([]Provider) *Diagnostic
-
-	// load tool config into agent context
-	SetToolsConfig([]ToolConfig) *Diagnostic
-	// get available tools
-	GetToolsConfig() []ToolConfig
-	// get mcp config
-	GetMCPServerConfigs() []MCPConfig
 	// get mcp server tools
 	SetMCPClient([]MCPConfig)
 	// get mcp client
-	GetMCPClients() map[string]MCPAccessible
+	GetMCPClients() *map[string]MCPAccessible
+	// only can get skills
+	GetSkills() *[]Skill
+	AddSkill(skill SkillDefinition) *Diagnostic
+	// get tools
+	GetTools() *[]Tool
+	AddTool(tool Tool) *Diagnostic
+
+	// load tools
+	LoadTools([]ToolConfig) *Diagnostic
 }

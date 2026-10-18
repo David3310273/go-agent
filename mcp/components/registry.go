@@ -10,13 +10,42 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// SimpleMCPContext implements core.Context with only RootPath populated.
+// used when creating tools outside of a full agent session (e.g., MCP server registration).
+type SimpleMCPContext struct {
+	RootPath string
+}
+
+func (c *SimpleMCPContext) GetRootPath() string                              { return c.RootPath }
+func (c *SimpleMCPContext) SetHistory(_ core.HistoryConfig) *core.Diagnostic { return nil }
+func (c *SimpleMCPContext) GetHistory() []byte                               { return nil }
+func (c *SimpleMCPContext) SetPrompt(_ core.PromptConfig) *core.Diagnostic   { return nil }
+func (c *SimpleMCPContext) GetPrompt() []byte                                { return nil }
+func (c *SimpleMCPContext) SetKnowledgeBase(_ []core.KnowledgeBaseConfig) *core.Diagnostic {
+	return nil
+}
+func (c *SimpleMCPContext) GetKnowledgeBase() *[]core.KnowledgeBase[any] {
+	return &[]core.KnowledgeBase[any]{}
+}
+func (c *SimpleMCPContext) GetModelProviders() []core.Provider               { return nil }
+func (c *SimpleMCPContext) SetProviders(_ []core.Provider) *core.Diagnostic  { return nil }
+func (c *SimpleMCPContext) SetMCPClient(_ []core.MCPConfig)                  {}
+func (c *SimpleMCPContext) GetMCPClients() *map[string]core.MCPAccessible    { return nil }
+func (c *SimpleMCPContext) GetSkills() *[]core.Skill                         { return &[]core.Skill{} }
+func (c *SimpleMCPContext) AddSkill(_ core.SkillDefinition) *core.Diagnostic { return nil }
+func (c *SimpleMCPContext) GetTools() *[]core.Tool                           { return &[]core.Tool{} }
+func (c *SimpleMCPContext) AddTool(_ core.Tool) *core.Diagnostic             { return nil }
+func (c *SimpleMCPContext) LoadTools(_ []core.ToolConfig) *core.Diagnostic   { return nil }
+
+var _ core.Context = (*SimpleMCPContext)(nil)
+
 // RegisterToolsToServer registers all tools from config.json to MCP server.
 // loads tool names from config, creates tool instances, and registers them to MCP server.
 // context is managed by each tool internally via GetContext().
 func RegisterToolsToServer(server *mcp.Server, config *MCPConfig) {
 	for _, toolName := range config.Tools {
 		// session is nil for MCP, root path is passed explicitly
-		tool := core.GetTool(toolName, config.RootPath, nil)
+		tool := core.GetTool(toolName, &SimpleMCPContext{RootPath: config.RootPath})
 		if tool == nil {
 			core.LogStd(core.LogLevelWarn, "mcp tool not found: %s", toolName)
 			continue

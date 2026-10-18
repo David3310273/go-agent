@@ -130,6 +130,15 @@ type AgentCore interface {
 	GetRootPath() string
 	// get question chan
 	GetQuestionChan() chan Question
+	// get available tools
+	GetToolsConfig() []ToolConfig
+	// get mcp config
+	GetMCPServerConfigs() []MCPConfig
+	SetMCPServerConfigs([]MCPConfig)
+	// get skill
+	GetSkillConfig(name string) SkillDefinition
+	// get all skills config
+	GetSkillConfigs() []SkillDefinition
 }
 
 type AgentStatus int
@@ -152,7 +161,12 @@ func InitContext(agent AgentCore, agentConfigs AgentCoreConfig) []Diagnostic {
 	}
 
 	// load skill definitions for dynamic tool loading
-	agent.SetSkills(agentConfigs.Agent.Skill)
+	for _, skillDef := range agentConfigs.Agent.Skill {
+		err := agent.AddSkill(skillDef)
+		if err != nil {
+			diagnostics = append(diagnostics, *err)
+		}
+	}
 
 	// load prompt
 	err = agent.SetPrompt(agentConfigs.Agent.Prompt)
@@ -167,7 +181,7 @@ func InitContext(agent AgentCore, agentConfigs AgentCoreConfig) []Diagnostic {
 	}
 
 	// load tool config
-	err = agent.SetToolsConfig(agentConfigs.Agent.Tool)
+	err = agent.LoadTools(agentConfigs.Agent.Tool)
 	if err != nil {
 		diagnostics = append(diagnostics, *err)
 	}
@@ -335,7 +349,7 @@ func prepareToolCalls(
 ) ([]PreparedToolCall, []ConfirmToolCall) {
 	prepared := make([]PreparedToolCall, 0, len(toolCalls))
 	confirmCalls := []ConfirmToolCall{}
-	loadedTools := session.GetLoadTools()
+	RuntimeTools := session.GetLoadTools()
 
 	for _, toolCall := range toolCalls {
 		// find the tool from loaded tools by name
@@ -343,7 +357,7 @@ func prepareToolCalls(
 			ToolCall: toolCall,
 		}
 		var targetTool Tool
-		for _, tool := range *loadedTools {
+		for _, tool := range *RuntimeTools {
 			if tool.GetName() == toolCall.Function.Name {
 				targetTool = tool
 				break
@@ -404,12 +418,12 @@ func prepareToolCalls(
 // ProcessQuestion is the reAct loop of AskQuestion
 func ProcessQuestion(session Session, question Question, harness Harness) (Answer, []Diagnostic) {
 	config := session.GetConfigs()
-	contextMessages := session.GetContext()
+	reActContext := session.GetContext()
 	maxReActRounds := config.ReActMaxRounds
 	diagnostics := []Diagnostic{}
 
 	// generate prompt context and build initial messages
-	prompt := harness.GenerateFinalPrompt(contextMessages, int(config.PromptFileMaxSize))
+	prompt := harness.GenerateFinalPrompt(reActContext, int(config.PromptFileMaxSize))
 
 	// use pointer to conversation so modifications are reflected in session
 	messages := session.GetConversation()
@@ -446,14 +460,14 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	// apply sliding window
 	harness.SetCurrRoundMessages(messages, nil, int(session.GetConfigs().MemoryWindowSize), 1)
 
-	loadedTools := session.GetLoadTools()
-	if len(*loadedTools) == 0 {
-		harness.LoadDefaultTools(session)
+	runtimeTools := session.GetLoadTools()
+	if len(*runtimeTools) == 0 {
+		runtimeTools = reActContext.GetTools()
 	}
 
 	// main loop of reAct
 	for round := 0; round < maxReActRounds; round++ {
-		response, errs := AskQuestion(session, *messages, *loadedTools, question)
+		response, errs := AskQuestion(session, *messages, *runtimeTools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
 			return defaultAnswer, diagnostics
@@ -463,7 +477,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil {
 			// force final answer if reached max rounds
 			if round == maxReActRounds-1 {
-				if answer, handled := harness.HandleForceTerminate(session, messages, loadedTools, question); handled {
+				if answer, handled := harness.HandleForceTerminate(session, messages, runtimeTools, question); handled {
 					return answer, diagnostics
 				}
 				return harness.GetDefaultAnswer(), diagnostics
@@ -482,7 +496,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 			operation := answer.Choices[0]
 			// force final answer if reached max rounds
 			if operation.FinishReason != FinishReasonStop && round == maxReActRounds-1 {
-				if answer, handled := harness.HandleForceTerminate(session, messages, loadedTools, question); handled {
+				if answer, handled := harness.HandleForceTerminate(session, messages, runtimeTools, question); handled {
 					return answer, diagnostics
 				}
 				return harness.GetDefaultAnswer(), diagnostics
@@ -593,12 +607,12 @@ func (acc *streamAccumulator) addChunk(answer Answer) {
 // ProcessQuestionStream is the stream version of ProcessQuestion, sends partial answers via hintChan
 func ProcessQuestionStream(session Session, question Question, harness Harness) (Answer, []Diagnostic) {
 	config := session.GetConfigs()
-	contextMessages := session.GetContext()
+	reActContext := session.GetContext()
 	maxReActRounds := config.ReActMaxRounds
 	diagnostics := []Diagnostic{}
 
 	// generate prompt context and build initial messages
-	prompt := harness.GenerateFinalPrompt(contextMessages, int(config.PromptFileMaxSize))
+	prompt := harness.GenerateFinalPrompt(reActContext, int(config.PromptFileMaxSize))
 	messages := session.GetConversation()
 	if len(*messages) == 0 {
 		contextMessage := ReActMessage{Role: RoleSystem, Content: prompt}
@@ -633,15 +647,15 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 	// apply sliding window
 	harness.SetCurrRoundMessages(messages, nil, int(session.GetConfigs().MemoryWindowSize), 1)
 
-	loadedTools := session.GetLoadTools()
-	if len(*loadedTools) == 0 {
-		harness.LoadDefaultTools(session)
+	runtimeTools := session.GetLoadTools()
+	if len(*runtimeTools) == 0 {
+		runtimeTools = reActContext.GetTools()
 	}
 
 	// main loop of reAct process
 	for round := 0; round < maxReActRounds; round++ {
 		LogStd(LogLevelDebug, "[session=%s] init messages (stream): count=%d", session.GetID(), len(*messages))
-		acc, errs := AskQuestionStream(session, *messages, *loadedTools, question)
+		acc, errs := AskQuestionStream(session, *messages, *runtimeTools, question)
 		if len(errs) > 0 {
 			diagnostics = append(diagnostics, errs...)
 			return defaultAnswer, diagnostics
@@ -674,7 +688,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		}
 
 		if acc.finishReason != FinishReasonStop && round == maxReActRounds-1 {
-			if answer, handled := harness.HandleForceTerminate(session, messages, loadedTools, question); handled {
+			if answer, handled := harness.HandleForceTerminate(session, messages, runtimeTools, question); handled {
 				return answer, diagnostics
 			}
 			return harness.GetDefaultAnswer(), diagnostics

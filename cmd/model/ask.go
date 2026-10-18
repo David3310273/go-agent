@@ -75,11 +75,14 @@ func (c *AskQuestionCommand) GetHintChan() chan core.Answer     { return c.HintC
 func (c *AskQuestionCommand) GetSendTimestamp() int64           { return c.Timestamp }
 func (c *AskQuestionCommand) GetToolCalls() map[string]any      { return c.toolCalls }
 func (c *AskQuestionCommand) SetToolCalls(toolCall core.ToolCall) {
-	if c.toolCalls[toolCall.Function.Name] == nil {
-		c.toolCalls[toolCall.Function.Name] = make(map[string]bool)
+	if c.toolCalls == nil {
+		c.toolCalls = make(map[string]any)
 	}
-	toolCallMap := c.toolCalls[toolCall.Function.Name].(map[string]bool)
-	toolCallMap[toolCall.Function.Arguments] = true
+	if c.toolCalls[toolCall.Function.Name] == nil {
+		c.toolCalls[toolCall.Function.Name] = make(map[string]int)
+	}
+	toolCallMap := c.toolCalls[toolCall.Function.Name].(map[string]int)
+	toolCallMap[toolCall.Function.Arguments]++
 }
 func (c *AskQuestionCommand) GetType() core.QuestionType { return c.QuestionType }
 func (c *AskQuestionCommand) ToString() string {

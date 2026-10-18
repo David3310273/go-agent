@@ -13,25 +13,25 @@ import (
 
 func init() {
 	// register SearchKnowledgebaseCall tool factory
-	// updated to accept Session instead of Context.
-	core.RegisterTool("SearchKnowledgeBase", func(rootPath string, session core.Session) core.Tool {
-		config := LoadToolConfig(rootPath, SearchKnowledgebaseSchemaPath, "searchkb.config.json")
+	// updated to accept Context instead of Session.
+	core.RegisterTool("SearchKnowledgeBase", func(ctx core.Context) core.Tool {
+		config := LoadToolConfig(ctx.GetRootPath(), SearchKnowledgebaseSchemaPath, "searchkb.config.json")
 		return SearchKnowledgebaseCall{
 			Name:     config.Name,
 			Schema:   config.Schema,
-			RootPath: rootPath,
-			Session:  session,
+			RootPath: ctx.GetRootPath(),
+			Context:  ctx,
 		}
 	})
 
 	// register FetchAllDocInfo tool factory
-	core.RegisterTool("FetchAllDocInfo", func(rootPath string, session core.Session) core.Tool {
-		config := LoadToolConfig(rootPath, SearchKnowledgebaseSchemaPath, "fetchalldoc.config.json")
+	core.RegisterTool("FetchAllDocInfo", func(ctx core.Context) core.Tool {
+		config := LoadToolConfig(ctx.GetRootPath(), SearchKnowledgebaseSchemaPath, "fetchalldoc.config.json")
 		return FetchAllDocInfoCall{
 			Name:     config.Name,
 			Schema:   config.Schema,
-			RootPath: rootPath,
-			Session:  session,
+			RootPath: ctx.GetRootPath(),
+			Context:  ctx,
 		}
 	})
 }
@@ -43,8 +43,8 @@ type SearchKnowledgebaseCall struct {
 	Schema string `json:"schema"`
 	// project root path for resolving schema file path
 	RootPath string
-	// session for accessing context at runtime.
-	Session core.Session
+	// context for accessing runtime resources.
+	Context core.Context
 }
 
 // GetName returns the function name from schema for matching with LLM tool calls
@@ -78,7 +78,7 @@ func (f SearchKnowledgebaseCall) GetDescription() string {
 // GetContext returns the agent session runtime context.
 // implements core.Tool interface.
 func (f SearchKnowledgebaseCall) GetContext() core.Context {
-	return f.Session.GetContext()
+	return f.Context
 }
 
 // Validate validates the tool configuration
@@ -135,8 +135,8 @@ func (f SearchKnowledgebaseCall) GetRunner() func(args map[string]any) (string, 
 		}
 
 		// get knowledge bases from context
-		knowledgeBases := f.Session.GetContext().GetKnowledgeBase()
-		if len(knowledgeBases) == 0 {
+		knowledgeBases := f.Context.GetKnowledgeBase()
+		if len(*knowledgeBases) == 0 {
 			return "Failed", &core.Diagnostic{
 				Level:   core.SeverityError,
 				Code:    core.MessageCodeToolRunError,
@@ -147,7 +147,7 @@ func (f SearchKnowledgebaseCall) GetRunner() func(args map[string]any) (string, 
 		var allResults []SearchResult
 
 		// search in each knowledge base
-		for _, kbAny := range knowledgeBases {
+		for _, kbAny := range *knowledgeBases {
 			milvusKB, ok := kbAny.(*storage.MilvusKnowledgebase[any])
 			if !ok {
 				continue
@@ -213,7 +213,7 @@ type FetchAllDocInfoCall struct {
 	Name     string `json:"name"`
 	Schema   string `json:"schema"`
 	RootPath string
-	Session  core.Session
+	Context  core.Context
 }
 
 func (f FetchAllDocInfoCall) GetName() string {
@@ -250,7 +250,7 @@ func (f FetchAllDocInfoCall) GetDescription() string {
 }
 
 func (f FetchAllDocInfoCall) GetContext() core.Context {
-	return f.Session.GetContext()
+	return f.Context
 }
 
 func (f FetchAllDocInfoCall) Validate(args map[string]any) *core.Diagnostic {
@@ -277,8 +277,8 @@ func (f FetchAllDocInfoCall) GetRunner() func(args map[string]any) (string, *cor
 		kbName, _ := args["kbName"].(string)
 
 		// get knowledge bases from context
-		knowledgeBases := f.Session.GetContext().GetKnowledgeBase()
-		if len(knowledgeBases) == 0 {
+		knowledgeBases := f.Context.GetKnowledgeBase()
+		if len(*knowledgeBases) == 0 {
 			return "", &core.Diagnostic{
 				Level:   core.SeverityError,
 				Code:    core.MessageCodeToolRunError,
@@ -286,10 +286,10 @@ func (f FetchAllDocInfoCall) GetRunner() func(args map[string]any) (string, *cor
 			}
 		}
 
-		allKBs := make([]KBDocInfoResponse, 0, len(knowledgeBases))
+		allKBs := make([]KBDocInfoResponse, 0, len(*knowledgeBases))
 		totalDocs := 0
 
-		for _, kb := range knowledgeBases {
+		for _, kb := range *knowledgeBases {
 			if kbName != "" && kbName != kb.GetName() {
 				continue
 			}

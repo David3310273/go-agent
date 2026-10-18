@@ -128,7 +128,7 @@ func (c *MCPCommand) handleAdd(app core.CommandApp) *core.Diagnostic {
 			return &core.Diagnostic{
 				Level:   core.SeverityError,
 				Code:    core.MessageCodeInvalidCommand,
-				Message: fmt.Sprintf("MCP server %s already exists", config.Name),
+				Message: fmt.Sprintf("MCP server %s already exists, please check", config.Name),
 			}
 		}
 
@@ -136,6 +136,7 @@ func (c *MCPCommand) handleAdd(app core.CommandApp) *core.Diagnostic {
 	}
 
 	(*agent).SetMCPClient(mcpConfigs)
+	(*agent).SetMCPServerConfigs(mcpConfigs)
 
 	return &core.Diagnostic{
 		Level:   core.SeverityInfo,
@@ -185,6 +186,7 @@ func (c *MCPCommand) handleRm(app core.CommandApp) *core.Diagnostic {
 	}
 
 	(*agent).SetMCPClient(newConfigs)
+	(*agent).SetMCPServerConfigs(newConfigs)
 
 	return &core.Diagnostic{
 		Level:   core.SeverityInfo,
