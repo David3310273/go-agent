@@ -40,6 +40,34 @@ func (m *MockContext) EXPECT() *MockContextMockRecorder {
 	return m.recorder
 }
 
+// AddSkill mocks base method.
+func (m *MockContext) AddSkill(skill core.SkillDefinition) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddSkill", skill)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// AddSkill indicates an expected call of AddSkill.
+func (mr *MockContextMockRecorder) AddSkill(skill any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddSkill", reflect.TypeOf((*MockContext)(nil).AddSkill), skill)
+}
+
+// AddTool mocks base method.
+func (m *MockContext) AddTool(tool core.Tool) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTool", tool)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// AddTool indicates an expected call of AddTool.
+func (mr *MockContextMockRecorder) AddTool(tool any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTool", reflect.TypeOf((*MockContext)(nil).AddTool), tool)
+}
+
 // GetHistory mocks base method.
 func (m *MockContext) GetHistory() []byte {
 	m.ctrl.T.Helper()
@@ -55,10 +83,10 @@ func (mr *MockContextMockRecorder) GetHistory() *gomock.Call {
 }
 
 // GetKnowledgeBase mocks base method.
-func (m *MockContext) GetKnowledgeBase() []core.KnowledgeBase[any] {
+func (m *MockContext) GetKnowledgeBase() *[]core.KnowledgeBase[any] {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetKnowledgeBase")
-	ret0, _ := ret[0].([]core.KnowledgeBase[any])
+	ret0, _ := ret[0].(*[]core.KnowledgeBase[any])
 	return ret0
 }
 
@@ -69,10 +97,10 @@ func (mr *MockContextMockRecorder) GetKnowledgeBase() *gomock.Call {
 }
 
 // GetMCPClients mocks base method.
-func (m *MockContext) GetMCPClients() map[string]core.MCPAccessible {
+func (m *MockContext) GetMCPClients() *map[string]core.MCPAccessible {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMCPClients")
-	ret0, _ := ret[0].(map[string]core.MCPAccessible)
+	ret0, _ := ret[0].(*map[string]core.MCPAccessible)
 	return ret0
 }
 
@@ -80,20 +108,6 @@ func (m *MockContext) GetMCPClients() map[string]core.MCPAccessible {
 func (mr *MockContextMockRecorder) GetMCPClients() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPClients", reflect.TypeOf((*MockContext)(nil).GetMCPClients))
-}
-
-// GetMCPServerConfigs mocks base method.
-func (m *MockContext) GetMCPServerConfigs() []core.MCPConfig {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetMCPServerConfigs")
-	ret0, _ := ret[0].([]core.MCPConfig)
-	return ret0
-}
-
-// GetMCPServerConfigs indicates an expected call of GetMCPServerConfigs.
-func (mr *MockContextMockRecorder) GetMCPServerConfigs() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMCPServerConfigs", reflect.TypeOf((*MockContext)(nil).GetMCPServerConfigs))
 }
 
 // GetModelProviders mocks base method.
@@ -124,25 +138,25 @@ func (mr *MockContextMockRecorder) GetPrompt() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPrompt", reflect.TypeOf((*MockContext)(nil).GetPrompt))
 }
 
-// GetSkill mocks base method.
-func (m *MockContext) GetSkill(name string) *core.SkillDefinition {
+// GetRootPath mocks base method.
+func (m *MockContext) GetRootPath() string {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSkill", name)
-	ret0, _ := ret[0].(*core.SkillDefinition)
+	ret := m.ctrl.Call(m, "GetRootPath")
+	ret0, _ := ret[0].(string)
 	return ret0
 }
 
-// GetSkill indicates an expected call of GetSkill.
-func (mr *MockContextMockRecorder) GetSkill(name any) *gomock.Call {
+// GetRootPath indicates an expected call of GetRootPath.
+func (mr *MockContextMockRecorder) GetRootPath() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkill", reflect.TypeOf((*MockContext)(nil).GetSkill), name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRootPath", reflect.TypeOf((*MockContext)(nil).GetRootPath))
 }
 
 // GetSkills mocks base method.
-func (m *MockContext) GetSkills() []core.SkillDefinition {
+func (m *MockContext) GetSkills() *[]core.Skill {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSkills")
-	ret0, _ := ret[0].([]core.SkillDefinition)
+	ret0, _ := ret[0].(*[]core.Skill)
 	return ret0
 }
 
@@ -152,18 +166,32 @@ func (mr *MockContextMockRecorder) GetSkills() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSkills", reflect.TypeOf((*MockContext)(nil).GetSkills))
 }
 
-// GetToolsConfig mocks base method.
-func (m *MockContext) GetToolsConfig() []core.ToolConfig {
+// GetTools mocks base method.
+func (m *MockContext) GetTools() *[]core.Tool {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetToolsConfig")
-	ret0, _ := ret[0].([]core.ToolConfig)
+	ret := m.ctrl.Call(m, "GetTools")
+	ret0, _ := ret[0].(*[]core.Tool)
 	return ret0
 }
 
-// GetToolsConfig indicates an expected call of GetToolsConfig.
-func (mr *MockContextMockRecorder) GetToolsConfig() *gomock.Call {
+// GetTools indicates an expected call of GetTools.
+func (mr *MockContextMockRecorder) GetTools() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetToolsConfig", reflect.TypeOf((*MockContext)(nil).GetToolsConfig))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTools", reflect.TypeOf((*MockContext)(nil).GetTools))
+}
+
+// LoadTools mocks base method.
+func (m *MockContext) LoadTools(arg0 []core.ToolConfig) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoadTools", arg0)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// LoadTools indicates an expected call of LoadTools.
+func (mr *MockContextMockRecorder) LoadTools(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadTools", reflect.TypeOf((*MockContext)(nil).LoadTools), arg0)
 }
 
 // SetHistory mocks base method.
@@ -232,30 +260,4 @@ func (m *MockContext) SetProviders(arg0 []core.Provider) *core.Diagnostic {
 func (mr *MockContextMockRecorder) SetProviders(arg0 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetProviders", reflect.TypeOf((*MockContext)(nil).SetProviders), arg0)
-}
-
-// SetSkills mocks base method.
-func (m *MockContext) SetSkills(arg0 []core.SkillDefinition) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetSkills", arg0)
-}
-
-// SetSkills indicates an expected call of SetSkills.
-func (mr *MockContextMockRecorder) SetSkills(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSkills", reflect.TypeOf((*MockContext)(nil).SetSkills), arg0)
-}
-
-// SetToolsConfig mocks base method.
-func (m *MockContext) SetToolsConfig(arg0 []core.ToolConfig) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetToolsConfig", arg0)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// SetToolsConfig indicates an expected call of SetToolsConfig.
-func (mr *MockContextMockRecorder) SetToolsConfig(arg0 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetToolsConfig", reflect.TypeOf((*MockContext)(nil).SetToolsConfig), arg0)
 }

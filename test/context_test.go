@@ -98,7 +98,7 @@ func TestMockContext_GetKnowledgeBase(t *testing.T) {
 	mockContext := testmock.NewMockContext(ctrl)
 	expectedKB := []core.KnowledgeBase[any]{}
 
-	mockContext.EXPECT().GetKnowledgeBase().Return(expectedKB)
+	mockContext.EXPECT().GetKnowledgeBase().Return(&expectedKB)
 
 	kb := mockContext.GetKnowledgeBase()
 	if kb == nil {
@@ -106,18 +106,19 @@ func TestMockContext_GetKnowledgeBase(t *testing.T) {
 	}
 }
 
-func TestMockContext_SetSkills(t *testing.T) {
+func TestMockContext_AddSkill(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
-	skillDefinitions := []core.SkillDefinition{
-		{Name: "test", Description: "test skill", Tools: []string{"tool1"}},
+	skillDef := core.SkillDefinition{Name: "test", Description: "test skill", Tools: []string{"tool1"}}
+
+	mockContext.EXPECT().AddSkill(skillDef).Return(nil)
+
+	err := mockContext.AddSkill(skillDef)
+	if err != nil {
+		t.Errorf("expected nil error, got %v", err)
 	}
-
-	mockContext.EXPECT().SetSkills(skillDefinitions)
-
-	mockContext.SetSkills(skillDefinitions)
 }
 
 func TestMockContext_GetSkills(t *testing.T) {
@@ -125,30 +126,16 @@ func TestMockContext_GetSkills(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
-	expectedSkills := []core.SkillDefinition{
-		{Name: "test", Description: "test skill", Tools: []string{"tool1"}},
-	}
+	expectedSkills := &[]core.Skill{}
 
 	mockContext.EXPECT().GetSkills().Return(expectedSkills)
 
 	skills := mockContext.GetSkills()
-	if len(skills) != len(expectedSkills) {
-		t.Errorf("expected %d skills, got %d", len(expectedSkills), len(skills))
+	if skills == nil {
+		t.Errorf("expected skills, got nil")
 	}
-}
-
-func TestMockContext_GetSkill(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockContext := testmock.NewMockContext(ctrl)
-	expectedSkill := &core.SkillDefinition{Name: "test", Description: "test skill", Tools: []string{"tool1"}}
-
-	mockContext.EXPECT().GetSkill("test").Return(expectedSkill)
-
-	skill := mockContext.GetSkill("test")
-	if skill == nil || skill.Name != "test" {
-		t.Errorf("expected skill with name 'test', got %v", skill)
+	if len(*skills) != 0 {
+		t.Errorf("expected 0 skills, got %d", len(*skills))
 	}
 }
 
@@ -178,34 +165,35 @@ func TestMockContext_SetProviders(t *testing.T) {
 	}
 }
 
-func TestMockContext_SetToolsConfig(t *testing.T) {
+func TestMockContext_LoadTools(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
 	toolsConfig := []core.ToolConfig{{Name: "test"}}
 
-	mockContext.EXPECT().SetToolsConfig(toolsConfig).Return(nil)
+	mockContext.EXPECT().LoadTools(toolsConfig).Return(nil)
 
-	err := mockContext.SetToolsConfig(toolsConfig)
+	err := mockContext.LoadTools(toolsConfig)
 	if err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}
 }
 
-func TestMockContext_GetToolsConfig(t *testing.T) {
+func TestMockContext_GetTools(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockContext := testmock.NewMockContext(ctrl)
-	expectedTools := []core.ToolConfig{
-		{Name: "filewriter"},
+	expectedTools := &[]core.Tool{}
+
+	mockContext.EXPECT().GetTools().Return(expectedTools)
+
+	tools := mockContext.GetTools()
+	if tools == nil {
+		t.Errorf("expected tools, got nil")
 	}
-
-	mockContext.EXPECT().GetToolsConfig().Return(expectedTools)
-
-	tools := mockContext.GetToolsConfig()
-	if len(tools) != 1 {
-		t.Errorf("expected 1 tool config, got %d", len(tools))
+	if len(*tools) != 0 {
+		t.Errorf("expected 0 tools, got %d", len(*tools))
 	}
 }

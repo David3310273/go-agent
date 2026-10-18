@@ -132,8 +132,8 @@ git push main
 
 | Image | Registry |
 |-------|----------|
-| Server | `ghcr.io/David3310273/go-agent-server:latest` |
-| CLI | `ghcr.io/David3310273/go-agent-cli:latest` |
+| Server | `xxx/go-agent-server:latest` |
+| CLI | `xxx/go-agent-cli:latest` |
 
 Tags: `latest`, `main`, `<git-sha-short>`
 
@@ -157,7 +157,6 @@ Tags: `latest`, `main`, `<git-sha-short>`
 make docker-build           # Build both images
 make docker-build-server    # Server only
 make docker-build-cli       # CLI only
-make docker-push            # Push to registry
 
 # Custom tag
 IMAGE_TAG=v1.2.0 make docker-build-server

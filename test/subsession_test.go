@@ -56,23 +56,26 @@ func newTestParentSession(t *testing.T, ctrl *gomock.Controller, providers ...co
 	mockAgent.EXPECT().GetPrompt().Return([]byte("parent prompt")).AnyTimes()
 	mockAgent.EXPECT().GetSkills().Return(nil).AnyTimes()
 	mockAgent.EXPECT().GetKnowledgeBase().Return(nil).AnyTimes()
-	mockAgent.EXPECT().GetToolsConfig().Return([]core.ToolConfig{
-		{Name: "ParentTool"},
-		{Name: core.SubSessionToolName},
-	}).AnyTimes()
+	mockAgent.EXPECT().GetTools().Return(nil).AnyTimes()
 	mockAgent.EXPECT().GetMCPServerConfigs().Return(nil).AnyTimes()
 	mockAgent.EXPECT().GetMCPClients().Return(nil).AnyTimes()
 
 	session := simple.NewAgentSession(mockAgent, "parent-session", nil)
 	// initialize SimpleAgentContext for NewSubSession to work (mock agent doesn't set this)
+	mockTool1 := testmock.NewMockTool(ctrl)
+	mockTool1.EXPECT().GetName().Return("ParentTool").AnyTimes()
+	mockTool2 := testmock.NewMockTool(ctrl)
+	mockTool2.EXPECT().GetName().Return(core.SubSessionToolName).AnyTimes()
 	session.Context.SimpleAgentContext = &simple.SimpleAgentContext{
-		Tools: []core.ToolConfig{
-			{Name: "ParentTool"},
-			{Name: core.SubSessionToolName},
-		},
-		MCPServers:     nil,
+		RootPath:       repoRootPath,
+		Tools:          []core.Tool{mockTool1, mockTool2},
 		MCPClients:     nil,
 		ModelProviders: providers,
+	}
+	session.Context.RuntimeTools = session.Context.SimpleAgentContext.Tools
+	session.Context.RuntimeToolsMap = make(map[string]core.Tool)
+	for _, tool := range session.Context.RuntimeTools {
+		session.Context.RuntimeToolsMap[tool.GetName()] = tool
 	}
 
 	return session
@@ -160,19 +163,19 @@ func TestNewSubSession_IsolatedFromParent(t *testing.T) {
 	}
 
 	// the tool config is independent, the sub-session does not inherit the parent's tool config
-	tools := sub.GetContext().GetToolsConfig()
+	tools := sub.GetContext().GetTools()
 	// sub-session inherits parent's tool config from the context copy
-	if len(tools) != 2 {
-		t.Errorf("expected sub-session to inherit 2 tool configs from parent, got %v", len(tools))
+	if tools == nil || len(*tools) != 2 {
+		t.Errorf("expected sub-session to inherit 2 tool configs from parent, got %v", tools)
 	}
-	if got := len(parent.GetContext().GetToolsConfig()); got != 2 {
+	if got := len(*parent.GetContext().GetTools()); got != 2 {
 		t.Errorf("expected the parent tool config to keep both entries, got %d", got)
 	}
-	if diag := sub.GetContext().SetToolsConfig([]core.ToolConfig{{Name: "SubTool"}}); diag != nil {
-		t.Errorf("SetToolsConfig returned diagnostic: %s", diag.Message)
+	if diag := sub.GetContext().LoadTools([]core.ToolConfig{{Name: "SubTool"}}); diag != nil {
+		t.Errorf("LoadTools returned diagnostic: %s", diag.Message)
 	}
 	// after modifying sub-session, parent should still have its original 2 entries
-	if got := len(parent.GetContext().GetToolsConfig()); got != 2 {
+	if got := len(*parent.GetContext().GetTools()); got != 2 {
 		t.Errorf("expected the parent tool config to stay at 2 entries, got %d", got)
 	}
 }
@@ -197,8 +200,8 @@ func TestNewSubSession_LoadedToolsMapNotShared(t *testing.T) {
 
 	// same tool name loaded into the parent afterwards must not be deduplicated away
 	parent.SetLoadTools(mockTool)
-	if got := len(*parent.GetLoadTools()); got != 1 {
-		t.Errorf("expected 1 tool loaded in the parent, got %d (dedup map is still shared)", got)
+	if got := len(*parent.GetLoadTools()); got != 3 {
+		t.Errorf("expected 3 tools loaded in the parent, got %d (dedup map is still shared)", got)
 	}
 }
 
@@ -465,9 +468,9 @@ func TestRunSubSession_RunsSubSessionAndReturnsAnswer(t *testing.T) {
 	}
 
 	// sub-session inherits parent's tool config (CreateSubSession is included)
-	toolConfigs := sub.GetContext().GetToolsConfig()
-	if len(toolConfigs) != 2 {
-		t.Errorf("expected 2 tool configs in sub-session, got %d", len(toolConfigs))
+	toolConfigs := sub.GetContext().GetTools()
+	if len(*toolConfigs) != 2 {
+		t.Errorf("expected 2 tool configs in sub-session, got %d", len(*toolConfigs))
 	}
 
 	// the sub-session persisted its own history: system prompt, user query, final answer
@@ -565,7 +568,7 @@ func TestCreateSubSessionTool_DeclaresIntentOnly(t *testing.T) {
 
 	parent := newTestParentSession(t, ctrl)
 
-	tool := core.CreateTool(core.SubSessionToolName, repoRootPath, parent)
+	tool := core.CreateTool(core.SubSessionToolName, parent.GetContext())
 	if tool == nil {
 		t.Fatal("expected CreateSubSession to be registered")
 	}
@@ -619,12 +622,12 @@ func TestCreateSubSessionTool_DeclaresIntentOnly(t *testing.T) {
 
 	// LoadTools has to pick it up from the tool config, otherwise its schema never reaches
 	// the model and the interception in core.ProcessQuestion can never be hit
-	simple.SimpleHarnessInstance.LoadDefaultTools(parent)
 	loadedTools := parent.GetLoadTools()
-	if got := len(*loadedTools); got != 1 {
-		t.Fatalf("expected 1 loaded tool, got %d", got)
+	if got := len(*loadedTools); got != 2 {
+		t.Fatalf("expected 2 loaded tools, got %d", got)
 	}
-	if got := (*loadedTools)[0].GetName(); got != core.SubSessionToolName {
+	// the second tool should be the CreateSubSession tool
+	if got := (*loadedTools)[1].GetName(); got != core.SubSessionToolName {
 		t.Errorf("expected %s to be loaded, got %s", core.SubSessionToolName, got)
 	}
 }
