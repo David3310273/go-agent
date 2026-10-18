@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/David3310273/go-agent/agent/simple/tools"
+	// _ "github.com/David3310273/go-agent/agent/simple/tools"
 	"github.com/David3310273/go-agent/agent/simple/utils"
 	"github.com/David3310273/go-agent/core"
 	uuid "github.com/gofrs/uuid/v5"
@@ -107,11 +107,15 @@ func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
 		}
 	}
 
-	// register root path in all sub configs
+	// broadcast root path in all sub configs
 	allConfigs.Agent.RootPath = rootPath
 	allConfigs.Agent.Prompt.RootPath = rootPath
+
 	for i := range allConfigs.Agent.KnowledgeBase {
 		allConfigs.Agent.KnowledgeBase[i].RootPath = rootPath
+	}
+	for i := range allConfigs.Agent.Tool {
+		allConfigs.Agent.Tool[i].RootPath = rootPath
 	}
 
 	allConfigs.Session.RootPath = rootPath
@@ -138,6 +142,10 @@ func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
 
 		ctx:    ctx,
 		cancel: cancel,
+
+		SimpleAgentContext: SimpleAgentContext{
+			RootPath: rootPath,
+		},
 	}
 
 	diag := agent.SetID()
@@ -190,6 +198,37 @@ func (a *SimpleAgent) LoadConfigs() core.AgentCoreConfig {
 
 func (a *SimpleAgent) GetQuestionChan() chan core.Question {
 	return a.Question
+}
+
+// get available tools
+func (a *SimpleAgent) GetToolsConfig() []core.ToolConfig {
+	return a.Configs.Agent.Tool
+}
+
+// get mcp config
+func (a *SimpleAgent) GetMCPServerConfigs() []core.MCPConfig {
+	return a.Configs.Agent.MCPServer
+}
+
+func (a *SimpleAgent) SetMCPServerConfigs(configs []core.MCPConfig) {
+	a.Configs.Agent.MCPServer = configs
+}
+
+// get skill
+func (a *SimpleAgent) GetSkillConfig(name string) core.SkillDefinition {
+	skillDefs := a.Configs.Agent.Skill
+
+	for _, skillDef := range skillDefs {
+		if skillDef.Name == name {
+			return skillDef
+		}
+	}
+	return core.SkillDefinition{}
+}
+
+// get all skills config
+func (a *SimpleAgent) GetSkillConfigs() []core.SkillDefinition {
+	return a.Configs.Agent.Skill
 }
 
 // EventManager

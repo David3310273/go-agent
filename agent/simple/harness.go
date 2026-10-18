@@ -45,11 +45,11 @@ func (h SimpleHarness) GenerateFinalPrompt(context core.Context, maxSize int) st
 	prompt.WriteString(string(context.GetPrompt()))
 
 	// append skill definitions to prompt
-	if skillDefs := context.GetSkills(); len(skillDefs) > 0 {
+	if skillDefs := context.GetSkills(); len(*skillDefs) > 0 {
 		prompt.WriteString("\n\n# Available Skills\n")
-		for _, skill := range skillDefs {
-			fmt.Fprintf(&prompt, "- name: **%s**\n", skill.Name)
-			fmt.Fprintf(&prompt, "- description: %s\n", skill.Description)
+		for _, skill := range *skillDefs {
+			fmt.Fprintf(&prompt, "- name: **%s**\n", skill.GetName())
+			fmt.Fprintf(&prompt, "- description: %s\n", skill.GetDescription())
 		}
 	}
 
@@ -93,41 +93,6 @@ func (h SimpleHarness) SetCurrRoundMessages(messages *core.Conversation, message
 	*messages = msgs[:newLen]
 }
 
-func (h SimpleHarness) LoadDefaultTools(session core.Session) {
-	context := session.GetContext()
-	rootPath := session.GetConfigs().RootPath
-	for _, cfg := range context.GetToolsConfig() {
-		if tool := core.CreateTool(cfg.Name, rootPath, session); tool != nil {
-			session.SetLoadTools(tool)
-		}
-	}
-}
-
-// LoadTools loads tools based on skill name and registers them into session's loaded tools.
-// If skillName is empty, loads default tools.
-// Uses tool registry to create tools dynamically, no switch needed.
-// Deduplication is handled by session.SetLoadTools internally.
-func (h SimpleHarness) LoadTools(skillName string, session core.Session) {
-	context := session.GetContext()
-	rootPath := session.GetConfigs().RootPath
-	// if skillName is empty, load default tools directly
-	if skillName == "" {
-		return
-	}
-
-	// load tools from skill definition
-	skillDef := context.GetSkill(skillName)
-	if skillDef == nil {
-		return
-	}
-
-	for _, toolName := range skillDef.Tools {
-		if tool := core.CreateTool(toolName, rootPath, session); tool != nil {
-			session.SetLoadTools(tool)
-		}
-	}
-}
-
 func (h SimpleHarness) GetRetryQuery() string {
 	return "No actions found, please provide a valid response."
 }
@@ -139,16 +104,16 @@ func (h SimpleHarness) CheckIfHasLoop(question core.Question, toolCall core.Tool
 		return false
 	}
 
-	functionCallsItem := functionCalls.(map[string]bool)
+	functionCallsItem := functionCalls.(map[string]int)
 
-	return functionCallsItem[toolCall.Function.Arguments]
+	return functionCallsItem[toolCall.Function.Arguments] > 3
 }
 
 func (h SimpleHarness) GetForceFinalAnswerMessage() string {
 	return "You have reached the maximum number of thinking rounds. Please provide your final answer now based on all the information gathered so far."
 }
 
-func (h SimpleHarness) HandleForceTerminate(session core.Session, messages *core.Conversation, loadedTools *[]core.Tool, question core.Question) (core.AgentResponse, bool) {
+func (h SimpleHarness) HandleForceTerminate(session core.Session, messages *core.Conversation, RuntimeTools *[]core.Tool, question core.Question) (core.AgentResponse, bool) {
 	forceMessage := core.ReActMessage{
 		Role:    core.RoleUser,
 		Content: h.GetForceFinalAnswerMessage(),
@@ -159,7 +124,7 @@ func (h SimpleHarness) HandleForceTerminate(session core.Session, messages *core
 		Data:       forceMessage,
 	})
 
-	response, errs := core.AskQuestion(session, *messages, *loadedTools, question)
+	response, errs := core.AskQuestion(session, *messages, *RuntimeTools, question)
 	if len(errs) > 0 {
 		return core.AgentResponse{}, false
 	}
@@ -530,6 +495,12 @@ func (h SimpleHarness) RunToolCall(
 		return h.RunSubSession(session, args, model)
 	}
 
+	// set session on tools that support runtime session injection (e.g., UseSkill needs it for SetLoadTools).
+	// tools created during LoadTools are created with agent context but no session.
+	if setter, ok := targetTool.(interface{ SetSession(core.Session) }); ok {
+		setter.SetSession(session)
+	}
+
 	sandbox, diag := core.BuildSandboxForToolCall(session.GetConfigs().RootPath, targetTool, args)
 	if diag != nil {
 		core.LogStd(core.LogLevelWarn, "[session=%s] RunToolCall: failed to build sandbox, err: %v", session.GetID(), diag.Message)
@@ -579,7 +550,7 @@ func (h SimpleHarness) RunSubSession(session core.Session, args map[string]any, 
 			if !ok || toolName == "" {
 				continue
 			}
-			tool := core.CreateTool(toolName, session.GetConfigs().RootPath, session)
+			tool := core.CreateTool(toolName, session.GetContext())
 			// CreateTool returns nil for an unregistered name, a nil tool in the
 			// list would break the reAct loop when it looks the tool up by name
 			if tool == nil {

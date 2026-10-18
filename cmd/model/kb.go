@@ -91,7 +91,7 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 			agent := app.GetAgentCore()
 			kbs := (*agent).GetKnowledgeBase()
 			var kbClient core.KnowledgeBase[any]
-			for _, kb := range kbs {
+			for _, kb := range *kbs {
 				if kb.GetName() == c.Name {
 					kbClient = kb
 					break
@@ -188,7 +188,7 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 		agent := app.GetAgentCore()
 		kbs := (*agent).GetKnowledgeBase()
 		var kbClient core.KnowledgeBase[any]
-		for _, kb := range kbs {
+		for _, kb := range *kbs {
 			if kb.GetName() == c.Name {
 				kbClient = kb
 				break
@@ -237,7 +237,7 @@ func (c *KnowledgeBaseCommand) Run(app core.CommandApp) *core.Diagnostic {
 				agent := app.GetAgentCore()
 				kbs := (*agent).GetKnowledgeBase()
 				var kbClient core.KnowledgeBase[any]
-				for _, kb := range kbs {
+				for _, kb := range *kbs {
 					if kb.GetName() == c.Name {
 						kbClient = kb
 						break

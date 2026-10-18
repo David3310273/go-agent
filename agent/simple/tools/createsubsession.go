@@ -10,10 +10,10 @@ import (
 
 func init() {
 	// register CreateSubSession tool factory
-	core.RegisterTool(core.SubSessionToolName, func(rootPath string, session core.Session) core.Tool {
+	core.RegisterTool(core.SubSessionToolName, func(ctx core.Context) core.Tool {
 		return CreateSubSessionCall{
-			RootPath: rootPath,
-			Session:  session,
+			RootPath: ctx.GetRootPath(),
+			Context:  ctx,
 			Schema:   "createsubsession.schema.json",
 		}
 	})
@@ -29,7 +29,7 @@ type CreateSubSessionCall struct {
 	// project root path for resolving schema file path
 	RootPath string
 	// session for accessing context at runtime.
-	Session core.Session
+	Context core.Context
 }
 
 // GetName returns the function name from schema for matching with LLM tool calls
@@ -64,7 +64,7 @@ func (f CreateSubSessionCall) GetDescription() string {
 // GetContext returns the agent session runtime context.
 // implements core.Tool interface.
 func (f CreateSubSessionCall) GetContext() core.Context {
-	return f.Session.GetContext()
+	return f.Context
 }
 
 // Validate validates the tool arguments.

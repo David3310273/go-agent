@@ -8,12 +8,10 @@ const (
 )
 
 type AgentCoreConfig struct {
-	//  project root path for resolving relative paths at runtime
+	// project root path for resolving relative paths at runtime
 	RootPath string
 	Agent    AgentConfig   `json:"agent"`
 	Session  SessionConfig `json:"session"`
-	Model    []ModelConfig `json:"model"`
-	Tool     []ToolConfig  `json:"tool"`
 }
 
 type PlanType int

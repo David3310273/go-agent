@@ -78,6 +78,8 @@ const (
 	MessageCodeToolValidateError    MessageCode = 602
 	MessageCodeToolAlreadyConfirmed MessageCode = 603
 	MessageCodeInvalidConfirmAnswer MessageCode = 604
+	MessageCodeToolConflict         MessageCode = 605
+	MessageCodeSkillConflict        MessageCode = 606
 	// 7xx: agent core error
 	MessageCodeAgentCoreConfigError   MessageCode = 700
 	MessageCodeInvalidResponseFromLLM MessageCode = 701

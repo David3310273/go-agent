@@ -64,7 +64,7 @@ func (c *SkillCommand) Run(app core.CommandApp) *core.Diagnostic {
 			}
 		}
 
-		skills := (*agent).GetSkills()
+		skills := (*agent).GetSkillConfigs()
 
 		if c.Name != "" {
 			filtered := []core.SkillDefinition{}

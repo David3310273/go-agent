@@ -28,11 +28,11 @@ const (
 type SimpleSessionContext struct {
 	*SimpleAgentContext
 
-	Conversation core.Conversation
+	Memory core.Conversation
 
 	// loaded tool management
-	LoadedToolsMap map[string]core.Tool
-	LoadedTools    []core.Tool
+	RuntimeToolsMap map[string]core.Tool
+	RuntimeTools    []core.Tool
 }
 
 // SimpleAgentSession represents a single agent session
@@ -106,6 +106,7 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 		confirmedTools: make(map[string]string),
 		pendingCalls:   make(map[string]*core.ConfirmToolCall),
 	}
+
 	session.subSessions.Store(&[]*SimpleAgentSession{})
 
 	// use provided sessionID or generate new one
@@ -126,13 +127,18 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 	if agentCtx, ok := agent.(*SimpleAgent); ok {
 		session.Context.SimpleAgentContext = &agentCtx.SimpleAgentContext
 	}
-	session.Context.Conversation = core.Conversation{}
+
+	// preload memory history and system tools
+	session.Context.Memory = core.Conversation{}
 	if memory != nil {
-		session.Context.Conversation = *memory
+		session.Context.Memory = *memory
 	}
 
-	session.Context.LoadedTools = []core.Tool{}
-	session.Context.LoadedToolsMap = make(map[string]core.Tool)
+	session.Context.RuntimeTools = session.Context.SimpleAgentContext.Tools
+	session.Context.RuntimeToolsMap = make(map[string]core.Tool)
+	for _, tool := range session.Context.RuntimeTools {
+		session.Context.RuntimeToolsMap[tool.GetName()] = tool
+	}
 
 	return session
 }
@@ -167,11 +173,11 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 	session.subSessions.Store(&[]*SimpleAgentSession{})
 
 	// break the references still shared with the parent after the Context copy.
-	// LoadedToolsMap is a map, so the sub-session used to write into the parent dedup map and
+	// RuntimeToolsMap is a map, so the sub-session used to write into the parent dedup map and
 	// made the parent skip tools in SetLoadTools.
-	session.Context.LoadedToolsMap = make(map[string]core.Tool)
-	session.Context.LoadedTools = []core.Tool{}
-	session.Context.Conversation = core.Conversation{}
+	session.Context.RuntimeToolsMap = make(map[string]core.Tool)
+	session.Context.RuntimeTools = []core.Tool{}
+	session.Context.Memory = core.Conversation{}
 
 	// only load tools from parent session
 	for _, tool := range tools {
@@ -321,18 +327,18 @@ func (s *SimpleSessionContext) GetModelProviders() []core.Provider {
 
 // return pointer so callers can modify the conversation in place
 func (s *SimpleAgentSession) GetConversation() *core.Conversation {
-	return &s.Context.Conversation
+	return &s.Context.Memory
 }
 
 // return pointer so callers can modify the conversation in place
 func (s *SimpleAgentSession) GetLoadTools() *[]core.Tool {
-	return &s.Context.LoadedTools
+	return &s.Context.RuntimeTools
 }
 
 func (s *SimpleAgentSession) SetLoadTools(tool core.Tool) {
-	if _, ok := s.Context.LoadedToolsMap[tool.GetName()]; !ok {
-		s.Context.LoadedToolsMap[tool.GetName()] = tool
-		s.Context.LoadedTools = append(s.Context.LoadedTools, tool)
+	if _, ok := s.Context.RuntimeToolsMap[tool.GetName()]; !ok {
+		s.Context.RuntimeToolsMap[tool.GetName()] = tool
+		s.Context.RuntimeTools = append(s.Context.RuntimeTools, tool)
 	}
 }
 
@@ -428,7 +434,7 @@ func (s *SimpleAgentSession) ExportChatHistory(size int) ([]byte, *core.Diagnost
 func (s *SimpleAgentSession) SelectLocalKB(query core.Question) string {
 	var result strings.Builder
 
-	for _, kbAny := range s.Context.GetKnowledgeBase() {
+	for _, kbAny := range *s.Context.GetKnowledgeBase() {
 		milvusKB, ok := kbAny.(*storage.MilvusKnowledgebase[any])
 		if !ok {
 			continue
