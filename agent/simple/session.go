@@ -134,10 +134,15 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 		session.Context.Memory = *memory
 	}
 
-	session.Context.RuntimeTools = session.Context.SimpleAgentContext.Tools
-	session.Context.RuntimeToolsMap = make(map[string]core.Tool)
-	for _, tool := range session.Context.RuntimeTools {
-		session.Context.RuntimeToolsMap[tool.GetName()] = tool
+	if session.Context.SimpleAgentContext != nil {
+		session.Context.RuntimeTools = session.Context.SimpleAgentContext.Tools
+		session.Context.RuntimeToolsMap = make(map[string]core.Tool)
+		for _, tool := range session.Context.RuntimeTools {
+			session.Context.RuntimeToolsMap[tool.GetName()] = tool
+		}
+	} else {
+		session.Context.RuntimeToolsMap = make(map[string]core.Tool)
+		session.Context.RuntimeTools = []core.Tool{}
 	}
 
 	return session

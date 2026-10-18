@@ -205,10 +205,9 @@ func TestStartAgentCore_Success(t *testing.T) {
 		mockAgent.EXPECT().LoadConfigs().Return(agentConfig),
 		mockAgent.EXPECT().SetID().Return(nil),
 		mockAgent.EXPECT().SetHistory(agentConfig.Agent.History).Return(nil),
-		mockAgent.EXPECT().SetSkills(agentConfig.Agent.Skill),
 		mockAgent.EXPECT().SetPrompt(agentConfig.Agent.Prompt).Return(nil),
 		mockAgent.EXPECT().SetKnowledgeBase(agentConfig.Agent.KnowledgeBase).Return(nil),
-		mockAgent.EXPECT().SetToolsConfig(agentConfig.Agent.Tool).Return(nil),
+		mockAgent.EXPECT().LoadTools(agentConfig.Agent.Tool).Return(nil),
 		mockAgent.EXPECT().SetMCPClient(agentConfig.Agent.MCPServer),
 		mockAgent.EXPECT().BeforeStart().Return(nil),
 		mockAgent.EXPECT().Start().Return(nil),
@@ -241,10 +240,9 @@ func TestStartAgentCore_SetIDError(t *testing.T) {
 	mockAgent.EXPECT().LoadConfigs().Return(agentConfig).AnyTimes()
 	mockAgent.EXPECT().SetID().Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetHistory(gomock.Any()).Return(expectedErr).AnyTimes()
-	mockAgent.EXPECT().SetSkills(gomock.Any()).AnyTimes()
 	mockAgent.EXPECT().SetPrompt(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetKnowledgeBase(gomock.Any()).Return(expectedErr).AnyTimes()
-	mockAgent.EXPECT().SetToolsConfig(gomock.Any()).Return(expectedErr).AnyTimes()
+	mockAgent.EXPECT().LoadTools(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetMCPClient(gomock.Any()).AnyTimes()
 	mockAgent.EXPECT().BeforeStart().Return(nil).AnyTimes()
 	mockAgent.EXPECT().Start().Return(nil).AnyTimes()

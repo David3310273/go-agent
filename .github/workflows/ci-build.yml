@@ -1,121 +1,14 @@
-# =============================================================================
-# Go-Agent CI/CD Pipeline
-# =============================================================================
-# 触发条件: push 到 main, PR 到 main, 手动触发
-# 增量构建: AgentCore 变更 → 同时构建 CLI + Server 镜像
-#          仅 cmd/ 变更 → 仅构建 CLI 镜像
-#          仅 app/ 变更 → 仅构建 Server 镜像
-# =============================================================================
-
-name: CI Build & Push
+name: CI
 
 on:
   push:
     branches: [main, master]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".vscode/**"
-      - ".idea/**"
   pull_request:
     branches: [main, master]
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
-      - ".vscode/**"
-      - ".idea/**"
-  workflow_dispatch:
-    inputs:
-      build_cli:
-        description: "Build CLI image"
-        type: boolean
-        default: true
-      build_server:
-        description: "Build Server image"
-        type: boolean
-        default: true
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME_CLI: ${{ github.repository }}-cli
-  IMAGE_NAME_SERVER: ${{ github.repository }}-server
 
 jobs:
-  # =========================================================================
-  # 变更检测 — 决定需要构建哪些镜像
-  # =========================================================================
-  detect-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      changed_core: ${{ steps.changes.outputs.core }}
-      changed_cmd: ${{ steps.changes.outputs.cmd }}
-      changed_app: ${{ steps.changes.outputs.app }}
-      build_cli: ${{ steps.decide.outputs.build_cli }}
-      build_server: ${{ steps.decide.outputs.build_server }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Detect changed paths
-        id: changes
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            core:
-              - 'core/**'
-              - 'agent/**'
-              - 'providers/**'
-              - 'knowledgebase/**'
-              - 'storage/**'
-              - 'tools/**'
-              - 'sandbox/**'
-              - 'go.mod'
-              - 'go.sum'
-            cmd:
-              - 'cmd/**'
-            app:
-              - 'app/**'
-
-      - name: Decide build targets
-        id: decide
-        run: |
-          CORE="${{ steps.changes.outputs.core }}"
-          CMD="${{ steps.changes.outputs.cmd }}"
-          APP="${{ steps.changes.outputs.app }}"
-
-          if [ "$CORE" = "true" ]; then
-            echo "build_cli=true" >> $GITHUB_OUTPUT
-            echo "build_server=true" >> $GITHUB_OUTPUT
-            echo "🔧 AgentCore changed → building both CLI + Server"
-          else
-            if [ "$CMD" = "true" ]; then
-              echo "build_cli=true" >> $GITHUB_OUTPUT
-              echo "📦 cmd/ changed → building CLI"
-            else
-              echo "build_cli=false" >> $GITHUB_OUTPUT
-            fi
-            if [ "$APP" = "true" ]; then
-              echo "build_server=true" >> $GITHUB_OUTPUT
-              echo "🌐 app/ changed → building Server"
-            else
-              echo "build_server=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-      - name: Summary
-        run: |
-          echo "=== Build Plan ==="
-          echo "CLI:    ${{ steps.decide.outputs.build_cli }}"
-          echo "Server: ${{ steps.decide.outputs.build_server }}"
-
-  # =========================================================================
-  # 代码质量检查
-  # =========================================================================
   lint:
     runs-on: ubuntu-latest
-    needs: [detect-changes]
-    if: needs.detect-changes.outputs.build_server == 'true' || needs.detect-changes.outputs.build_cli == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -128,128 +21,104 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      - name: go test
+  test:
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: Unit Test
         run: go test ./... -count=1 -timeout 5m
 
-  # =========================================================================
-  # 构建 CLI Docker 镜像
-  # =========================================================================
-  build-cli:
-    needs: [detect-changes, lint]
-    if: needs.detect-changes.outputs.build_cli == 'true'
+  detect-changes:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      cmd: ${{ steps.filter.outputs.cmd }}
+      app: ${{ steps.filter.outputs.app }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      core: ${{ steps.filter.outputs.core }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            cmd:
+              - 'cmd/**'
+            app:
+              - 'app/**'
+              - '!app/frontend/**'
+            frontend:
+              - 'app/frontend/**'
+            core:
+              - 'core/**'
+              - 'agent/**'
+              - 'providers/**'
+              - 'knowledgebase/**'
+              - 'storage/**'
+              - 'tools/**'
+              - 'sandbox/**'
+              - 'go.mod'
+              - 'go.sum'
 
-      - name: Docker meta (CLI)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_CLI }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix=,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
-
-      - name: Build and push CLI image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.cli
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # =========================================================================
-  # 构建 Web Server Docker 镜像
-  # =========================================================================
   build-server:
-    needs: [detect-changes, lint]
-    if: needs.detect-changes.outputs.build_server == 'true'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.core == 'true'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          go-version: "1.25"
+          cache: true
 
-      - name: Docker meta (Server)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_SERVER }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix=,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+      - name: Build Server
+        run: go build -o bin/server ./app
 
-      - name: Build and push Server image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  # =========================================================================
-  # 部署通知 (可选)
-  # =========================================================================
-  notify:
-    needs: [build-cli, build-server]
-    if: always() && github.event_name == 'push' && github.ref_name == 'main'
+  build-cmd:
     runs-on: ubuntu-latest
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.cmd == 'true' || needs.detect-changes.outputs.core == 'true'
     steps:
-      - name: Build summary
-        run: |
-          echo "### 🚀 CI Build Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Image | Tag | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-----|--------|" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v4
 
-          if [ "${{ needs.build-cli.result }}" = "success" ]; then
-            echo "| go-agent-cli | \`${{ github.sha }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.build-cli.result }}" = "skipped" ]; then
-            echo "| go-agent-cli | — | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| go-agent-cli | — | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
-          fi
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
 
-          if [ "${{ needs.build-server.result }}" = "success" ]; then
-            echo "| go-agent-server | \`${{ github.sha }}\` | ✅ |" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ needs.build-server.result }}" = "skipped" ]; then
-            echo "| go-agent-server | — | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "| go-agent-server | — | ❌ Failed |" >> $GITHUB_STEP_SUMMARY
-          fi
+      - name: Build CLI
+        run: go build -o bin/cmd ./cmd
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    needs: [test, detect-changes]
+    if: needs.detect-changes.outputs.frontend == 'true' || needs.detect-changes.outputs.core == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: app/frontend/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: app/frontend/web
+
+      - name: Build Frontend
+        run: npm run build
+        working-directory: app/frontend/web

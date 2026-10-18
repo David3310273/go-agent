@@ -2,7 +2,7 @@
 # =============================================================================
 # 独立部署: make build-cmd / make build-server
 # 交叉编译: make build-linux / make build-darwin
-# Docker:   make docker-build / make docker-up
+# Docker:   make docker-build
 # =============================================================================
 
 # 变量定义
@@ -157,25 +157,17 @@ helm-rollback:
 # =============================================================================
 # Docker
 # =============================================================================
-REGISTRY   ?= ghcr.io/David3310273/go-agent
-IMAGE_TAG  ?= latest
-
-.PHONY: docker-build docker-build-server docker-build-cli docker-push
+.PHONY: docker-build docker-build-server docker-build-cli
 
 docker-build: docker-build-server docker-build-cli
 
 docker-build-server:
-	docker build -f Dockerfile -t $(REGISTRY)-server:$(IMAGE_TAG) .
-	@echo "✅ Server image: $(REGISTRY)-server:$(IMAGE_TAG)"
+	docker build -f Dockerfile -t go-agent-server:latest .
+	@echo "✅ Server image: go-agent-server:latest"
 
 docker-build-cli:
-	docker build -f Dockerfile.cli -t $(REGISTRY)-cli:$(IMAGE_TAG) .
-	@echo "✅ CLI image: $(REGISTRY)-cli:$(IMAGE_TAG)"
-
-docker-push:
-	docker push $(REGISTRY)-server:$(IMAGE_TAG)
-	docker push $(REGISTRY)-cli:$(IMAGE_TAG)
-	@echo "✅ Images pushed to $(REGISTRY)"
+	docker build -f Dockerfile.cli -t go-agent-cli:latest .
+	@echo "✅ CLI image: go-agent-cli:latest"
 
 # =============================================================================
 # 测试 & 代码检查
@@ -227,7 +219,6 @@ help:
 	@echo "  make docker-build       构建所有镜像"
 	@echo "  make docker-build-server 仅构建 Server 镜像"
 	@echo "  make docker-build-cli    仅构建 CLI 镜像"
-	@echo "  make docker-push         推送镜像到 Registry"
 	@echo ""
 	@echo "Helm (K8s 生产部署):"
 	@echo "  make helm-lint       检查 Helm Chart 语法"
@@ -245,7 +236,6 @@ help:
 	@echo "  make docker-build       构建所有镜像"
 	@echo "  make docker-build-server 仅构建 Server 镜像"
 	@echo "  make docker-build-cli    仅构建 CLI 镜像"
-	@echo "  make docker-push         推送镜像到 Registry"
 	@echo ""
 	@echo "质量:"
 	@echo "  make test           运行测试"
