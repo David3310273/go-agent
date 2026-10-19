@@ -9,21 +9,6 @@ type SessionRunningTimeMetric struct {
 	EndTime   time.Time
 }
 
-// MetricSessionTokenUsage  "session_token_usage"
-type SessionTokenUsageMetric struct {
-	SessionID  string
-	Model      string
-	TokenUsage uint64
-	TimeStamp  int64
-}
-
-// MetricQueryCount  "query_count"
-type QueryCountMetric struct {
-	SessionID  string
-	QueryCount int64
-	TimeStamp  int64
-}
-
 // MetricQueryTime  "query_time"
 type QueryTimeMetric struct {
 	SessionID string
@@ -47,4 +32,18 @@ type QueryReActRoundMetric struct {
 	QueryID    string
 	ReActRound int
 	TimeStamp  int64
+}
+
+// MetricQueryFailedCount  "sessionQueryFailedCount"
+type QueryFailedCountMetric struct {
+	SessionID string
+	Count     int64
+	TimeStamp int64
+}
+
+// MetricQuerySuccessCount  "sessionQuerySuccessCount"
+type QuerySuccessCountMetric struct {
+	SessionID string
+	Count     int64
+	TimeStamp int64
 }

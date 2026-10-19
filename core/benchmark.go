@@ -15,8 +15,8 @@ type MetricType string
 const (
 	// session metrics
 	MetricSessionRunningTime MetricType = "sessionRunTime"
-	MetricSessionTokenUsage  MetricType = "sessionTokenUsage"
-	MetricQueryCount         MetricType = "queryCount"
+	MetricQueryFailedCount   MetricType = "sessionQueryFailedCount"
+	MetricQuerySuccessCount  MetricType = "sessionQuerySuccessCount"
 	MetricQueryTime          MetricType = "queryTime"
 	MetricQueryTokenUsage    MetricType = "queryTokenUsage"
 	MetricQueryReActRound    MetricType = "queryReActRound"

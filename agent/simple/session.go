@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/David3310273/go-agent/agent/simple/utils"
+	"github.com/David3310273/go-agent/benchmarker/metrics"
 	"github.com/David3310273/go-agent/core"
 	storage "github.com/David3310273/go-agent/knowledgebase/storage"
 	uuid "github.com/gofrs/uuid/v5"
@@ -54,7 +55,7 @@ type SimpleAgentSession struct {
 
 	// start time
 	startTime time.Time
-	// start process time
+	// query start process time
 	startProcessTime time.Time
 
 	Config core.SessionConfig
@@ -547,15 +548,29 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 		s.GetID(), len(query.GetQuery()), query.GetStreaming(), query.GetEnableThinking())
 
 	// emit start event for benchmark
-	core.Emit(s, core.CommonEvent[SessionEventTimeData]{
+	core.Emit(s, core.CommonEvent[QuestionEventTimeData]{
 		SourceType: core.SessionStartProcessQuestion,
-		Data: SessionEventTimeData{
+		Data: QuestionEventTimeData{
 			SnapshotTime:     time.Now(),
 			SessionID:        s.GetID(),
 			UserMsg:          query.GetQuery(),
 			UserQuestionTime: query.GetSendTimestamp(),
+			QueryID:          query.GetID(),
 		},
 	})
+
+	if s.Config.EnableBenchmark {
+		core.SendBenchmarkEvent(s.benchmarkerChans[core.MetricQueryTime], core.BenchmarkEvent[any]{
+			TimeStamp: time.Now().UnixMilli(),
+			Type:      core.MetricQueryTime,
+			Data: metrics.QueryTimeMetric{
+				SessionID: s.GetID(),
+				QueryID:   query.GetID(),
+				StartTime: time.UnixMilli(query.GetSendTimestamp()),
+				EndTime:   time.Now(),
+			},
+		})
+	}
 
 	// run the query synchronously
 	response, diagnostics := s.RunQuery(query)
@@ -589,13 +604,19 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 		select {
 		case query.GetResponseChan() <- finalResult:
 			// finished process question
-			core.Emit(s, core.CommonEvent[SessionEventTimeData]{
-				SourceType: core.SessionFinishQuestion,
-				Data: SessionEventTimeData{
-					SnapshotTime: time.Now(),
-					SessionID:    s.GetID(),
-				},
-			})
+			if s.Config.EnableBenchmark {
+				core.SendBenchmarkEvent(s.benchmarkerChans[core.MetricQueryTime], core.BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      core.MetricQueryTime,
+					Data: metrics.QueryTimeMetric{
+						SessionID: s.GetID(),
+						QueryID:   query.GetID(),
+						StartTime: time.UnixMilli(query.GetSendTimestamp()),
+						EndTime:   time.Now(),
+					},
+				})
+			}
+
 		case <-time.After(30 * time.Second):
 			// timeout to avoid deadlock
 			core.LogStd(core.LogLevelWarn, "[session=%s] send finalAnswer timeout", s.GetID())
@@ -628,6 +649,13 @@ func (s *SimpleAgentSession) Release() *core.Diagnostic {
 // =============================================================================
 
 func (s *SimpleAgentSession) OnEvent() {
+	// auto-add: benchmark pull channel moved to outer select so it can be
+	// selected independently (fixes nested select with default).
+	var benchmarkPullCh chan core.BenchmarkEvent[any]
+	if s.Config.EnableBenchmark {
+		benchmarkPullCh = s.benchmarkerEventChans[core.MetricSessionRunningTime]
+	}
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -668,7 +696,7 @@ func (s *SimpleAgentSession) OnEvent() {
 			}
 		case e := <-s.eventChans[core.SessionStartProcessQuestion]:
 			// handle session start process question event
-			message, ok := e.GetData().(SessionEventTimeData)
+			message, ok := e.GetData().(QuestionEventTimeData)
 			if ok {
 				s.startProcessTime = message.SnapshotTime
 
@@ -690,6 +718,19 @@ func (s *SimpleAgentSession) OnEvent() {
 		case <-s.eventChans[core.SessionFinishQuestion]:
 			// handle session finish question event
 			core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] processing question finished at: %s", s.GetID(), time.Now().Format(time.RFC3339))
+		case event := <-benchmarkPullCh:
+			if event.GetSourceType() != string(core.MetricSessionRunningTime) {
+				continue
+			}
+			core.SendBenchmarkEvent(s.benchmarkerChans[core.MetricSessionRunningTime], core.BenchmarkEvent[any]{
+				Type:      core.MetricSessionRunningTime,
+				TimeStamp: time.Now().UnixMilli(),
+				Data: metrics.SessionRunningTimeMetric{
+					SessionID: s.GetID(),
+					StartTime: s.startTime,
+					EndTime:   time.Now(),
+				},
+			})
 		}
 	}
 }
@@ -707,6 +748,15 @@ func (s *SimpleAgentSession) RegisterEventChans() {
 	//  register missing event channels
 	s.eventChans[core.SessionStartProcessQuestion] = make(chan core.Event[any], DefaultEventBufferSize)
 	s.eventChans[core.SessionFinishQuestion] = make(chan core.Event[any], DefaultEventBufferSize)
+	// register benchmark channels
+	s.benchmarkerEventChans[core.MetricSessionRunningTime] = make(chan core.BenchmarkEvent[any], DefaultEventBufferSize)
+
+	s.benchmarkerChans[core.MetricSessionRunningTime] = make(chan core.BenchmarkEvent[any], DefaultEventBufferSize)
+	s.benchmarkerChans[core.MetricQueryFailedCount] = make(chan core.BenchmarkEvent[any], DefaultEventBufferSize)
+	s.benchmarkerChans[core.MetricQuerySuccessCount] = make(chan core.BenchmarkEvent[any], DefaultEventBufferSize)
+	s.benchmarkerChans[core.MetricQueryTime] = make(chan core.BenchmarkEvent[any], DefaultEventBufferSize)
+	s.benchmarkerChans[core.MetricQueryTokenUsage] = make(chan core.BenchmarkEvent[any], DefaultEventBufferSize)
+	s.benchmarkerChans[core.MetricQueryReActRound] = make(chan core.BenchmarkEvent[any], DefaultEventBufferSize)
 }
 
 // Observable (implements core.Observable interface)
@@ -744,6 +794,18 @@ func (s *SimpleAgentSession) Start() []core.Diagnostic {
 			SessionID:    s.GetID(),
 		},
 	})
+
+	if s.Config.EnableBenchmark {
+		core.SendBenchmarkEvent(s.benchmarkerChans[core.MetricSessionRunningTime], core.BenchmarkEvent[any]{
+			Type:      core.MetricSessionRunningTime,
+			TimeStamp: time.Now().UnixMilli(),
+			Data: metrics.SessionRunningTimeMetric{
+				SessionID: s.GetID(),
+				StartTime: s.startTime,
+				EndTime:   time.Now(),
+			},
+		})
+	}
 
 	// start event listener
 	go s.OnEvent()
@@ -788,6 +850,19 @@ func (s *SimpleAgentSession) Stop() []core.Diagnostic {
 	s.stopOnce.Do(func() {
 		s.stopDiags = s.doStop()
 	})
+
+	if s.Config.EnableBenchmark {
+		core.SendBenchmarkEvent(s.benchmarkerChans[core.MetricSessionRunningTime], core.BenchmarkEvent[any]{
+			Type:      core.MetricSessionRunningTime,
+			TimeStamp: time.Now().UnixMilli(),
+			Data: metrics.SessionRunningTimeMetric{
+				SessionID: s.GetID(),
+				StartTime: s.startTime,
+				EndTime:   time.Now(),
+			},
+		})
+	}
+
 	return s.stopDiags
 }
 

@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/David3310273/go-agent/agent/simple/utils"
+	benchmarker "github.com/David3310273/go-agent/benchmarker"
+	"github.com/David3310273/go-agent/benchmarker/metrics"
 	"github.com/David3310273/go-agent/core"
 	uuid "github.com/gofrs/uuid/v5"
 )
@@ -44,7 +46,9 @@ func CreateProviders(rootPath string, providerNames []string) []core.Provider {
 }
 
 func (a *SimpleAgent) GetSessionConfig() core.SessionConfig {
-	return a.Configs.Session
+	cfg := a.Configs.Session
+	cfg.EnableBenchmark = a.Configs.Agent.EnableBenchmark
+	return cfg
 }
 
 // compile-time check that SimpleAgent implements core.AgentCore
@@ -65,6 +69,11 @@ type SimpleAgent struct {
 	// benchmarker chans
 	benchmarkerChans      map[core.MetricType]chan core.BenchmarkEvent[any]
 	benchmarkerEventChans map[core.MetricType]chan core.BenchmarkEvent[any]
+
+	// auto-add: agent holds a reference to the benchmarker so that when
+	// new sessions are created (and EnableBenchmark is true), the agent
+	// can notify the benchmarker to subscribe to the session's metrics channels.
+	benchmarker *benchmarker.Benchmarker
 
 	// input chan
 	Question chan core.Question
@@ -119,6 +128,7 @@ func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
 	}
 
 	allConfigs.Session.RootPath = rootPath
+	allConfigs.Benchmarker.RootPath = rootPath
 
 	// register agent info to mcp config
 	for i := range allConfigs.Agent.MCPServer {
@@ -202,6 +212,10 @@ func (a *SimpleAgent) GetQuestionChan() chan core.Question {
 	return a.Question
 }
 
+func (a *SimpleAgent) SetBenchmarker(bm *benchmarker.Benchmarker) {
+	a.benchmarker = bm
+}
+
 // get available tools
 func (a *SimpleAgent) GetToolsConfig() []core.ToolConfig {
 	return a.Configs.Agent.Tool
@@ -238,6 +252,14 @@ func (a *SimpleAgent) GetSkillConfigs() []core.SkillDefinition {
 	- Event handler is hard to be uniformed because of different param type and count, so define this in each module
 */
 func (a *SimpleAgent) OnEvent() {
+	// auto-add: benchmark pull channel moved to outer select so it can be
+	// selected independently (fixes nested select with default that silently
+	// dropped every benchmarker pull request).
+	var benchmarkPullCh chan core.BenchmarkEvent[any]
+	if a.Configs.Agent.EnableBenchmark {
+		benchmarkPullCh = a.benchmarkerEventChans[core.MetricAgentRunningTime]
+	}
+
 	for {
 		select {
 		case <-a.ctx.Done():
@@ -245,25 +267,55 @@ func (a *SimpleAgent) OnEvent() {
 		// for benchmarker
 		case <-a.eventChans[core.AgentEventStart]:
 			a.startUpTime = time.Now()
-		// TODO: send agent during time to benchmarker
-		// case <-a.eventChans[AgentEventStop]:
-		// 	if !a.startTime.IsZero() {
-		// 		a.benchmarkerChans
-		// 	}
 		case event := <-a.eventChans[core.AgentEventDeleteSessionFailed]:
 			info := event.GetData()
 			if sessionInfo, ok := info.(AgentEventData); ok {
 				a.sessions.Delete(sessionInfo.SessionID)
+			}
+		case event := <-benchmarkPullCh:
+			if core.MetricType(event.GetSourceType()) == core.MetricAgentRunningTime {
+				core.LogInfo("", "[agent] OnEvent: received pull request, sending running time to listening channel agentID=%s", a.GetID())
+				core.SendBenchmarkEvent(a.benchmarkerChans[core.MetricAgentRunningTime], core.BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      core.MetricAgentRunningTime,
+					Data: metrics.AgentRunningTimeMetric{
+						AgentID:   a.GetID(),
+						StartTime: a.startUpTime,
+						EndTime:   time.Now(),
+					},
+				})
 			}
 		}
 	}
 }
 
 func (a *SimpleAgent) RegisterEventChans() {
-	a.eventChans[core.AgentEventStart] = make(chan core.Event[any], a.eventBufferSize)
-	a.eventChans[core.AgentEventStop] = make(chan core.Event[any], a.eventBufferSize)
-	a.eventChans[core.AgentEventDeleteSessionFailed] = make(chan core.Event[any], a.eventBufferSize)
-	a.eventChans[core.AgentEventCreateSessionFailed] = make(chan core.Event[any], a.eventBufferSize)
+	// auto-add: make RegisterEventChans idempotent so it can be called
+	// from both BeforeStart and GetBenchmarkListeningChannels safely.
+	if _, ok := a.eventChans[core.AgentEventStart]; !ok {
+		core.LogInfo("", "[agent] RegisterEventChans: creating event channels")
+		a.eventChans[core.AgentEventStart] = make(chan core.Event[any], a.eventBufferSize)
+	}
+	if _, ok := a.eventChans[core.AgentEventDeleteSessionFailed]; !ok {
+		a.eventChans[core.AgentEventDeleteSessionFailed] = make(chan core.Event[any], a.eventBufferSize)
+	}
+	if _, ok := a.eventChans[core.AgentEventCreateSessionFailed]; !ok {
+		a.eventChans[core.AgentEventCreateSessionFailed] = make(chan core.Event[any], a.eventBufferSize)
+	}
+	// register benchmarker event chan
+	if a.Configs.Agent.EnableBenchmark {
+		core.LogInfo("", "[agent] RegisterEventChans: EnableBenchmark=true, creating benchmark channels")
+		if _, ok := a.benchmarkerEventChans[core.MetricAgentRunningTime]; !ok {
+			core.LogInfo("", "[agent] RegisterEventChans: creating benchmarkerEventChans[MetricAgentRunningTime]")
+			a.benchmarkerEventChans[core.MetricAgentRunningTime] = make(chan core.BenchmarkEvent[any], a.eventBufferSize)
+		}
+		if _, ok := a.benchmarkerChans[core.MetricAgentRunningTime]; !ok {
+			core.LogInfo("", "[agent] RegisterEventChans: creating benchmarkerChans[MetricAgentRunningTime]")
+			a.benchmarkerChans[core.MetricAgentRunningTime] = make(chan core.BenchmarkEvent[any], a.eventBufferSize)
+		}
+	} else {
+		core.LogInfo("", "[agent] RegisterEventChans: EnableBenchmark=false, skipping benchmark channels")
+	}
 }
 
 func (a *SimpleAgent) GetEventChans() map[string]chan core.Event[any] {
@@ -276,6 +328,18 @@ func (a *SimpleAgent) GetEventChans() map[string]chan core.Event[any] {
 func (a *SimpleAgent) BeforeStart() []core.Diagnostic {
 	// 1. register event handlers
 	a.RegisterEventChans()
+
+	// auto-add: initialise benchmarker if enabled by config.
+	// Must run after RegisterEventChans (so channels exist) and before
+	// go a.OnEvent() (so benchmarker can subscribe before event loop starts).
+	if a.Configs.Agent.EnableBenchmark {
+		a.benchmarker = benchmarker.NewBenchmarker(a.Configs.Benchmarker)
+		a.benchmarker.OnEvent(a)
+		if errs := a.benchmarker.Start(); len(errs) > 0 {
+			core.LogError("", "[agent] benchmarker start failed: %v", errs)
+		}
+	}
+
 	go a.OnEvent()
 	// 2. model auth and init
 	diagnostics := core.ValidateProviders(a.GetModelProviders())
@@ -296,7 +360,6 @@ func (a *SimpleAgent) Start() []core.Diagnostic {
 			Message:      fmt.Sprintf("Agent %s started", a.GetID()),
 		},
 	})
-
 	// determine worker count: config value or default to 1
 	workerCount := a.Configs.Agent.WorkerCount
 	if workerCount <= 0 {
@@ -342,6 +405,21 @@ func (a *SimpleAgent) Start() []core.Diagnostic {
 	wg.Wait()
 	core.LogStd(core.LogLevelDebug, "all dispatcher workers exited, agentID=%s", a.GetID())
 
+	// send start event
+	if a.Configs.Agent.EnableBenchmark {
+		core.LogInfo("", "[agent] Start: sending agent running time via benchmarkerEventChans (pull trigger) agentID=%s", a.GetID())
+		currentTime := time.Now()
+		core.SendBenchmarkEvent(a.benchmarkerEventChans[core.MetricAgentRunningTime], core.BenchmarkEvent[any]{
+			TimeStamp: currentTime.UnixMilli(),
+			Type:      core.MetricAgentRunningTime,
+			Data: metrics.AgentRunningTimeMetric{
+				AgentID:   a.GetID(),
+				StartTime: a.startUpTime,
+				EndTime:   currentTime,
+			},
+		})
+	}
+
 	return []core.Diagnostic{
 		{
 			Level: core.SeverityWarn,
@@ -380,6 +458,26 @@ func (a *SimpleAgent) Stop() []core.Diagnostic {
 	// cancel goroutine
 	a.cancel()
 
+	// emit stop event for benchmark
+	if a.Configs.Agent.EnableBenchmark {
+		core.LogInfo("", "[agent] Stop: sending agent running time via benchmarkerChans (direct push) agentID=%s startUpTime=%v",
+			a.GetID(), a.startUpTime)
+		core.SendBenchmarkEvent(a.benchmarkerChans[core.MetricAgentRunningTime], core.BenchmarkEvent[any]{
+			TimeStamp: time.Now().UnixMilli(),
+			Type:      core.MetricAgentRunningTime,
+			Data: metrics.AgentRunningTimeMetric{
+				AgentID:   a.GetID(),
+				StartTime: a.startUpTime,
+				EndTime:   time.Now(),
+			},
+		})
+
+		// shut down the embedded benchmarker
+		if a.benchmarker != nil {
+			core.StopBenchmark(a.benchmarker)
+		}
+	}
+
 	return nil
 }
 
@@ -395,10 +493,16 @@ func (a *SimpleAgent) Release() *core.Diagnostic {
 
 // Observable for benchmarker
 func (a *SimpleAgent) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
+	// auto-add: ensure channels are registered before returning.
+	// This fixes a race condition where bm.OnEvent(agent) is called
+	// before StartAgentServer (which calls RegisterEventChans) completes.
+	a.RegisterEventChans()
 	return a.benchmarkerChans
 }
 
 func (a *SimpleAgent) GetBenchmarkPullChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
+	// auto-add: ensure channels are registered before returning.
+	a.RegisterEventChans()
 	return a.benchmarkerEventChans
 }
 
@@ -482,6 +586,14 @@ func (a *SimpleAgent) GetSessionOnCreate(sessionID string, forceCreate bool) (co
 
 	memories := a.RecoverConversation(sessionID)
 	session := NewAgentSession(a, sessionID, memories)
+
+	// auto-add: register session's benchmark listening/pull channels
+	// with the benchmarker so session-level metrics (query time, token
+	// usage, etc.) flow to Prometheus.
+	if a.benchmarker != nil && a.Configs.Agent.EnableBenchmark {
+		core.LogInfo("", "[agent] registering session metrics with benchmarker: session=%s", sessionID)
+		a.benchmarker.OnEvent(session)
+	}
 
 	newSession, ok := a.sessions.LoadOrStore(sessionID, session)
 	if ok {
