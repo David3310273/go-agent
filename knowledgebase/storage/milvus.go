@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -24,6 +25,8 @@ type MilvusKnowledgebase[T any] struct {
 	name     string
 	desc     string
 	docDesc  atomic.Pointer[map[string]map[string]any]
+	stopCh   chan struct{}
+	stopOnce sync.Once
 }
 
 var _ core.KnowledgeBase[any] = (*MilvusKnowledgebase[any])(nil)
@@ -47,9 +50,8 @@ func NewMilvusKnowledgebase[T any](embedder core.Embedder, chunker core.Chunker,
 		Config:   config,
 	}
 
-	go func() {
-		milvusKnowledgebase.SetDocDescription()
-	}()
+	milvusKnowledgebase.stopCh = make(chan struct{})
+	go milvusKnowledgebase.startDocDescCron()
 
 	return milvusKnowledgebase
 }
@@ -58,6 +60,26 @@ func NewMilvusKnowledgebase[T any](embedder core.Embedder, chunker core.Chunker,
 // getter for embedder, implements core.KnowledgeBase interface.
 func (kb *MilvusKnowledgebase[T]) GetEmedder() core.Embedder {
 	return kb.embedder
+}
+
+func (kb *MilvusKnowledgebase[T]) startDocDescCron() {
+	kb.SetDocDescription()
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			kb.SetDocDescription()
+		case <-kb.stopCh:
+			return
+		}
+	}
+}
+
+func (kb *MilvusKnowledgebase[T]) Close() {
+	kb.stopOnce.Do(func() {
+		close(kb.stopCh)
+	})
 }
 
 func (kb *MilvusKnowledgebase[T]) SetDocDescription() *core.Diagnostic {

@@ -57,6 +57,8 @@ type Embedder interface {
 // KnowledgeBase defines the interface for knowledge management.
 // generic interface that uses user-defined entity type for Save and Search.
 type KnowledgeBase[T any] interface {
+	// close kb
+	Close()
 	// embedder is optional, return nil if not using vector db
 	GetEmedder() Embedder
 	// Process loads a document from binary data, and process it.

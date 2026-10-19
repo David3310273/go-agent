@@ -365,6 +365,12 @@ func (a *SimpleAgent) BeforeStop() []core.Diagnostic {
 		}
 		return true
 	})
+
+	// close opened kb
+	for _, kb := range a.SimpleAgentContext.KnowledgeBase {
+		kb.Close()
+	}
+
 	return nil
 }
 
