@@ -133,10 +133,16 @@ type ToolConfig struct {
 }
 
 type BenchmarkerConfig struct {
-	MaxTimeout     int    `json:"maxTimeout"`
-	Port           int    `json:"port"`
-	OutputPath     string `json:"outputPath"`
-	FilenameFormat string `json:"filenameFormat"`
+	Server         BenchmarkerServerConfig `json:"server"`
+	MaxTimeout     int                     `json:"maxTimeout"`
+	Intervals      map[string]int          `json:"intervals"`
+	OutputPath     string                  `json:"outputPath"`
+	FilenameFormat string                  `json:"filenameFormat"`
+}
+
+type BenchmarkerServerConfig struct {
+	Host string `json:"host"`
+	Port int    `json:"port"`
 }
 
 // SkillDefinition defines a skill with its name, description and tools.

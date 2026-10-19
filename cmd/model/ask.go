@@ -12,6 +12,7 @@ import (
 var _ core.Command = (*AskQuestionCommand)(nil)
 
 type AskQuestionCommand struct {
+	ID             string
 	Query          string
 	EnableThinking bool
 	Stream         bool
@@ -63,7 +64,7 @@ func (c AskQuestionCommand) GetBase() string {
 	return AskCommandName
 }
 
-func (c *AskQuestionCommand) GetID() string                     { return c.SessionID }
+func (c *AskQuestionCommand) GetID() string                     { return c.ID }
 func (c *AskQuestionCommand) GetModelName() string              { return c.Model }
 func (c *AskQuestionCommand) GetStreaming() bool                { return c.Stream }
 func (c *AskQuestionCommand) GetEnableThinking() bool           { return c.EnableThinking }
