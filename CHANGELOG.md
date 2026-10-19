@@ -22,7 +22,7 @@ feature:
   - add/ls/rm mcp server from local config
   - ask question and show thoughts
 
-## v1.0.7:
+## v1.0.7: 2026-10-18
 
 upgrade agent core feature:
 
