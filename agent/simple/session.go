@@ -73,7 +73,8 @@ type SimpleAgentSession struct {
 	// user input chan
 	Question chan core.Question
 	// becnchmark chan
-	benchmarkerChans map[string]chan core.StatEvent[any]
+	benchmarkerChans      map[core.MetricType]chan core.BenchmarkEvent[any]
+	benchmarkerEventChans map[core.MetricType]chan core.BenchmarkEvent[any]
 	// event chans
 	eventChans map[string]chan core.Event[any]
 	// session context
@@ -100,8 +101,9 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 		Question:    make(chan core.Question, 1),
 		Config:      sessionConfig,
 
-		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
-		eventChans:       make(map[string]chan core.Event[any]),
+		benchmarkerChans:      make(map[core.MetricType]chan core.BenchmarkEvent[any]),
+		benchmarkerEventChans: make(map[core.MetricType]chan core.BenchmarkEvent[any]),
+		eventChans:            make(map[string]chan core.Event[any]),
 		// initialize confirmation tracking maps
 		confirmedTools: make(map[string]string),
 		pendingCalls:   make(map[string]*core.ConfirmToolCall),
@@ -166,10 +168,11 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 		// Stop closes Question, close of a nil channel panics
 		Question: make(chan core.Question, 1),
 		// nil maps make RegisterEventChans and SetPendingToolCall panic on assignment
-		eventChans:       make(map[string]chan core.Event[any]),
-		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
-		confirmedTools:   make(map[string]string),
-		pendingCalls:     make(map[string]*core.ConfirmToolCall),
+		eventChans:            make(map[string]chan core.Event[any]),
+		benchmarkerChans:      make(map[core.MetricType]chan core.BenchmarkEvent[any]),
+		benchmarkerEventChans: make(map[core.MetricType]chan core.BenchmarkEvent[any]),
+		confirmedTools:        make(map[string]string),
+		pendingCalls:          make(map[string]*core.ConfirmToolCall),
 		// copy of the parent context (not sharing the pointer)
 		Context: SimpleSessionContext{
 			SimpleAgentContext: &subSessionContext,
@@ -707,8 +710,12 @@ func (s *SimpleAgentSession) RegisterEventChans() {
 }
 
 // Observable (implements core.Observable interface)
-func (a *SimpleAgentSession) GetBenchmarkListeningChannels() map[string]chan core.StatEvent[any] {
+func (a *SimpleAgentSession) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
 	return a.benchmarkerChans
+}
+
+func (a *SimpleAgentSession) GetBenchmarkPullChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
+	return a.benchmarkerEventChans
 }
 
 func (a *SimpleAgentSession) CloseBenchmarkListeningChannels() {

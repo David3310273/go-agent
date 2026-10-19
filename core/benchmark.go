@@ -1,68 +1,99 @@
 package core
 
-import "context"
-
-type StatEventType string
+import (
+	"encoding/json"
+)
 
 const (
-	StatEventSessionRunningTime StatEventType = "session_run_time"
-	StatEventSessionTokenUsage  StatEventType = "session_token_usage"
+	// DefaultBenchmarkChannelBufferSize 是 benchmark channel 的默认缓冲区大小，
+	// 避免 benchmarker 未启动或消费慢时阻塞 agent/session 的发送。
+	DefaultBenchmarkChannelBufferSize = 100
+)
+
+type MetricType string
+
+const (
+	// session metrics
+	MetricSessionRunningTime MetricType = "sessionRunTime"
+	MetricSessionTokenUsage  MetricType = "sessionTokenUsage"
+	MetricQueryCount         MetricType = "queryCount"
+	MetricQueryTime          MetricType = "queryTime"
+	MetricQueryTokenUsage    MetricType = "queryTokenUsage"
+	MetricQueryReActRound    MetricType = "queryReActRound"
+
+	// agent metrics
+	MetricAgentRunningTime MetricType = "agentRunTime"
 )
 
 type Observable interface {
-	// get listening channels
-	GetBenchmarkListeningChannels() map[string]chan StatEvent[any]
-	// close listening channels
-	CloseBenchmarkListeningChannels()
+	// get listening channels where agent pushes data
+	GetBenchmarkListeningChannels() map[MetricType]chan BenchmarkEvent[any]
+	// get pull channels
+	GetBenchmarkPullChannels() map[MetricType]chan BenchmarkEvent[any]
 }
 
-func onEvent(ctx context.Context, obj Observable) *Diagnostic {
-	return nil
-}
+var _ Event[any] = (*BenchmarkEvent[any])(nil)
 
-func StartBenchmark(ctx context.Context, obj Observable) *Diagnostic {
-	go onEvent(ctx, obj)
-	return nil
-}
-
-// stop benchmark
-func StopBenchmark(cancel context.CancelFunc, obj Observable) *Diagnostic {
-	// inform obj to close benchmark channels
-	obj.CloseBenchmarkListeningChannels()
-	// stop benchmark goroutine
-	cancel()
-	return nil
-}
-
-type StatEvent[T any] struct {
-	Event[T]
-	StartTime uint64
-	EndTime   uint64
-	Type      StatEventType
+type BenchmarkEvent[T any] struct {
+	TimeStamp int64
+	Type      MetricType
 	Data      T
 }
 
-type AgentStatisticsInventory struct {
-	// total token usage
-	TokenUsage uint64
-	// total sessions
-	ModelUseCount map[string]uint64
-	// total sub sessions
-	SessionCount uint64
-	// total session time cost
-	SesstionTime uint64
+func (e BenchmarkEvent[T]) GetSourceType() string {
+	return string(e.Type)
 }
 
-/*
-	benchmark is a independent component, should not be a part of agent/session,
-	using observer pattern instead
-*/
-
-type Benchmarker struct {
-	Configs           BenchmarkerConfig
-	ListeningChannels map[string]chan StatEvent[any]
+func (e BenchmarkEvent[T]) GetData() T {
+	return e.Data
 }
 
-func NewBenchmarker(obj Observable) *Benchmarker {
+func (e BenchmarkEvent[T]) ToString() string {
+	msg, _ := json.Marshal(e)
+	return string(msg)
+}
+
+// SendBenchmarkEvent 非阻塞地向 benchmark channel 发送事件。
+// 如果 channel 已满或没有消费者（benchmarker 未启动），事件会被静默丢弃。
+func SendBenchmarkEvent(ch chan BenchmarkEvent[any], event BenchmarkEvent[any]) {
+	select {
+	case ch <- event:
+	default:
+	}
+}
+
+func StartBenchmark(benchmarker WorkFlow) *Diagnostic {
+	if errs := benchmarker.BeforeStart(); len(errs) > 0 {
+		return &Diagnostic{
+			Level: SeverityError,
+			Code:  MessageCodeAgentCoreConfigError,
+		}
+	}
+
+	if errs := benchmarker.Start(); len(errs) > 0 {
+		return &Diagnostic{
+			Level: SeverityError,
+			Code:  MessageCodeAgentCoreConfigError,
+		}
+	}
+
+	return nil
+}
+
+func StopBenchmark(benchmarker WorkFlow) *Diagnostic {
+	if errs := benchmarker.BeforeStop(); len(errs) > 0 {
+		return &Diagnostic{
+			Level: SeverityError,
+			Code:  MessageCodeAgentCoreConfigError,
+		}
+	}
+
+	if errs := benchmarker.Stop(); len(errs) > 0 {
+		return &Diagnostic{
+			Level: SeverityError,
+			Code:  MessageCodeAgentCoreConfigError,
+		}
+	}
+
 	return nil
 }

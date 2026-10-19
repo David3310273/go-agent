@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	// _ "github.com/David3310273/go-agent/agent/simple/tools"
 	"github.com/David3310273/go-agent/agent/simple/utils"
 	"github.com/David3310273/go-agent/core"
 	uuid "github.com/gofrs/uuid/v5"
@@ -64,7 +63,8 @@ type SimpleAgent struct {
 	startUpTime time.Time
 
 	// benchmarker chans
-	benchmarkerChans map[string]chan core.StatEvent[any]
+	benchmarkerChans      map[core.MetricType]chan core.BenchmarkEvent[any]
+	benchmarkerEventChans map[core.MetricType]chan core.BenchmarkEvent[any]
 
 	// input chan
 	Question chan core.Question
@@ -129,11 +129,13 @@ func NewSimpleAgent(rootPath string) (*SimpleAgent, *core.Diagnostic) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	agent := &SimpleAgent{
-		RootPath:         rootPath,
-		eventChans:       make(map[string]chan core.Event[any]),
-		eventHandlers:    make(map[string]func(core.Event[any]) core.Diagnostic),
-		eventBufferSize:  DefaultEventBufferSize,
-		benchmarkerChans: make(map[string]chan core.StatEvent[any]),
+		RootPath:        rootPath,
+		eventChans:      make(map[string]chan core.Event[any]),
+		eventHandlers:   make(map[string]func(core.Event[any]) core.Diagnostic),
+		eventBufferSize: DefaultEventBufferSize,
+		// benchmarker pull or push channels
+		benchmarkerChans:      make(map[core.MetricType]chan core.BenchmarkEvent[any]),
+		benchmarkerEventChans: make(map[core.MetricType]chan core.BenchmarkEvent[any]),
 		// current sessions in memory, key is session id
 		sessions: sync.Map{},
 		// configs
@@ -392,8 +394,12 @@ func (a *SimpleAgent) Release() *core.Diagnostic {
 }
 
 // Observable for benchmarker
-func (a *SimpleAgent) GetBenchmarkListeningChannels() map[string]chan core.StatEvent[any] {
+func (a *SimpleAgent) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
 	return a.benchmarkerChans
+}
+
+func (a *SimpleAgent) GetBenchmarkPullChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
+	return a.benchmarkerEventChans
 }
 
 func (a *SimpleAgent) CloseBenchmarkListeningChannels() {

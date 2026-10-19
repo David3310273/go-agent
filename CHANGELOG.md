@@ -36,6 +36,10 @@ feature:
 
 - add benchmark integrated with promethus log
 
+fix:
+
+- uniform workflow in single core file
+
 ### v1.0.7: 2026-10-18
 
 upgrade agent core feature:
