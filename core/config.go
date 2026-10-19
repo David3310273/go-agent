@@ -9,9 +9,10 @@ const (
 
 type AgentCoreConfig struct {
 	// project root path for resolving relative paths at runtime
-	RootPath string
-	Agent    AgentConfig   `json:"agent"`
-	Session  SessionConfig `json:"session"`
+	RootPath    string
+	Agent       AgentConfig       `json:"agent"`
+	Session     SessionConfig     `json:"session"`
+	Benchmarker BenchmarkerConfig `json:"benchmarker"`
 }
 
 type PlanType int
@@ -74,6 +75,8 @@ type AgentConfig struct {
 	QuestionBufferSize int      `json:"questionBufferSize"`
 	QuestionProvider   []string `json:"questionProvider"`
 	WorkerCount        int      `json:"workerCount"`
+	// enable benchmark per agent
+	EnableBenchmark bool `json:"enableBenchmark"`
 }
 
 type PromptConfig struct {
@@ -133,6 +136,7 @@ type ToolConfig struct {
 }
 
 type BenchmarkerConfig struct {
+	RootPath       string                  `json:"rootPath"`
 	Server         BenchmarkerServerConfig `json:"server"`
 	MaxTimeout     int                     `json:"maxTimeout"`
 	Intervals      map[string]int          `json:"intervals"`
@@ -171,6 +175,8 @@ type SessionConfig struct {
 	MemoryFilePathFormat string `json:"memoryFilePathFormat"`
 	MemoryFileSplitter   string `json:"memoryFileSplitter"`
 	MemoryWindowSize     int64  `json:"memoryWindowSize"`
+
+	EnableBenchmark bool `json:"enableBenchmark"`
 
 	// chat history file path for current session
 	ChatHistoryFilePathFormat string `json:"chatHistoryFilePathFormat"`

@@ -22,9 +22,15 @@ type AgentEventTimeData struct {
 }
 
 type SessionEventTimeData struct {
+	SnapshotTime time.Time `json:"snapshotTime"`
+	SessionID    string    `json:"sessionID"`
+	Message      string    `json:"message"`
+}
+
+type QuestionEventTimeData struct {
 	SnapshotTime     time.Time `json:"snapshotTime"`
 	SessionID        string    `json:"sessionID"`
-	Message          string    `json:"message"`
 	UserMsg          string    `json:"userMsg"`
 	UserQuestionTime int64     `json:"userQuestionTime"`
+	QueryID          string    `json:"queryID"`
 }

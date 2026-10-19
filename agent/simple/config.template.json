@@ -3,6 +3,7 @@
         "version": "1.0.1",
         "name": "go-agent",
         "questionBufferSize": 10,
+        "enableBenchmark": true,
         "workerCount": 4,
         "logPath": "app/agentLogs/agent-%s.log",
         "questionProvider": [
@@ -65,5 +66,18 @@
         "memoryFilePathFormat": "app/sessionMemories/session-%s-memory.jsonl",
         "chatHistoryFilePathFormat": "app/chatHistories/session-%s-chat.jsonl",
         "promptFileMaxSize": 10
+    },
+    "benchmarker": {
+        "server": {
+            "host": "http://localhost",
+            "port": 9090
+        },
+        "maxTimeout": 10,
+        "outputPath": "benchmarker/logs",
+        "filenameFormat": "benchmark_%s.jsonl",
+        "intervals": {
+            "sessionRunTime": 30,
+            "agentRunTime": 60
+        }
     }
 }

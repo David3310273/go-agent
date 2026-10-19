@@ -12,8 +12,8 @@ import (
 type PrometheusCollector struct {
 	// ---- session 级别 ----
 	sessionRunningTime *prometheus.GaugeVec
-	sessionTokenUsage  *prometheus.CounterVec
-	queryCount         *prometheus.GaugeVec
+	queryFailedCount   *prometheus.CounterVec
+	querySuccessCount  *prometheus.CounterVec
 	queryTime          *prometheus.HistogramVec
 	queryTokenUsage    *prometheus.CounterVec
 	queryReActRound    *prometheus.HistogramVec
@@ -34,20 +34,20 @@ func NewPrometheusCollector() *PrometheusCollector {
 			[]string{"session_id"},
 		),
 
-		// MetricSessionTokenUsage
-		sessionTokenUsage: prometheus.NewCounterVec(
+		// MetricQueryFailedCount
+		queryFailedCount: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: "go_agent_session_token_usage_total",
-				Help: "Total token usage per session, partitioned by model.",
+				Name: "go_agent_session_query_failed_total",
+				Help: "Total number of failed queries per session.",
 			},
-			[]string{"session_id", "model"},
+			[]string{"session_id"},
 		),
 
-		// MetricQueryCount
-		queryCount: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Name: "go_agent_session_query_count",
-				Help: "Current number of queries in a session.",
+		// MetricQuerySuccessCount
+		querySuccessCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: "go_agent_session_query_success_total",
+				Help: "Total number of successful queries per session.",
 			},
 			[]string{"session_id"},
 		),
@@ -98,8 +98,8 @@ func NewPrometheusCollector() *PrometheusCollector {
 func (pc *PrometheusCollector) register() {
 	prometheus.MustRegister(
 		pc.sessionRunningTime,
-		pc.sessionTokenUsage,
-		pc.queryCount,
+		pc.queryFailedCount,
+		pc.querySuccessCount,
 		pc.queryTime,
 		pc.queryTokenUsage,
 		pc.queryReActRound,
@@ -119,12 +119,12 @@ func (pc *PrometheusCollector) RecordSessionRunningTime(m SessionRunningTimeMetr
 	pc.sessionRunningTime.WithLabelValues(m.SessionID).Set(duration)
 }
 
-func (pc *PrometheusCollector) RecordSessionTokenUsage(m SessionTokenUsageMetric) {
-	pc.sessionTokenUsage.WithLabelValues(m.SessionID, m.Model).Add(float64(m.TokenUsage))
+func (pc *PrometheusCollector) RecordQueryFailedCount(m QueryFailedCountMetric) {
+	pc.queryFailedCount.WithLabelValues(m.SessionID).Add(float64(m.Count))
 }
 
-func (pc *PrometheusCollector) RecordQueryCount(m QueryCountMetric) {
-	pc.queryCount.WithLabelValues(m.SessionID).Set(float64(m.QueryCount))
+func (pc *PrometheusCollector) RecordQuerySuccessCount(m QuerySuccessCountMetric) {
+	pc.querySuccessCount.WithLabelValues(m.SessionID).Add(float64(m.Count))
 }
 
 func (pc *PrometheusCollector) RecordQueryTime(m QueryTimeMetric) {

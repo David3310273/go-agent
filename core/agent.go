@@ -4,6 +4,9 @@ import (
 	json "encoding/json"
 	"fmt"
 	"slices"
+	"time"
+
+	"github.com/David3310273/go-agent/benchmarker/metrics"
 	// the tool calls of one assistant message run concurrently now
 )
 
@@ -465,6 +468,8 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		runtimeTools = reActContext.GetTools()
 	}
 
+	var tokenUsage uint64 = 0
+
 	// main loop of reAct
 	for round := 0; round < maxReActRounds; round++ {
 		response, errs := AskQuestion(session, *messages, *runtimeTools, question)
@@ -474,6 +479,9 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		}
 
 		answer, ok := response.(AgentResponse)
+		if ok {
+			tokenUsage += answer.Usage.TotalTokens
+		}
 		if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil {
 			// force final answer if reached max rounds
 			if round == maxReActRounds-1 {
@@ -507,6 +515,31 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 				diagnostics = append(diagnostics, diag...)
 				return defaultAnswer, diagnostics
 			} else if finalResponse != nil {
+				// emit final message event
+				if session.GetConfigs().EnableBenchmark {
+					benchmarkChans := session.GetBenchmarkListeningChannels()
+					SendBenchmarkEvent(benchmarkChans[MetricQueryReActRound], BenchmarkEvent[any]{
+						TimeStamp: time.Now().UnixMilli(),
+						Type:      MetricQueryReActRound,
+						Data: metrics.QueryReActRoundMetric{
+							SessionID:  session.GetID(),
+							QueryID:    question.GetID(),
+							ReActRound: round,
+							TimeStamp:  time.Now().UnixMilli(),
+						},
+					})
+					SendBenchmarkEvent(benchmarkChans[MetricQueryTokenUsage], BenchmarkEvent[any]{
+						TimeStamp: time.Now().UnixMilli(),
+						Type:      MetricQueryTokenUsage,
+						Data: metrics.QueryTokenUsageMetric{
+							SessionID:  session.GetID(),
+							QueryID:    question.GetID(),
+							TokenUsage: tokenUsage,
+							Model:      question.GetModelName(),
+							TimeStamp:  time.Now().UnixMilli(),
+						},
+					})
+				}
 				return finalResponse, nil
 			}
 		}
@@ -652,6 +685,8 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		runtimeTools = reActContext.GetTools()
 	}
 
+	var tokenUsage uint64 = 0
+
 	// main loop of reAct process
 	for round := 0; round < maxReActRounds; round++ {
 		LogStd(LogLevelDebug, "[session=%s] init messages (stream): count=%d", session.GetID(), len(*messages))
@@ -687,7 +722,42 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 			},
 		}
 
+		tokenUsage += acc.usage.TotalTokens
+
 		if acc.finishReason != FinishReasonStop && round == maxReActRounds-1 {
+			if session.GetConfigs().EnableBenchmark {
+				benchmarkChans := session.GetBenchmarkListeningChannels()
+				SendBenchmarkEvent(benchmarkChans[MetricQueryReActRound], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQueryReActRound,
+					Data: metrics.QueryReActRoundMetric{
+						SessionID:  session.GetID(),
+						QueryID:    question.GetID(),
+						ReActRound: round,
+						TimeStamp:  time.Now().UnixMilli(),
+					},
+				})
+				SendBenchmarkEvent(benchmarkChans[MetricQueryTokenUsage], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQueryTokenUsage,
+					Data: metrics.QueryTokenUsageMetric{
+						SessionID:  session.GetID(),
+						QueryID:    question.GetID(),
+						TokenUsage: tokenUsage,
+						Model:      question.GetModelName(),
+						TimeStamp:  time.Now().UnixMilli(),
+					},
+				})
+				SendBenchmarkEvent(benchmarkChans[MetricQueryFailedCount], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQueryFailedCount,
+					Data: metrics.QueryFailedCountMetric{
+						SessionID: session.GetID(),
+						Count:     1,
+						TimeStamp: time.Now().UnixMilli(),
+					},
+				})
+			}
 			if answer, handled := harness.HandleForceTerminate(session, messages, runtimeTools, question); handled {
 				return answer, diagnostics
 			}
@@ -696,9 +766,75 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 
 		finalAnswer, diag := processResponse(accumulatedResp, session, question, harness)
 		if diag != nil {
+			if session.GetConfigs().EnableBenchmark {
+				benchmarkChans := session.GetBenchmarkListeningChannels()
+				SendBenchmarkEvent(benchmarkChans[MetricQueryReActRound], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQueryReActRound,
+					Data: metrics.QueryReActRoundMetric{
+						SessionID:  session.GetID(),
+						QueryID:    question.GetID(),
+						ReActRound: round,
+						TimeStamp:  time.Now().UnixMilli(),
+					},
+				})
+				SendBenchmarkEvent(benchmarkChans[MetricQueryTokenUsage], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQueryTokenUsage,
+					Data: metrics.QueryTokenUsageMetric{
+						SessionID:  session.GetID(),
+						QueryID:    question.GetID(),
+						TokenUsage: tokenUsage,
+						Model:      question.GetModelName(),
+						TimeStamp:  time.Now().UnixMilli(),
+					},
+				})
+				SendBenchmarkEvent(benchmarkChans[MetricQueryFailedCount], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQueryFailedCount,
+					Data: metrics.QueryFailedCountMetric{
+						SessionID: session.GetID(),
+						Count:     1,
+						TimeStamp: time.Now().UnixMilli(),
+					},
+				})
+			}
 			diagnostics = append(diagnostics, diag...)
 			return defaultAnswer, diagnostics
 		} else if finalAnswer != nil {
+			if session.GetConfigs().EnableBenchmark {
+				benchmarkChans := session.GetBenchmarkListeningChannels()
+				SendBenchmarkEvent(benchmarkChans[MetricQueryReActRound], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQueryReActRound,
+					Data: metrics.QueryReActRoundMetric{
+						SessionID:  session.GetID(),
+						QueryID:    question.GetID(),
+						ReActRound: round,
+						TimeStamp:  time.Now().UnixMilli(),
+					},
+				})
+				SendBenchmarkEvent(benchmarkChans[MetricQueryTokenUsage], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQueryTokenUsage,
+					Data: metrics.QueryTokenUsageMetric{
+						SessionID:  session.GetID(),
+						QueryID:    question.GetID(),
+						TokenUsage: tokenUsage,
+						Model:      question.GetModelName(),
+						TimeStamp:  time.Now().UnixMilli(),
+					},
+				})
+				SendBenchmarkEvent(benchmarkChans[MetricQuerySuccessCount], BenchmarkEvent[any]{
+					TimeStamp: time.Now().UnixMilli(),
+					Type:      MetricQuerySuccessCount,
+					Data: metrics.QuerySuccessCountMetric{
+						SessionID: session.GetID(),
+						Count:     1,
+						TimeStamp: time.Now().UnixMilli(),
+					},
+				})
+			}
 			return finalAnswer, nil
 		}
 	}
