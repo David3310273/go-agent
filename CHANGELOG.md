@@ -1,18 +1,24 @@
 # Changelog
 
-## v2.0.0: 2026-10-14
+## Web application upgrade
 
-- add web ui for the simple agent
+### v2.0.0: 2026-10-14
 
-## v1.1.3: 2026-10-19
+- add web ui for the simple agent, including
+  - session list and history management
+  - ask question through web ui
+
+## Cmd application upgrade
+
+### v1.1.3: 2026-10-19
 
 fix:
 
 - ~~support collection name in kb, suppose domain knows the collection name. if not, create new collection.~~
 - ~~fix command parse bug, support more flexible command format.~~
-- add timer to update kb docs periodically.
+- add timer to update kb docs description periodically.
 
-## v1.1.2: 2026-10-13
+### v1.1.2: 2026-10-13
 
 feature:
 
@@ -22,23 +28,32 @@ feature:
   - add/ls/rm mcp server from local config
   - ask question and show thoughts
 
-## v1.0.7: 2026-10-18
+## Agent core feature upgrade
+
+### v1.0.8
+
+feature:
+
+- add benchmark integrated with promethus log
+
+### v1.0.7: 2026-10-18
 
 upgrade agent core feature:
 
 - add config and thread pool for deployment
+- split context and session data, make it more flexible to use and update
 - add supervisor in harness to watch the ReAct process, such as loop detect, max limit.
 - add chat history file with timestamp only for app layer
 - enhance session manager using atomic operation, make it more safe when in multi session environment.
 
-## v1.0.6: 2026-10-10
+### v1.0.6: 2026-10-10
 
 final fixes before new feature:
 
 - tide knowledgebase to make it easier to add new document
 - support customize sandbox for one tool
 
-## v1.0.5: 2026-10-04
+### v1.0.5: 2026-10-04
 
 fix:
 
@@ -49,7 +64,7 @@ feature:
 - multiple model support
 - support sandbox
 
-## v1.0.4
+### v1.0.4
 
 fix: 
 
@@ -62,7 +77,7 @@ feature:
 - support tool parallel execution
 - support sub session execution
 
-## v1.0.3: 2026-09-22
+### v1.0.3: 2026-09-22
 
 fix:
 
@@ -74,7 +89,7 @@ feature:
 
 - support calling MCP server
 
-## V1.0.2: 2026-09-16
+### V1.0.2: 2026-09-16
 
 fixs:
 
@@ -88,7 +103,7 @@ feature:
 - support dynamic skills and tools
 
 
-## V1.0.1
+### V1.0.1
 
 fixs:
 
@@ -101,7 +116,7 @@ feature:
 - support local kb
 - support dynamic loading context from local kb.
 
-## V1.0.0: 2026-09-07
+### V1.0.0: 2026-09-07
 
 - initial release: core framework, with simple agent and restful http server app
   - happy path for the simple agent implementation
