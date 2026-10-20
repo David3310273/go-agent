@@ -48,22 +48,9 @@ type CommandApp interface {
 }
 
 func StartCommandApp(app CommandApp) DiagnosticList {
-	diag := app.BeforeStart()
-	if diag != nil {
-		return diag
-	}
-
-	diag = app.Start()
-	if diag != nil {
-		return diag
-	}
-	return nil
+	return StartWorkFlow(app)
 }
 
 func StopCommandApp(app CommandApp) DiagnosticList {
-	diag := app.BeforeStop()
-	if diag != nil {
-		return diag
-	}
-	return app.Stop()
+	return StopWorkFlow(app)
 }

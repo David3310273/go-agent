@@ -94,29 +94,9 @@ type SessionAnswer interface {
 
 // main func for start and stop session
 func StartSession(session Session) []Diagnostic {
-	diagnostics := session.BeforeStart()
-	if len(diagnostics) > 0 {
-		return diagnostics
-	}
-
-	diagnostics = session.Start()
-	if len(diagnostics) > 0 {
-		return diagnostics
-	}
-
-	return diagnostics
+	return StartWorkFlow(session)
 }
 
 func StopSession(session Session) []Diagnostic {
-	diagnostics := session.BeforeStop()
-	if len(diagnostics) > 0 {
-		return diagnostics
-	}
-
-	diagnostics = session.Stop()
-	if len(diagnostics) > 0 {
-		return diagnostics
-	}
-
-	return diagnostics
+	return StopWorkFlow(session)
 }
