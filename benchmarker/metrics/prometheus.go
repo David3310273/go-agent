@@ -31,7 +31,7 @@ func NewPrometheusCollector() *PrometheusCollector {
 				Name: "go_agent_session_running_time_seconds",
 				Help: "Session total running time in seconds.",
 			},
-			[]string{"session_id"},
+			[]string{"agent_id", "session_id"},
 		),
 
 		// MetricQueryFailedCount
@@ -116,7 +116,7 @@ func (pc *PrometheusCollector) Handler() http.Handler {
 
 func (pc *PrometheusCollector) RecordSessionRunningTime(m SessionRunningTimeMetric) {
 	duration := m.EndTime.Sub(m.StartTime).Seconds()
-	pc.sessionRunningTime.WithLabelValues(m.SessionID).Set(duration)
+	pc.sessionRunningTime.WithLabelValues(m.AgentID, m.SessionID).Set(duration)
 }
 
 func (pc *PrometheusCollector) RecordQueryFailedCount(m QueryFailedCountMetric) {

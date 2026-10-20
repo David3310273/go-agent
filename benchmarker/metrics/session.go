@@ -4,6 +4,7 @@ import "time"
 
 // MetricSessionRunningTime  "session_run_time"
 type SessionRunningTimeMetric struct {
+	AgentID   string
 	SessionID string
 	StartTime time.Time
 	EndTime   time.Time

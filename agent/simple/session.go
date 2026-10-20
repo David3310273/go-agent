@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/David3310273/go-agent/agent/simple/utils"
+	benchmarker "github.com/David3310273/go-agent/benchmarker"
 	"github.com/David3310273/go-agent/benchmarker/metrics"
 	"github.com/David3310273/go-agent/core"
 	storage "github.com/David3310273/go-agent/knowledgebase/storage"
@@ -42,6 +43,7 @@ type SimpleSessionContext struct {
 */
 type SimpleAgentSession struct {
 	ID            string
+	AgentID       string
 	ParentSession *SimpleAgentSession
 	subSessions   atomic.Pointer[[]*SimpleAgentSession]
 	Status        core.SessionStatus
@@ -76,6 +78,8 @@ type SimpleAgentSession struct {
 	// becnchmark chan
 	benchmarkerChans      map[core.MetricType]chan core.BenchmarkEvent[any]
 	benchmarkerEventChans map[core.MetricType]chan core.BenchmarkEvent[any]
+	// reference to the benchmarker for cleanup on stop
+	benchmarker *benchmarker.Benchmarker
 	// event chans
 	eventChans map[string]chan core.Event[any]
 	// session context
@@ -101,6 +105,7 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 		lockTimeOut: LockTimeout,
 		Question:    make(chan core.Question, 1),
 		Config:      sessionConfig,
+		AgentID:     agent.GetID(),
 
 		benchmarkerChans:      make(map[core.MetricType]chan core.BenchmarkEvent[any]),
 		benchmarkerEventChans: make(map[core.MetricType]chan core.BenchmarkEvent[any]),
@@ -129,6 +134,7 @@ func NewAgentSession(agent core.AgentCore, sessionID string, memory *core.Conver
 	// llm context init - use pointer to share MCP configs and clients with agent
 	if agentCtx, ok := agent.(*SimpleAgent); ok {
 		session.Context.SimpleAgentContext = &agentCtx.SimpleAgentContext
+		session.benchmarker = agentCtx.benchmarker
 	}
 
 	// preload memory history and system tools
@@ -159,6 +165,7 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 	subSessionContext := *s.Context.SimpleAgentContext
 
 	session := &SimpleAgentSession{
+		AgentID:       s.AgentID,
 		ParentSession: s,
 		Status:        core.SessionStatusRunning,
 		mu:            make(chan struct{}, 1),
@@ -172,8 +179,10 @@ func (s *SimpleAgentSession) NewSubSession(tools []core.Tool) core.Session {
 		eventChans:            make(map[string]chan core.Event[any]),
 		benchmarkerChans:      make(map[core.MetricType]chan core.BenchmarkEvent[any]),
 		benchmarkerEventChans: make(map[core.MetricType]chan core.BenchmarkEvent[any]),
-		confirmedTools:        make(map[string]string),
-		pendingCalls:          make(map[string]*core.ConfirmToolCall),
+		// inherit benchmarker from parent for cleanup on stop
+		benchmarker:    s.benchmarker,
+		confirmedTools: make(map[string]string),
+		pendingCalls:   make(map[string]*core.ConfirmToolCall),
 		// copy of the parent context (not sharing the pointer)
 		Context: SimpleSessionContext{
 			SimpleAgentContext: &subSessionContext,
@@ -726,6 +735,7 @@ func (s *SimpleAgentSession) OnEvent() {
 				Type:      core.MetricSessionRunningTime,
 				TimeStamp: time.Now().UnixMilli(),
 				Data: metrics.SessionRunningTimeMetric{
+					AgentID:   s.AgentID,
 					SessionID: s.GetID(),
 					StartTime: s.startTime,
 					EndTime:   time.Now(),
@@ -760,6 +770,10 @@ func (s *SimpleAgentSession) RegisterEventChans() {
 }
 
 // Observable (implements core.Observable interface)
+func (a *SimpleAgentSession) GetObjectID() string {
+	return a.GetID()
+}
+
 func (a *SimpleAgentSession) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
 	return a.benchmarkerChans
 }
@@ -769,7 +783,12 @@ func (a *SimpleAgentSession) GetBenchmarkPullChannels() map[core.MetricType]chan
 }
 
 func (a *SimpleAgentSession) CloseBenchmarkListeningChannels() {
+	// notify benchmarker to clean up pull channels for this session
+	if a.benchmarker != nil && a.Config.EnableBenchmark {
+		a.benchmarker.Unregister(a.GetID())
+	}
 	for key, ch := range a.benchmarkerChans {
+		core.LogInfo(utils.ResolvePath(a.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.GetConfigs().LogPath, a.GetID()))), "[session=%s] closing benchmark listening channel metric=%s", a.GetID(), key)
 		close(ch)
 		delete(a.benchmarkerChans, key)
 	}
@@ -833,6 +852,11 @@ func (s *SimpleAgentSession) Start() []core.Diagnostic {
 }
 
 func (s *SimpleAgentSession) BeforeStop() []core.Diagnostic {
+	// notify benchmarker to clean up pull channels for this session
+	if s.benchmarker != nil && s.Config.EnableBenchmark {
+		core.LogInfo(utils.ResolvePath(s.Config.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(s.GetConfigs().LogPath, s.GetID()))), "[session=%s] BeforeStop: unregistering from benchmarker", s.GetID())
+		s.benchmarker.Unregister(s.GetID())
+	}
 	// process hook
 	return nil
 }
@@ -861,6 +885,7 @@ func (s *SimpleAgentSession) Stop() []core.Diagnostic {
 				EndTime:   time.Now(),
 			},
 		})
+		s.CloseBenchmarkListeningChannels()
 	}
 
 	return s.stopDiags

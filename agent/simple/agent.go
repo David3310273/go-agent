@@ -446,6 +446,12 @@ func (a *SimpleAgent) BeforeStop() []core.Diagnostic {
 		return true
 	})
 
+	// notify benchmarker to clean up pull channels for the agent itself
+	if a.benchmarker != nil && a.Configs.Agent.EnableBenchmark {
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "[agent=%s] BeforeStop: unregistering from benchmarker", a.GetID())
+		a.benchmarker.Unregister(a.GetID())
+	}
+
 	// close opened kb
 	for _, kb := range a.SimpleAgentContext.KnowledgeBase {
 		kb.Close()
@@ -472,6 +478,8 @@ func (a *SimpleAgent) Stop() []core.Diagnostic {
 			},
 		})
 
+		a.CloseBenchmarkListeningChannels()
+
 		// shut down the embedded benchmarker
 		if a.benchmarker != nil {
 			core.StopBenchmark(a.benchmarker)
@@ -492,6 +500,10 @@ func (a *SimpleAgent) Release() *core.Diagnostic {
 }
 
 // Observable for benchmarker
+func (a *SimpleAgent) GetObjectID() string {
+	return a.GetID()
+}
+
 func (a *SimpleAgent) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
 	// auto-add: ensure channels are registered before returning.
 	// This fixes a race condition where bm.OnEvent(agent) is called
@@ -507,7 +519,12 @@ func (a *SimpleAgent) GetBenchmarkPullChannels() map[core.MetricType]chan core.B
 }
 
 func (a *SimpleAgent) CloseBenchmarkListeningChannels() {
+	// notify benchmarker to clean up pull channels for this agent
+	if a.benchmarker != nil && a.Configs.Agent.EnableBenchmark {
+		a.benchmarker.Unregister(a.GetID())
+	}
 	for key, ch := range a.benchmarkerChans {
+		core.LogInfo(utils.ResolvePath(a.RootPath, fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))), "[agent=%s] closing benchmark listening channel metric=%s", a.GetID(), key)
 		close(ch)
 		delete(a.benchmarkerChans, key)
 	}
@@ -634,7 +651,9 @@ func (a *SimpleAgent) RemoveSession(sessionID string) *core.Diagnostic {
 		return nil
 	}
 
-	a.sessions.Delete(sessionID)
+	if err := a.StopSession(sessionID); err != nil {
+		return err
+	}
 
 	filePath := utils.ResolvePath(a.RootPath, fmt.Sprintf(session.GetConfigs().MemoryFilePathFormat, sessionID))
 	if err := os.Remove(filePath); err != nil {

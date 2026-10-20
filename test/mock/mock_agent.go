@@ -665,6 +665,20 @@ func (mr *MockAgentCoreMockRecorder) CloseBenchmarkListeningChannels() *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseBenchmarkListeningChannels", reflect.TypeOf((*MockAgentCore)(nil).CloseBenchmarkListeningChannels))
 }
 
+// GetObjectID mocks base method.
+func (m *MockAgentCore) GetObjectID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetObjectID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetObjectID indicates an expected call of GetObjectID.
+func (mr *MockAgentCoreMockRecorder) GetObjectID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObjectID", reflect.TypeOf((*MockAgentCore)(nil).GetObjectID))
+}
+
 // GetBenchmarkListeningChannels mocks base method.
 func (m *MockAgentCore) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
 	m.ctrl.T.Helper()

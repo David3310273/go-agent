@@ -25,7 +25,10 @@ const (
 	MetricAgentRunningTime MetricType = "agentRunTime"
 )
 
+// support both push and pull mode
 type Observable interface {
+	// get object ID
+	GetObjectID() string
 	// get listening channels where agent pushes data
 	GetBenchmarkListeningChannels() map[MetricType]chan BenchmarkEvent[any]
 	// get pull channels
@@ -54,8 +57,13 @@ func (e BenchmarkEvent[T]) ToString() string {
 }
 
 // SendBenchmarkEvent non-blockingly sends an event to the benchmark channel.
-// If the channel is full or has no consumer (benchmarker not started), the event is silently dropped.
+// If the channel is full, closed, or has no consumer (benchmarker not started), the event is silently dropped.
 func SendBenchmarkEvent(ch chan BenchmarkEvent[any], event BenchmarkEvent[any]) {
+	defer func() {
+		if r := recover(); r != nil {
+			LogError("", "[benchmark] SendBenchmarkEvent: recovered from panic (likely send on closed channel): %v", r)
+		}
+	}()
 	select {
 	case ch <- event:
 	default:
