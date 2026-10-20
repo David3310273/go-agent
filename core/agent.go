@@ -89,18 +89,6 @@ type Configurable interface {
 	GetConfigPath() string
 }
 
-type WorkFlow interface {
-	// before start
-	BeforeStart() []Diagnostic
-	// start the agent
-	Start() []Diagnostic
-
-	// before stop
-	BeforeStop() []Diagnostic
-	// stop the agent
-	Stop() []Diagnostic
-}
-
 // CRUD for sessions map of agent
 type SessionManager interface {
 	// stop a session
@@ -215,15 +203,9 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 		diagnostics = append(diagnostics, contextDiagnostics...)
 	}
 
-	beforeStartDiagnostics := agent.BeforeStart()
-	if len(beforeStartDiagnostics) > 0 {
-		diagnostics = append(diagnostics, beforeStartDiagnostics...)
-		return diagnostics
-	}
-
-	startDiagnostics := agent.Start()
-	if len(startDiagnostics) > 0 {
-		diagnostics = append(diagnostics, startDiagnostics...)
+	workflowDiagnostics := StartWorkFlow(agent)
+	if len(workflowDiagnostics) > 0 {
+		diagnostics = append(diagnostics, workflowDiagnostics...)
 		return diagnostics
 	}
 
@@ -232,21 +214,9 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 
 func StopAgentCore(agent AgentCore) []Diagnostic {
 	// load all configs
-	diagnostics := []Diagnostic{}
+	workflowDiagnostics := StopWorkFlow(agent)
 
-	beforeStopDiagnostics := agent.BeforeStop()
-	if len(beforeStopDiagnostics) > 0 {
-		diagnostics = append(diagnostics, beforeStopDiagnostics...)
-		return diagnostics
-	}
-
-	stopDiagnostics := agent.Stop()
-	if len(stopDiagnostics) > 0 {
-		diagnostics = append(diagnostics, stopDiagnostics...)
-		return diagnostics
-	}
-
-	return diagnostics
+	return workflowDiagnostics
 }
 
 // =============================================================================

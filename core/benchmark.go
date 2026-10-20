@@ -63,14 +63,7 @@ func SendBenchmarkEvent(ch chan BenchmarkEvent[any], event BenchmarkEvent[any]) 
 }
 
 func StartBenchmark(benchmarker WorkFlow) *Diagnostic {
-	if errs := benchmarker.BeforeStart(); len(errs) > 0 {
-		return &Diagnostic{
-			Level: SeverityError,
-			Code:  MessageCodeAgentCoreConfigError,
-		}
-	}
-
-	if errs := benchmarker.Start(); len(errs) > 0 {
+	if errs := StartWorkFlow(benchmarker); len(errs) > 0 {
 		return &Diagnostic{
 			Level: SeverityError,
 			Code:  MessageCodeAgentCoreConfigError,
@@ -81,14 +74,7 @@ func StartBenchmark(benchmarker WorkFlow) *Diagnostic {
 }
 
 func StopBenchmark(benchmarker WorkFlow) *Diagnostic {
-	if errs := benchmarker.BeforeStop(); len(errs) > 0 {
-		return &Diagnostic{
-			Level: SeverityError,
-			Code:  MessageCodeAgentCoreConfigError,
-		}
-	}
-
-	if errs := benchmarker.Stop(); len(errs) > 0 {
+	if errs := StopWorkFlow(benchmarker); len(errs) > 0 {
 		return &Diagnostic{
 			Level: SeverityError,
 			Code:  MessageCodeAgentCoreConfigError,
