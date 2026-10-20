@@ -53,10 +53,10 @@ func (mr *MockObservableMockRecorder) CloseBenchmarkListeningChannels() *gomock.
 }
 
 // GetBenchmarkListeningChannels mocks base method.
-func (m *MockObservable) GetBenchmarkListeningChannels() map[string]chan core.StatEvent[any] {
+func (m *MockObservable) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBenchmarkListeningChannels")
-	ret0, _ := ret[0].(map[string]chan core.StatEvent[any])
+	ret0, _ := ret[0].(map[core.MetricType]chan core.BenchmarkEvent[any])
 	return ret0
 }
 
@@ -64,4 +64,18 @@ func (m *MockObservable) GetBenchmarkListeningChannels() map[string]chan core.St
 func (mr *MockObservableMockRecorder) GetBenchmarkListeningChannels() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBenchmarkListeningChannels", reflect.TypeOf((*MockObservable)(nil).GetBenchmarkListeningChannels))
+}
+
+// GetBenchmarkPullChannels mocks base method.
+func (m *MockObservable) GetBenchmarkPullChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBenchmarkPullChannels")
+	ret0, _ := ret[0].(map[core.MetricType]chan core.BenchmarkEvent[any])
+	return ret0
+}
+
+// GetBenchmarkPullChannels indicates an expected call of GetBenchmarkPullChannels.
+func (mr *MockObservableMockRecorder) GetBenchmarkPullChannels() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBenchmarkPullChannels", reflect.TypeOf((*MockObservable)(nil).GetBenchmarkPullChannels))
 }

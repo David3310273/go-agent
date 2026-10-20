@@ -2,7 +2,6 @@
 package test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/David3310273/go-agent/core"
@@ -22,8 +21,8 @@ func TestMockObservable_GetBenchmarkListeningChannels(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockObservable := testmock.NewMockObservable(ctrl)
-	channels := map[string]chan core.StatEvent[any]{
-		"session_run_time": make(chan core.StatEvent[any]),
+	channels := map[core.MetricType]chan core.BenchmarkEvent[any]{
+		core.MetricSessionRunningTime: make(chan core.BenchmarkEvent[any]),
 	}
 
 	mockObservable.EXPECT().GetBenchmarkListeningChannels().Return(channels)
@@ -52,10 +51,12 @@ func TestStartBenchmark(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockObservable := testmock.NewMockObservable(ctrl)
-	ctx := context.Background()
+	mockWorkFlow := testmock.NewMockWorkFlow(ctrl)
 
-	diag := core.StartBenchmark(ctx, mockObservable)
+	mockWorkFlow.EXPECT().BeforeStart().Return(nil)
+	mockWorkFlow.EXPECT().Start().Return(nil)
+
+	diag := core.StartBenchmark(mockWorkFlow)
 	if diag != nil {
 		t.Errorf("expected nil diagnostic, got %v", diag)
 	}
@@ -69,21 +70,13 @@ func TestStopBenchmark(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockObservable := testmock.NewMockObservable(ctrl)
-	ctx, cancel := context.WithCancel(context.Background())
+	mockWorkFlow := testmock.NewMockWorkFlow(ctrl)
 
-	mockObservable.EXPECT().CloseBenchmarkListeningChannels()
+	mockWorkFlow.EXPECT().BeforeStop().Return(nil)
+	mockWorkFlow.EXPECT().Stop().Return(nil)
 
-	diag := core.StopBenchmark(cancel, mockObservable)
+	diag := core.StopBenchmark(mockWorkFlow)
 	if diag != nil {
 		t.Errorf("expected nil diagnostic, got %v", diag)
-	}
-
-	// verify context is cancelled
-	select {
-	case <-ctx.Done():
-		// expected
-	default:
-		t.Error("expected context to be cancelled")
 	}
 }
