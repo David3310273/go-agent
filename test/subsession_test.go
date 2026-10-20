@@ -50,6 +50,7 @@ func newTestParentSession(t *testing.T, ctrl *gomock.Controller, providers ...co
 		LogPath:              tmpDir + "/logs/session_%s.log",
 	}
 
+	mockAgent.EXPECT().GetID().Return("parent-agent").AnyTimes()
 	mockAgent.EXPECT().GetSessionConfig().Return(sessionConfig).AnyTimes()
 	mockAgent.EXPECT().GetModelProviders().Return(providers).AnyTimes()
 	mockAgent.EXPECT().GetHistory().Return(nil).AnyTimes()

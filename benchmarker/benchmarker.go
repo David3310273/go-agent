@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/David3310273/go-agent/benchmarker/metrics"
@@ -63,8 +64,12 @@ type Benchmarker struct {
 	cancel        context.CancelFunc
 	metricsServer *server.MetricsServer
 
-	// pullChans are provided by the agent; the benchmarker sends pull requests into them periodically.
-	pullChans map[core.MetricType]chan core.BenchmarkEvent[any]
+	// pullChans stores pull channels grouped by observable ID, then by metric type.
+	// Outer key: objID (string), value: *sync.Map[core.MetricType]chan core.BenchmarkEvent[any].
+	pullChans sync.Map
+
+	// cleanupCh receives observable IDs (sessionID/agentID) whose pull channels should be removed.
+	cleanupCh chan string
 }
 
 // OnEvent：
@@ -73,9 +78,10 @@ type Benchmarker struct {
 func (b *Benchmarker) OnEvent(obj core.Observable) *core.Diagnostic {
 	listeningChans := obj.GetBenchmarkListeningChannels()
 	pullChans := obj.GetBenchmarkPullChannels()
+	objID := obj.GetObjectID()
 
-	core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, "benchmarker")), "[benchmarker] OnEvent: listening channels=%d, pull channels=%d",
-		len(listeningChans), len(pullChans))
+	core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, "benchmarker")), "[benchmarker] OnEvent: id=%s listening channels=%d, pull channels=%d",
+		objID, len(listeningChans), len(pullChans))
 
 	// Start listening channel consumers.
 	for metricType, ch := range listeningChans {
@@ -84,11 +90,14 @@ func (b *Benchmarker) OnEvent(obj core.Observable) *core.Diagnostic {
 		go b.consumeChannel(metricType, ch)
 	}
 
-	// Save pull channels for periodic collection.
-	b.pullChans = pullChans
-	if len(pullChans) > 0 {
-		for mt := range pullChans {
-			core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, mt)), "[benchmarker] OnEvent: registered pull channel metric=%s", mt)
+	// Merge pull channels for periodic collection, grouped by the observable's ID.
+	inner, _ := b.pullChans.LoadOrStore(objID, &sync.Map{})
+	innerMap := inner.(*sync.Map)
+	for mt, ch := range pullChans {
+		if _, loaded := innerMap.LoadOrStore(mt, ch); loaded {
+			core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, mt)), "[benchmarker] OnEvent: pull channel already registered for objID=%s metric=%s, skipping", objID, mt)
+		} else {
+			core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, mt)), "[benchmarker] OnEvent: registered pull channel objID=%s metric=%s", objID, mt)
 		}
 	}
 
@@ -192,6 +201,9 @@ func (b *Benchmarker) Start() []core.Diagnostic {
 		}
 	}()
 
+	// Start cleanup goroutine: receives observable IDs to unregister from pullChans.
+	go b.cleanupLoop()
+
 	// Start periodic collection: each pull metric uses its own interval to pull runtime data from the agent.
 	for _, mt := range pullMetrics {
 		go b.periodicCollect(mt)
@@ -225,31 +237,72 @@ func (b *Benchmarker) periodicCollect(metricType core.MetricType) {
 	}
 }
 
-// pullRunningTime sends a pull request to the specified metric's pull channel.
-// The agent computes the runtime on receipt and pushes it back via the listening channel.
-// Uses SendBenchmarkEvent for non-blocking send; silently drops if the agent is not consuming the channel.
+// pullRunningTime sends a pull request to all pull channels matching the given metric type.
+// The agent/session computes the runtime on receipt and pushes it back via the listening channel.
+// Uses SendBenchmarkEvent for non-blocking send; silently drops if the receiver is not consuming the channel.
 func (b *Benchmarker) pullRunningTime(metricType core.MetricType, now time.Time) {
-	ch, ok := b.pullChans[metricType]
-	if !ok {
-		core.LogDebug(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, string(metricType))), "[benchmarker] pullRunningTime: no pull channel for metric=%s", metricType)
-		return
-	}
-
-	core.LogDebug(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, string(metricType))), "[benchmarker] pullRunningTime: sending pull request to metric=%s", metricType)
-	core.SendBenchmarkEvent(ch, core.BenchmarkEvent[any]{
-		Type:      metricType,
-		TimeStamp: now.Unix(),
-		Data:      pullRequest{MetricType: metricType, TimeStamp: now.Unix()},
+	b.pullChans.Range(func(objID, innerVal any) bool {
+		innerMap := innerVal.(*sync.Map)
+		if val, ok := innerMap.Load(metricType); ok {
+			ch := val.(chan core.BenchmarkEvent[any])
+			core.LogDebug(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, string(metricType))), "[benchmarker] pullRunningTime: sending pull request to objID=%s metric=%s", objID, metricType)
+			core.SendBenchmarkEvent(ch, core.BenchmarkEvent[any]{
+				Type:      metricType,
+				TimeStamp: now.Unix(),
+				Data:      pullRequest{MetricType: metricType, TimeStamp: now.Unix()},
+			})
+		}
+		return true
 	})
 }
 
 func (b *Benchmarker) BeforeStop() []core.Diagnostic {
+	// drain and clear all remaining pull channel references.
+	var remaining int
+	b.pullChans.Range(func(key, value any) bool {
+		b.pullChans.Delete(key)
+		remaining++
+		return true
+	})
+
+	if remaining > 0 {
+		core.LogWarn(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, "benchmarker")), "[benchmarker] BeforeStop: cleared %d remaining pull channel entries", remaining)
+	}
 	return nil
 }
 
 func (b *Benchmarker) Stop() []core.Diagnostic {
 	b.cancel()
 	return nil
+}
+
+// Unregister sends an observable ID to the cleanup goroutine so that all pull channels
+// belonging to that ID are removed from pullChans. Non-blocking; if the cleanup channel is
+// full the unregister request is silently dropped.
+func (b *Benchmarker) Unregister(id string) {
+	select {
+	case b.cleanupCh <- id:
+	default:
+	}
+}
+
+// cleanupLoop listens on cleanupCh and removes all pullChans entries whose key
+// suffix matches the received ID.
+func (b *Benchmarker) cleanupLoop() {
+	for {
+		select {
+		case <-b.context.Done():
+			return
+		case id := <-b.cleanupCh:
+			b.removePullChansByID(id)
+		}
+	}
+}
+
+// removePullChansByID deletes all pull channels for the given observable ID.
+func (b *Benchmarker) removePullChansByID(id string) {
+	b.pullChans.Delete(id)
+	core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, "benchmarker")), "[benchmarker] cleanupLoop: removed pull channels for objID=%s", id)
 }
 
 func NewBenchmarker(configs core.BenchmarkerConfig) *Benchmarker {
@@ -263,6 +316,7 @@ func NewBenchmarker(configs core.BenchmarkerConfig) *Benchmarker {
 		context:       ctx,
 		cancel:        cancel,
 		metricsServer: metricsServer,
+		cleanupCh:     make(chan string, 256),
 	}
 }
 

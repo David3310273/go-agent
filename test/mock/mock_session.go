@@ -158,6 +158,20 @@ func (mr *MockSessionMockRecorder) ExportChatHistory(size any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportChatHistory", reflect.TypeOf((*MockSession)(nil).ExportChatHistory), size)
 }
 
+// GetObjectID mocks base method.
+func (m *MockSession) GetObjectID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetObjectID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetObjectID indicates an expected call of GetObjectID.
+func (mr *MockSessionMockRecorder) GetObjectID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObjectID", reflect.TypeOf((*MockSession)(nil).GetObjectID))
+}
+
 // GetBenchmarkListeningChannels mocks base method.
 func (m *MockSession) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
 	m.ctrl.T.Helper()
