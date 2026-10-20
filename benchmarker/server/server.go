@@ -6,8 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MetricsServer 独立的 Prometheus 指标 App，使用 Gin 注册 /metrics 路由。
-// agent core 完全无感知，仅通过 Collector 的 Record* 方法写入数据。
+// MetricsServer is a standalone Prometheus metrics server using Gin for the /metrics route.
+// The agent core is completely unaware; data is written solely through the Collector's Record* methods.
 type MetricsServer struct {
 	config    *core.BenchmarkerConfig
 	collector *metrics.PrometheusCollector
@@ -15,7 +15,7 @@ type MetricsServer struct {
 	port      string
 }
 
-// NewMetricsServer 创建指标 App。
+// NewMetricsServer creates the metrics server.
 func NewMetricsServer(config *core.BenchmarkerConfig, port string) *MetricsServer {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -35,27 +35,27 @@ func (m *MetricsServer) registerRoutes() {
 	m.router.GET("/metrics", gin.WrapH(m.collector.Handler()))
 }
 
-// Start 启动 HTTP server 并阻塞直到出错。
+// Start starts the HTTP server and blocks until an error occurs.
 func (m *MetricsServer) Start() error {
 	return m.router.Run(m.port)
 }
 
-// Collector 返回 PrometheusCollector，供外部写入指标数据。
+// Collector returns the PrometheusCollector for external metric writes.
 func (m *MetricsServer) Collector() *metrics.PrometheusCollector {
 	return m.collector
 }
 
-// Config 返回配置。
+// Config returns the configuration.
 func (m *MetricsServer) Config() *core.BenchmarkerConfig {
 	return m.config
 }
 
-// Router 返回 Gin Engine，供外部追加路由。
+// Router returns the Gin Engine for external route additions.
 func (m *MetricsServer) Router() *gin.Engine {
 	return m.router
 }
 
-// Port 返回监听端口（含冒号前缀，如 "9090"）。
+// Port returns the listening port (with colon prefix, e.g. ":9090").
 func (m *MetricsServer) Port() string {
 	return m.port
 }

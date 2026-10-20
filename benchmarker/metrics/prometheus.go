@@ -7,10 +7,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-// PrometheusCollector 将所有自定义 metric 注册到 Prometheus，并提供 /metrics 端点。
-// 它与 core 包完全解耦，core 中不引入任何 Prometheus 依赖。
+// PrometheusCollector registers all custom metrics with Prometheus and exposes the /metrics endpoint.
+// It is completely decoupled from the core package; core introduces no Prometheus dependencies.
 type PrometheusCollector struct {
-	// ---- session 级别 ----
+	// ---- session level ----
 	sessionRunningTime *prometheus.GaugeVec
 	queryFailedCount   *prometheus.CounterVec
 	querySuccessCount  *prometheus.CounterVec
@@ -18,11 +18,11 @@ type PrometheusCollector struct {
 	queryTokenUsage    *prometheus.CounterVec
 	queryReActRound    *prometheus.HistogramVec
 
-	// ---- agent 级别 ----
+	// ---- agent level ----
 	agentRunningTime *prometheus.GaugeVec
 }
 
-// NewPrometheusCollector 创建并注册所有 Prometheus 指标。
+// NewPrometheusCollector creates and registers all Prometheus metrics.
 func NewPrometheusCollector() *PrometheusCollector {
 	pc := &PrometheusCollector{
 		// MetricSessionRunningTime
@@ -107,12 +107,12 @@ func (pc *PrometheusCollector) register() {
 	)
 }
 
-// Handler 返回 /metrics 端点使用的 http.Handler。
+// Handler returns the http.Handler for the /metrics endpoint.
 func (pc *PrometheusCollector) Handler() http.Handler {
 	return promhttp.Handler()
 }
 
-// ---- Record 方法：接收领域结构体，写入 Prometheus ----
+// ---- Record methods: receive domain structs and write to Prometheus ----
 
 func (pc *PrometheusCollector) RecordSessionRunningTime(m SessionRunningTimeMetric) {
 	duration := m.EndTime.Sub(m.StartTime).Seconds()

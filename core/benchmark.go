@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	// DefaultBenchmarkChannelBufferSize 是 benchmark channel 的默认缓冲区大小，
-	// 避免 benchmarker 未启动或消费慢时阻塞 agent/session 的发送。
+	// DefaultBenchmarkChannelBufferSize is the default buffer size for benchmark channels,
+	// preventing the agent/session from being blocked when the benchmarker is not started or is consuming slowly.
 	DefaultBenchmarkChannelBufferSize = 100
 )
 
@@ -53,8 +53,8 @@ func (e BenchmarkEvent[T]) ToString() string {
 	return string(msg)
 }
 
-// SendBenchmarkEvent 非阻塞地向 benchmark channel 发送事件。
-// 如果 channel 已满或没有消费者（benchmarker 未启动），事件会被静默丢弃。
+// SendBenchmarkEvent non-blockingly sends an event to the benchmark channel.
+// If the channel is full or has no consumer (benchmarker not started), the event is silently dropped.
 func SendBenchmarkEvent(ch chan BenchmarkEvent[any], event BenchmarkEvent[any]) {
 	select {
 	case ch <- event:

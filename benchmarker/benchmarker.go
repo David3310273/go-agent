@@ -12,18 +12,18 @@ import (
 )
 
 const (
-	// defaultPullInterval 未在 config.intervals 中配置时的默认拉取间隔
+	// defaultPullInterval is the default interval when not configured in config.intervals.
 	defaultPullInterval = 15 * time.Second
 )
 
-// pullRequest 拉取请求，benchmarker 定时发送到 agent 的 pull channel，
-// agent 收到后计算当前 runtime 并通过 listening channel 推回。
+// pullRequest is sent periodically by the benchmarker to the agent's pull channel.
+// The agent calculates the current runtime on receipt and pushes it back via the listening channel.
 type pullRequest struct {
 	MetricType core.MetricType
 	TimeStamp  int64
 }
 
-// pullMetric 定义需要定时拉取的指标类型。
+// pullMetric defines the metric types that need periodic collection.
 var pullMetrics = []core.MetricType{
 	core.MetricSessionRunningTime,
 	core.MetricAgentRunningTime,
@@ -63,13 +63,13 @@ type Benchmarker struct {
 	cancel        context.CancelFunc
 	metricsServer *server.MetricsServer
 
-	// pullChans 由 agent 提供，benchmarker 定时往里面发 pullRequest
+	// pullChans are provided by the agent; the benchmarker sends pull requests into them periodically.
 	pullChans map[core.MetricType]chan core.BenchmarkEvent[any]
 }
 
 // OnEvent：
-//   - 对每个 listening channel 启动 goroutine 消费事件 → 写入 Prometheus
-//   - 保存 pull channel，供 periodicCollect 定时发送拉取请求
+//   - Starts a goroutine for each listening channel to consume events and write to Prometheus.
+//   - Saves pull channels for periodicCollect to send pull requests periodically.
 func (b *Benchmarker) OnEvent(obj core.Observable) *core.Diagnostic {
 	listeningChans := obj.GetBenchmarkListeningChannels()
 	pullChans := obj.GetBenchmarkPullChannels()
@@ -77,14 +77,14 @@ func (b *Benchmarker) OnEvent(obj core.Observable) *core.Diagnostic {
 	core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, "benchmarker")), "[benchmarker] OnEvent: listening channels=%d, pull channels=%d",
 		len(listeningChans), len(pullChans))
 
-	// 启动 listening channel 消费者
+	// Start listening channel consumers.
 	for metricType, ch := range listeningChans {
 		core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, string(metricType))), "[benchmarker] OnEvent: subscribing to listening channel metric=%s buffer=%d",
 			metricType, cap(ch))
 		go b.consumeChannel(metricType, ch)
 	}
 
-	// 保存 pull channel，供定时采集使用
+	// Save pull channels for periodic collection.
 	b.pullChans = pullChans
 	if len(pullChans) > 0 {
 		for mt := range pullChans {
@@ -95,7 +95,7 @@ func (b *Benchmarker) OnEvent(obj core.Observable) *core.Diagnostic {
 	return nil
 }
 
-// consumeChannel 持续从 listening channel 读取事件，分发给对应的 Record* 方法。
+// consumeChannel continuously reads events from the listening channel and dispatches them to the corresponding Record* methods.
 func (b *Benchmarker) consumeChannel(metricType core.MetricType, ch chan core.BenchmarkEvent[any]) {
 	collector := b.metricsServer.Collector()
 	timeout := time.Duration(b.Configs.MaxTimeout) * time.Second
@@ -122,7 +122,7 @@ func (b *Benchmarker) consumeChannel(metricType core.MetricType, ch chan core.Be
 	}
 }
 
-// dispatch 根据 MetricType 将事件数据路由到对应的 Record* 方法。
+// dispatch routes event data to the appropriate Record* method based on MetricType.
 func (b *Benchmarker) dispatch(collector *metrics.PrometheusCollector, metricType core.MetricType, data any) {
 	switch metricType {
 	case core.MetricSessionRunningTime:
@@ -184,7 +184,7 @@ func (b *Benchmarker) Start() []core.Diagnostic {
 	core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, "benchmarker")), "[benchmarker] Start: starting metrics server on port %s, pull metrics=%v",
 		b.metricsServer.Port(), pullMetrics)
 
-	// 启动 metrics HTTP server
+	// Start the metrics HTTP server.
 	go func() {
 		core.LogInfo(filepath.Join(b.Configs.RootPath, b.Configs.OutputPath, fmt.Sprintf(b.Configs.FilenameFormat, "benchmarker")), "Metrics server listening on %s", b.metricsServer.Port())
 		if err := b.metricsServer.Start(); err != nil {
@@ -192,7 +192,7 @@ func (b *Benchmarker) Start() []core.Diagnostic {
 		}
 	}()
 
-	// 启动定时采集：每个 pull metric 用各自的 interval 向 agent 拉取 runtime 数据
+	// Start periodic collection: each pull metric uses its own interval to pull runtime data from the agent.
 	for _, mt := range pullMetrics {
 		go b.periodicCollect(mt)
 	}
@@ -200,8 +200,8 @@ func (b *Benchmarker) Start() []core.Diagnostic {
 	return nil
 }
 
-// periodicCollect 以 metric 独立的 interval 定时向 agent 的 pull channel 发送拉取请求，
-// 触发 agent 计算当前 runtime 并通过 listening channel 推回。
+// periodicCollect periodically sends pull requests to the agent's pull channel at the metric's interval,
+// triggering the agent to compute the current runtime and push it back via the listening channel.
 func (b *Benchmarker) periodicCollect(metricType core.MetricType) {
 	interval := defaultPullInterval
 
@@ -225,9 +225,9 @@ func (b *Benchmarker) periodicCollect(metricType core.MetricType) {
 	}
 }
 
-// pullRunningTime 向指定 metric 的 pull channel 发送拉取请求，
-// agent 收到后计算 runtime 并推回 listening channel。
-// 使用 SendBenchmarkEvent 非阻塞发送，若 agent 未消费该 channel 则静默丢弃。
+// pullRunningTime sends a pull request to the specified metric's pull channel.
+// The agent computes the runtime on receipt and pushes it back via the listening channel.
+// Uses SendBenchmarkEvent for non-blocking send; silently drops if the agent is not consuming the channel.
 func (b *Benchmarker) pullRunningTime(metricType core.MetricType, now time.Time) {
 	ch, ok := b.pullChans[metricType]
 	if !ok {
@@ -266,7 +266,7 @@ func NewBenchmarker(configs core.BenchmarkerConfig) *Benchmarker {
 	}
 }
 
-// MetricsServer 返回内部的 MetricsServer，供外部写入指标数据。
+// MetricsServer returns the internal MetricsServer for external metric writes.
 func (b *Benchmarker) MetricsServer() *server.MetricsServer {
 	return b.metricsServer
 }
