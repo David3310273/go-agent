@@ -15,7 +15,7 @@ type MainPage struct {
 	LastMsgCount int
 	width        int
 	height       int
-	// 流式输出状态
+	// Streaming output status
 	Messages      []MessageEntry
 	AllMessages   []MessageEntry
 	Waiting       bool
