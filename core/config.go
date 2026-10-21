@@ -178,6 +178,9 @@ type SessionConfig struct {
 
 	EnableBenchmark bool `json:"enableBenchmark"`
 
+	// per-request plan overrides: models allowed for this session
+	AllowedModels []string `json:"allowedModels,omitempty"`
+
 	// chat history file path for current session
 	ChatHistoryFilePathFormat string `json:"chatHistoryFilePathFormat"`
 

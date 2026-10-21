@@ -44,9 +44,10 @@ type MessageCode int
 
 const (
 	// system code
-	MessageCodeSuccess     MessageCode = 0
-	MessageCodeSystemError MessageCode = 1
-	MessageSystemClosed    MessageCode = 2
+	MessageCodeSuccess      MessageCode = 0
+	MessageCodeSystemError  MessageCode = 1
+	MessageSystemClosed     MessageCode = 2
+	MessageSystemInitFailed MessageCode = 3
 	// 1xx: config error
 	MessageCodeConfigFileNotFound    MessageCode = 100
 	MessageCodeConfigFileFormatError MessageCode = 101

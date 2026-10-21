@@ -16,4 +16,6 @@ type AgentApp interface {
 	AgentServer
 	// responsible for user identity, privileges and plan management
 	UserManager
+	// set router
+	SetRouter()
 }

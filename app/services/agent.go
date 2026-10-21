@@ -17,6 +17,11 @@ type AskParams struct {
 	EnableThinking bool
 	Type           core.QuestionType
 	Timestamp      int64
+
+	// injected by middleware from user plan
+	PlanReActMaxRounds  int
+	PlanMaxToken        int64
+	PlanAvailableModels []string
 }
 
 // ToolConfirmAskParams carries a batch of user answers for the pending destructive tool calls.
@@ -54,6 +59,10 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 			askType.Type,
 			askType.Timestamp,
 		)
+		// inject plan overrides from middleware into the question
+		if sq, ok := question.(*simple.SimpleQuestion); ok {
+			sq.SetPlanOverrides(askType.PlanReActMaxRounds, askType.PlanMaxToken, askType.PlanAvailableModels)
+		}
 	case *ToolConfirmAskParams:
 		question = &SimpleToolConfirmQuestion{
 			SimpleQuestion: *simple.NewSimpleQuestion(
@@ -69,6 +78,9 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 			),
 			Confirms: askType.Confirms,
 		}
+		// inject plan overrides for tool_confirm too
+		sq := &question.(*SimpleToolConfirmQuestion).SimpleQuestion
+		sq.SetPlanOverrides(askType.PlanReActMaxRounds, askType.PlanMaxToken, askType.PlanAvailableModels)
 	default:
 		return nil, &core.Diagnostic{
 			Code:    core.MessageCodeSystemError,

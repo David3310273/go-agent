@@ -9,6 +9,7 @@ import (
 type AgentServer interface {
 	SingalManager
 	ServiceProvider
+	WorkFlow
 	// set agent core
 	SetAgentCore(AgentCore)
 	// get agent core
@@ -17,18 +18,11 @@ type AgentServer interface {
 	SetAppConfig(AppConfig)
 	// get config
 	GetAppConfig() AppConfig
-	// set router
-	SetRouter()
-	// start
-	Start()
-	// stop
-	Stop()
 }
 
 func InitAgentServer(server AgentServer, agent AgentCore, appConfig AppConfig) AgentServer {
 	server.SetAppConfig(appConfig)
 	server.SetAgentCore(agent)
-	server.SetRouter()
 
 	return server
 }

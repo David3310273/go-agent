@@ -46,6 +46,11 @@ type AskRequest struct {
 	// a batch of answers replaces the single toolName/serverName pair
 	Confirms  []ToolConfirmAnswerRequest `json:"confirms,omitempty"`
 	Timestamp int64                      `json:"timestamp,omitempty"`
+
+	// injected by auth middleware from user plan – not sent by client
+	PlanReActMaxRounds  int      `json:"planReActMaxRounds,omitempty"`
+	PlanMaxToken        int64    `json:"planMaxToken,omitempty"`
+	PlanAvailableModels []string `json:"planAvailableModels,omitempty"`
 }
 
 // AskResponse represents the response body for /v1/ask endpoint
@@ -71,7 +76,12 @@ type CancelResponse struct {
 }
 
 // HandleCancel handles POST /v1/agent/cancel requests
-func HandleCancel(c *gin.Context, agent *simple.SimpleAgent) {
+func HandleCancel(c *gin.Context) {
+	app, ok := extractApp(c)
+	if !ok {
+		return
+	}
+	agent := app.GetAgentCore().(*simple.SimpleAgent)
 	var req CancelRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -101,13 +111,33 @@ func HandleCancel(c *gin.Context, agent *simple.SimpleAgent) {
 }
 
 // HandleAsk handles POST /v1/ask requests
-func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppConfig) {
+func HandleAsk(c *gin.Context) {
+	appVal, _ := c.Get("app")
+	app := appVal.(core.AgentApp)
+	agent := app.GetAgentCore().(*simple.SimpleAgent)
+	appConfigVal := app.GetAppConfig()
+	appConfig := &appConfigVal
+
 	var req AskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid request: " + err.Error(),
 		})
 		return
+	}
+
+	// check user plan validity when user is authenticated
+	userID, userExists := c.Get("userID")
+	if userExists {
+		plan, diag := app.GetUserPlan(userID.(string))
+		if diag != nil {
+			c.JSON(http.StatusUnauthorized, diag)
+			return
+		}
+		if diag := app.CheckUserPlan(userID, plan); diag != nil {
+			c.JSON(http.StatusUnauthorized, diag)
+			return
+		}
 	}
 
 	// validate the field the request type actually carries. A tool_confirm request
@@ -149,11 +179,14 @@ func HandleAsk(c *gin.Context, agent *simple.SimpleAgent, appConfig *core.AppCon
 
 	// build params
 	params := &services.AskParams{
-		Question:       req.Question,
-		Type:           req.Type,
-		Stream:         req.Stream,
-		EnableThinking: req.EnableThinking,
-		Timestamp:      sendTime,
+		Question:            req.Question,
+		Type:                req.Type,
+		Stream:              req.Stream,
+		EnableThinking:      req.EnableThinking,
+		Timestamp:           sendTime,
+		PlanReActMaxRounds:  req.PlanReActMaxRounds,
+		PlanMaxToken:        req.PlanMaxToken,
+		PlanAvailableModels: req.PlanAvailableModels,
 	}
 
 	if req.SessionID != nil {

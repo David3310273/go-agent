@@ -86,6 +86,7 @@ func (c *AskQuestionCommand) SetToolCalls(toolCall core.ToolCall) {
 	toolCallMap[toolCall.Function.Arguments]++
 }
 func (c *AskQuestionCommand) GetType() core.QuestionType { return c.QuestionType }
+func (c *AskQuestionCommand) GetUserPlan() core.Plan     { return core.Plan{} }
 func (c *AskQuestionCommand) ToString() string {
 	parts := []string{AskCommandName, c.Query}
 	if c.EnableThinking {
