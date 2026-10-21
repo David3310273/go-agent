@@ -24,6 +24,11 @@ type SimpleQuestion struct {
 	timestamp      int64
 	questionType   core.QuestionType
 	toolCalls      map[string]any
+
+	// plan overrides injected by middleware – zero means use agent default
+	planReActMaxRounds  int
+	planMaxToken        int64
+	planAvailableModels []string
 }
 
 var _ core.Question = (*SimpleQuestion)(nil)
@@ -69,6 +74,23 @@ func (q *SimpleQuestion) GetSendTimestamp() int64           { return q.timestamp
 func (q *SimpleQuestion) GetSessionID() string              { return q.sessionID }
 func (q *SimpleQuestion) GetResponseChan() chan core.Answer { return q.responseChan }
 func (q *SimpleQuestion) GetHintChan() chan core.Answer     { return q.hintChan }
+
+func (q *SimpleQuestion) GetPlanReActMaxRounds() int       { return q.planReActMaxRounds }
+func (q *SimpleQuestion) GetPlanMaxToken() int64           { return q.planMaxToken }
+func (q *SimpleQuestion) GetPlanAvailableModels() []string { return q.planAvailableModels }
+func (q *SimpleQuestion) SetPlanOverrides(reActMaxRounds int, maxToken int64, availableModels []string) {
+	q.planReActMaxRounds = reActMaxRounds
+	q.planMaxToken = maxToken
+	q.planAvailableModels = availableModels
+}
+
+func (q *SimpleQuestion) GetUserPlan() core.Plan {
+	return core.Plan{
+		MaxRoundsReAct:  q.planReActMaxRounds,
+		MaxToken:        q.planMaxToken,
+		AvailableModels: q.planAvailableModels,
+	}
+}
 
 func (q *SimpleQuestion) GetToolCalls() map[string]any {
 	return q.toolCalls

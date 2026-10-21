@@ -253,6 +253,18 @@ func (s *SimpleAgentSession) GetContext() core.Context {
 	return &s.Context
 }
 
+func (s *SimpleAgentSession) applyPlanOverrides(plan core.Plan) {
+	if plan.MaxRoundsReAct > 0 {
+		s.Config.ReActMaxRounds = plan.MaxRoundsReAct
+	}
+	if plan.MaxToken > 0 {
+		s.Config.MemoryWindowSize = plan.MaxToken
+	}
+	if len(plan.AvailableModels) > 0 {
+		s.Config.AllowedModels = plan.AvailableModels
+	}
+}
+
 func (s *SimpleAgentSession) GetQueryCtx() context.Context {
 	return s.queryCtx
 }
@@ -580,6 +592,8 @@ func (s *SimpleAgentSession) ProcessQuery(query core.Question) {
 			},
 		})
 	}
+
+	s.applyPlanOverrides(query.GetUserPlan())
 
 	// run the query synchronously
 	response, diagnostics := s.RunQuery(query)

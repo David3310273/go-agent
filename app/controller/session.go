@@ -25,25 +25,26 @@ type SessionDeleteResponse struct {
 	Message   string `json:"message"`
 }
 
-func extractAgent(c *gin.Context) (*simple.SimpleAgent, bool) {
-	agentValue, exists := c.Get("agent")
+func extractApp(c *gin.Context) (core.AgentApp, bool) {
+	appVal, exists := c.Get("app")
 	if !exists {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "agent not available"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "app not available"})
 		return nil, false
 	}
-	agent, ok := agentValue.(*simple.SimpleAgent)
+	app, ok := appVal.(core.AgentApp)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid agent type"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid app type"})
 		return nil, false
 	}
-	return agent, true
+	return app, true
 }
 
 func HandleDeleteSession(c *gin.Context) {
-	agent, ok := extractAgent(c)
+	app, ok := extractApp(c)
 	if !ok {
 		return
 	}
+	agent := app.GetAgentCore().(*simple.SimpleAgent)
 
 	sessionID := c.Query("sessionID")
 	if sessionID == "" {
@@ -71,15 +72,11 @@ func HandleDeleteSession(c *gin.Context) {
 }
 
 func HandleGetSession(c *gin.Context) {
-	agent, ok := extractAgent(c)
+	app, ok := extractApp(c)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, core.Diagnostic{
-			Code:    core.MessageCodeSystemError,
-			Level:   core.SeverityError,
-			Message: "agent is not ready",
-		})
 		return
 	}
+	agent := app.GetAgentCore().(*simple.SimpleAgent)
 
 	sessionID := c.Query("sessionID")
 	if sessionID == "" {
@@ -123,10 +120,11 @@ func HandleGetSession(c *gin.Context) {
 }
 
 func HandleListSessions(c *gin.Context) {
-	agent, ok := extractAgent(c)
+	app, ok := extractApp(c)
 	if !ok {
 		return
 	}
+	agent := app.GetAgentCore().(*simple.SimpleAgent)
 
 	result := services.GetSessionList(agent)
 

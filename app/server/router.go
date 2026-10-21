@@ -1,10 +1,14 @@
 package server
 
 import (
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 
-	"github.com/David3310273/go-agent/agent/simple"
 	"github.com/David3310273/go-agent/app/controller"
 	"github.com/David3310273/go-agent/app/services"
 	"github.com/David3310273/go-agent/core"
@@ -13,11 +17,10 @@ import (
 )
 
 // SetupRouter initializes and returns gin router with all routes
-func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
+func SetupRouter(app core.AgentApp) *gin.Engine {
 	router := gin.Default()
 
 	// serve static frontend assets (React/Vite build output)
-	// hashed filenames are immutable → cache aggressively
 	assets := router.Group("/assets")
 	assets.Use(func(c *gin.Context) {
 		c.Header("Cache-Control", "public, max-age=31536000, immutable")
@@ -26,7 +29,7 @@ func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 	assets.Static("", "./app/frontend/web/dist/assets")
 	router.StaticFile("/favicon.svg", "./app/frontend/web/dist/favicon.svg")
 
-	// SPA fallback: all non-API routes return index.html (no cache, must stay fresh)
+	// SPA fallback
 	router.NoRoute(func(c *gin.Context) {
 		c.Header("Cache-Control", "no-cache")
 		c.File("./app/frontend/web/dist/index.html")
@@ -45,66 +48,38 @@ func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 		c.Next()
 	})
 
-	// middleware to inject agent into gin context
+	// JWT auth middleware: parse X-User-Identity header, get plan, apply plan
+	router.Use(authMiddleware(app))
+
+	// middleware to inject app into gin context
 	router.Use(func(c *gin.Context) {
-		c.Set("agent", agent)
+		c.Set("app", app)
 		c.Next()
 	})
 
 	v1Session := router.Group("/v1/session")
 	{
-
-		// DELETE /v1/session?sessionID=xxx - delete a session
 		v1Session.DELETE("", controller.HandleDeleteSession)
-
-		// GET /v1/session?sessionID=xxx - get a single session
 		v1Session.GET("", controller.HandleGetSession)
-
-		// GET /v1/session/list - list all sessions
 		v1Session.GET("/list", controller.HandleListSessions)
 	}
 
 	// v1 agent api group
 	v1Agent := router.Group("/v1/agent")
 	{
-		// POST /v1/agent/ask - ask a question
 		v1Agent.POST("/ask", func(c *gin.Context) {
-			agentValue, exists := c.Get("agent")
-			if !exists {
-				c.JSON(500, gin.H{"error": "agent not available"})
-				return
-			}
-			agent, ok := agentValue.(*simple.SimpleAgent)
-			if !ok {
-				c.JSON(500, gin.H{"error": "invalid agent type"})
-				return
-			}
-			controller.HandleAsk(c, agent, appConfig)
+			controller.HandleAsk(c)
 		})
 
-		// POST /v1/agent/cancel - cancel a running session
 		v1Agent.POST("/cancel", func(c *gin.Context) {
-			agentValue, exists := c.Get("agent")
-			if !exists {
-				c.JSON(500, gin.H{"error": "agent not available"})
-				return
-			}
-			agent, ok := agentValue.(*simple.SimpleAgent)
-			if !ok {
-				c.JSON(500, gin.H{"error": "invalid agent type"})
-				return
-			}
-			controller.HandleCancel(c, agent)
+			controller.HandleCancel(c)
 		})
 	}
 
-	// internal knowledgebase api group (not exposed to external users when it's toC app)
+	// internal knowledgebase api group
 	internalKnowledge := router.Group("/v1/internal/knowledgebase")
 	{
-		// middleware to check storageType and initialize milvus knowledge service
-		// validates storageType before entering handlers.
 		internalKnowledge.Use(func(c *gin.Context) {
-			// get storageType from form-data (POST/PUT) or query (GET/DELETE)
 			var storageType string
 			if c.Request.Method == "POST" || c.Request.Method == "PUT" {
 				storageType = c.PostForm("storageType")
@@ -112,7 +87,6 @@ func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 				storageType = c.Query("storageType")
 			}
 
-			// check storageType is provided and supported
 			if storageType == "" {
 				c.AbortWithStatusJSON(http.StatusBadRequest, core.Diagnostic{
 					Code:    core.MessageCodeSystemError,
@@ -132,11 +106,9 @@ func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 				return
 			}
 
-			// initialize milvus with rootPath from agent
-			rootPath := agent.GetRootPath()
+			rootPath := app.GetAgentCore().GetRootPath()
 			milvus.Init(rootPath)
 
-			// create knowledge base config with default values
 			kbConfig := core.KnowledgeBaseConfig{
 				RootPath: rootPath,
 				Domain:   "technology",
@@ -148,20 +120,132 @@ func SetupRouter(appConfig *core.AppConfig, agent core.AgentCore) *gin.Engine {
 				},
 			}
 
-			// inject MilvusKnowledgeService with knowledge base instance
 			c.Set("knowledgeService", services.NewMilvusKnowledgeService(kbConfig))
 			c.Next()
 		})
 
-		// POST /v1/internal/knowledgebase - create
 		internalKnowledge.POST("", controller.HandleCreateKnowledge)
-		// GET /v1/internal/knowledgebase - search by keyword, filename, contentType
 		internalKnowledge.GET("", controller.HandleGetKnowledge)
-		// PUT /v1/internal/knowledgebase - update by filename, contentType (delete + create)
 		internalKnowledge.PUT("", controller.HandleUpdateKnowledge)
-		// DELETE /v1/internal/knowledgebase - delete by filename, contentType
 		internalKnowledge.DELETE("", controller.HandleDeleteKnowledge)
 	}
 
 	return router
+}
+
+// authMiddleware parses JWT from Authorization header,
+// authenticates the user, retrieves and applies the user plan.
+func authMiddleware(app core.AgentApp) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.Next()
+			return
+		}
+
+		// extract Bearer token
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token == authHeader || token == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, core.Diagnostic{
+				Code:    core.MessageCodeSystemError,
+				Level:   core.SeverityError,
+				Message: "invalid Authorization header format, expected Bearer token",
+			})
+			return
+		}
+
+		// parse JWT payload to extract user ID
+		userID, err := parseJWTUserID(token)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, core.Diagnostic{
+				Code:    core.MessageCodeSystemError,
+				Level:   core.SeverityError,
+				Message: fmt.Sprintf("invalid token: %v", err),
+			})
+			return
+		}
+
+		// auth user
+		if diag := app.AuthUser(token); diag != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, diag)
+			return
+		}
+
+		// get user plan
+		plan, diag := app.GetUserPlan(userID)
+		if diag != nil {
+			c.AbortWithStatusJSON(http.StatusForbidden, diag)
+			return
+		}
+
+		// inject plan overrides into request body so downstream handlers
+		// receive them transparently without the client sending them.
+		if c.Request.Method == "POST" || c.Request.Method == "PUT" {
+			injectPlanIntoBody(c, plan)
+		}
+
+		// store user info in context for downstream handlers
+		c.Set("userID", userID)
+		c.Next()
+	}
+}
+
+// parseJWTUserID extracts the user ID from a JWT token payload.
+// It decodes the base64 payload section without verifying the signature.
+func parseJWTUserID(token string) (string, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid JWT format")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+
+	var claims map[string]interface{}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return "", fmt.Errorf("failed to parse JWT payload: %w", err)
+	}
+
+	userID, ok := claims["sub"].(string)
+	if !ok || userID == "" {
+		return "", fmt.Errorf("missing or invalid 'sub' claim in JWT")
+	}
+
+	return userID, nil
+}
+
+// injectPlanIntoBody reads the request body, injects plan-level overrides,
+// and writes the modified body back so downstream ShouldBindJSON picks them up.
+func injectPlanIntoBody(c *gin.Context, plan core.Plan) {
+	if c.Request.Body == nil {
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(c.Request.Body)
+	c.Request.Body.Close()
+	if err != nil {
+		return
+	}
+
+	var bodyMap map[string]any
+	if err := json.Unmarshal(bodyBytes, &bodyMap); err != nil {
+		// body is not valid JSON or empty, restore original
+		c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		return
+	}
+
+	bodyMap["planReActMaxRounds"] = plan.MaxRoundsReAct
+	bodyMap["planMaxToken"] = plan.MaxToken
+	bodyMap["planAvailableModels"] = plan.AvailableModels
+
+	newBody, err := json.Marshal(bodyMap)
+	if err != nil {
+		c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+		return
+	}
+
+	c.Request.Body = io.NopCloser(bytes.NewReader(newBody))
+	c.Request.ContentLength = int64(len(newBody))
 }

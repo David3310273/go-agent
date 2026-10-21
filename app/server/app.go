@@ -2,77 +2,161 @@ package server
 
 import (
 	"fmt"
+	"os"
+	"path"
+	"time"
 
+	"github.com/David3310273/go-agent/agent/simple"
 	"github.com/David3310273/go-agent/core"
 	"github.com/gin-gonic/gin"
 )
 
-type SimpleAgentServer struct {
-	agent  core.AgentCore
-	Config core.AppConfig
-	Router *gin.Engine
+// compile-time check that SimpleApp implements core.AgentApp
+var _ core.AgentApp = (*SimpleApp)(nil)
+
+type SimpleApp struct {
+	server core.AgentServer
+	config core.AppConfig
+	router *gin.Engine
 }
 
-// inject agent to app layer
-func NewSimpleAgentServer(agent core.AgentCore) *SimpleAgentServer {
-	return &SimpleAgentServer{
-		agent: agent,
+func NewSimpleApp(appConfig *core.AppConfig) (*SimpleApp, error) {
+	// 1. init logger
+	initLogger(appConfig)
+	core.LogInfo("", "app starting, config loaded")
+
+	// 2. init agent
+	agent, initErr := initAgent(appConfig.RootPath)
+	if initErr != nil {
+		return nil, fmt.Errorf("failed to init agent: %s", initErr.ToString())
+	}
+
+	// 3. create app + server, wire dependencies
+	app := &SimpleApp{
+		config: *appConfig,
+	}
+	server := NewSimpleAgentServer(agent)
+	app.server = server
+	core.InitAgentServer(server, agent, *appConfig)
+	app.SetRouter()
+
+	return app, nil
+}
+
+func (s *SimpleApp) SetRouter() {
+	s.router = SetupRouter(s)
+}
+
+func (s *SimpleApp) BeforeStart() []core.Diagnostic {
+	return nil
+}
+
+func (s *SimpleApp) BeforeStop() []core.Diagnostic {
+	return nil
+}
+
+// initLogger initialises the global structured logger singleton.
+func initLogger(appConfig *core.AppConfig) {
+	logPath := fmt.Sprintf(appConfig.LogPath, time.Now().Format(time.RFC3339))
+	logFile := path.Join(appConfig.RootPath, logPath)
+	logDir := path.Dir(logFile)
+
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		err = os.MkdirAll(logDir, 0755)
+		if err != nil {
+			core.LogError("", "failed to create log directory: %v", err)
+			os.Exit(1)
+		}
 	}
 }
 
-func (s *SimpleAgentServer) SetAgentCore(agent core.AgentCore) {
-	s.agent = agent
+// initAgent creates, configures and starts the agent
+func initAgent(rootPath string) (core.AgentCore, *core.Diagnostic) {
+	agent, diag := simple.NewSimpleAgent(rootPath)
+	if diag != nil {
+		return nil, diag
+	}
+
+	providers := simple.CreateProviders(rootPath, agent.Configs.Agent.QuestionProvider)
+	if diag := agent.SetProviders(providers); diag != nil {
+		return nil, diag
+	}
+
+	return agent, nil
 }
 
-func (s SimpleAgentServer) GetAgentCore() core.AgentCore {
-	return s.agent
+// UI interface
+
+func (s *SimpleApp) Render(code core.MessageCode, locale core.LanguageType) string {
+	return ""
 }
 
-func (s *SimpleAgentServer) SetAppConfig(config core.AppConfig) {
-	s.Config = config
+func (s *SimpleApp) RenderSystemMessage(diagnostics *core.DiagnosticList, locale core.LanguageType) string {
+	return ""
 }
 
-func (s SimpleAgentServer) GetAppConfig() core.AppConfig {
-	return s.Config
+func (s *SimpleApp) Welcome() string {
+	return ""
 }
 
-// SetRouter initializes the gin router
-func (s *SimpleAgentServer) SetRouter() {
-	s.Router = SetupRouter(&s.Config, s.agent)
+// I18n interface
+
+func (s *SimpleApp) Translate(key core.MessageCode, targetLanguage core.LanguageType) string {
+	return ""
 }
 
-// starts the agent core and listens on the configured HTTP port
-func (s *SimpleAgentServer) Start() {
-	go func() {
-		diagnostics := core.StartAgentCore(s.agent, s.Config)
-		if len(diagnostics) > 0 {
-			for _, d := range diagnostics {
-				if d.Level >= core.SeverityError {
-					core.LogStd(core.LogLevelError, "StartAgentCore error: %s", d.ToString())
-				}
-			}
-		}
-	}()
+// SingalManager interface (via AgentServer)
 
-	addr := fmt.Sprintf(":%d", s.Config.Service.Port)
+func (s *SimpleApp) GracefulQuit() {
+	s.server.GracefulQuit()
+}
+
+// AgentServer interface
+
+func (s *SimpleApp) SetAgentCore(agent core.AgentCore) {
+	s.server.SetAgentCore(agent)
+}
+
+func (s *SimpleApp) GetAgentCore() core.AgentCore {
+	return s.server.GetAgentCore()
+}
+
+func (s *SimpleApp) SetAppConfig(config core.AppConfig) {
+	s.config = config
+}
+
+func (s *SimpleApp) GetAppConfig() core.AppConfig {
+	return s.config
+}
+
+func (s *SimpleApp) Start() []core.Diagnostic {
+	// start agent core
+	s.server.Start()
+
+	// block on HTTP listen
+	addr := fmt.Sprintf(":%d", s.config.Service.Port)
 	core.LogStd(core.LogLevelInfo, "HTTP server listening on %s", addr)
-
-	if err := s.Router.Run(addr); err != nil {
+	if err := s.router.Run(addr); err != nil {
 		core.LogStd(core.LogLevelError, "HTTP server error: %v", err)
 	}
+	return nil
 }
 
-// stop in server layer
-func (s SimpleAgentServer) Stop() {
-	s.GracefulQuit()
+func (s *SimpleApp) Stop() []core.Diagnostic {
+	s.server.Stop()
+	return nil
 }
 
-// graceful quit, in agent layer
-func (s SimpleAgentServer) GracefulQuit() {
-	err := core.StopAgentCore(s.agent)
-	if len(err) > 0 {
-		core.LogStd(core.LogLevelError, "agent %s stopped error: %v", s.GetAgentCore().GetID(), core.DiagnosticList(err).ToString())
-	} else {
-		core.LogStd(core.LogLevelInfo, "agent %s stopped", s.GetAgentCore().GetID())
-	}
+// UserManager interface
+
+func (s *SimpleApp) AuthUser(token string) *core.Diagnostic {
+	return nil
+}
+
+func (s *SimpleApp) GetUserPlan(userID string) (core.Plan, *core.Diagnostic) {
+	return core.Plan{}, nil
+}
+
+func (s *SimpleApp) CheckUserPlan(userInfo any, plan core.Plan) *core.Diagnostic {
+	return nil
 }

@@ -47,6 +47,8 @@ type Question interface {
 	GetToolCalls() map[string]any
 	// set called tools
 	SetToolCalls(ToolCall)
+	// get user plan overrides injected by auth middleware
+	GetUserPlan() Plan
 }
 
 // ToolConfirmAnswer is one user answer for one pending destructive tool call.
