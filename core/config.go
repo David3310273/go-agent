@@ -33,6 +33,7 @@ type AppConfig struct {
 	MaxWaitingRequest  int           `json:"maxWaitingRequest"`
 	RequestQueueLength int           `json:"requestQueueLength"`
 	Service            ServiceConfig `json:"service"`
+	EnableBenchmark    bool          `json:"enableBenchmark"`
 }
 
 type ServiceConfig struct {
@@ -175,6 +176,7 @@ type SessionConfig struct {
 	MemoryFilePathFormat string `json:"memoryFilePathFormat"`
 	MemoryFileSplitter   string `json:"memoryFileSplitter"`
 	MemoryWindowSize     int64  `json:"memoryWindowSize"`
+	MaxTokenLimit        uint64 `json:"maxTokenLimit"`
 
 	EnableBenchmark bool `json:"enableBenchmark"`
 

@@ -36,6 +36,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// inject benchmark config
+	agent.Configs.Agent.EnableBenchmark = config.EnableBenchmark
+
 	// redirect internal logs to file, keep stdout clean for CLI interaction
 	logPath := path.Join(cwd, "logs", fmt.Sprintf("agent-%s.log", agent.GetID()))
 	core.SetDefaultLogPath(logPath)

@@ -20,7 +20,7 @@ type AskParams struct {
 
 	// injected by middleware from user plan
 	PlanReActMaxRounds  int
-	PlanMaxToken        int64
+	PlanMaxToken        uint64
 	PlanAvailableModels []string
 }
 

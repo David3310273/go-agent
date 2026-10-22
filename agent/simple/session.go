@@ -59,6 +59,7 @@ type SimpleAgentSession struct {
 	startTime time.Time
 	// query start process time
 	startProcessTime time.Time
+	usedToken        uint64
 
 	Config core.SessionConfig
 
@@ -258,7 +259,7 @@ func (s *SimpleAgentSession) applyPlanOverrides(plan core.Plan) {
 		s.Config.ReActMaxRounds = plan.MaxRoundsReAct
 	}
 	if plan.MaxToken > 0 {
-		s.Config.MemoryWindowSize = plan.MaxToken
+		s.Config.MaxTokenLimit = plan.MaxToken
 	}
 	if len(plan.AvailableModels) > 0 {
 		s.Config.AllowedModels = plan.AvailableModels
@@ -267,6 +268,14 @@ func (s *SimpleAgentSession) applyPlanOverrides(plan core.Plan) {
 
 func (s *SimpleAgentSession) GetQueryCtx() context.Context {
 	return s.queryCtx
+}
+
+func (s *SimpleAgentSession) GetUsedToken() uint64 {
+	return s.usedToken
+}
+
+func (s *SimpleAgentSession) AddUsedToken(token uint64) {
+	s.usedToken += token
 }
 
 func (s *SimpleAgentSession) SetQueryContext(ctx context.Context, cancel context.CancelFunc) *core.Diagnostic {

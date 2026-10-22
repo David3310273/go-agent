@@ -56,6 +56,10 @@ type Session interface {
 	// session runtime context
 	GetContext() Context
 
+	// get used token
+	GetUsedToken() uint64
+	AddUsedToken(token uint64)
+
 	// session support tree structure
 	NewSubSession(tool []Tool) Session
 }

@@ -54,6 +54,7 @@ type ReActDefaultContentBase interface {
 	GetToolCallLoopMessage(toolCall ToolCall) string
 	// GetConfirmToolMessage returns the confirmation message for destructive tools
 	GetConfirmToolMessage(toolCall ConfirmToolCall) string
+	GetTokenExceededAnswer() AgentResponse
 	// GenerateToolConfirmResponse generates the confirmation response for a batch of destructive
 	// tool calls
 	GetAlreadyConfirmedMessage(toolCallID string) string
