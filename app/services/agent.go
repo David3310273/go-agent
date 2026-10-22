@@ -18,11 +18,8 @@ type AskParams struct {
 	Type           core.QuestionType
 	Timestamp      int64
 
-	// injected by middleware from user plan
-	PlanReActMaxRounds   int
-	PlanMaxToken         uint64
-	PlanAvailableModels  []string
-	PlanMemoryWindowSize uint64
+	// Plan-level overrides from user plan – zero values mean use agent default
+	Plan core.Plan
 }
 
 // ToolConfirmAskParams carries a batch of user answers for the pending destructive tool calls.
@@ -60,13 +57,7 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 			askType.Type,
 			askType.Timestamp,
 		)
-		// inject plan overrides from middleware into the question
-		sq.SetPlanOverrides(core.Plan{
-			MaxRoundsReAct:   askType.PlanReActMaxRounds,
-			MaxToken:         askType.PlanMaxToken,
-			AvailableModels:  askType.PlanAvailableModels,
-			MemoryWindowSize: askType.PlanMemoryWindowSize,
-		})
+		sq.SetPlanOverrides(askType.Plan)
 		question = sq
 	case *ToolConfirmAskParams:
 		sq := simple.NewSimpleQuestion(
@@ -80,13 +71,7 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 			core.QuestionTypeToolConfirm,
 			askType.Timestamp,
 		)
-		// inject plan overrides for tool_confirm too
-		sq.SetPlanOverrides(core.Plan{
-			MaxRoundsReAct:   askType.PlanReActMaxRounds,
-			MaxToken:         askType.PlanMaxToken,
-			AvailableModels:  askType.PlanAvailableModels,
-			MemoryWindowSize: askType.PlanMemoryWindowSize,
-		})
+		sq.SetPlanOverrides(askType.Plan)
 		question = &SimpleToolConfirmQuestion{
 			SimpleQuestion: *sq,
 			Confirms:       askType.Confirms,
