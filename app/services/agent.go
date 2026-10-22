@@ -19,9 +19,10 @@ type AskParams struct {
 	Timestamp      int64
 
 	// injected by middleware from user plan
-	PlanReActMaxRounds  int
-	PlanMaxToken        uint64
-	PlanAvailableModels []string
+	PlanReActMaxRounds   int
+	PlanMaxToken         uint64
+	PlanAvailableModels  []string
+	PlanMemoryWindowSize uint64
 }
 
 // ToolConfirmAskParams carries a batch of user answers for the pending destructive tool calls.
@@ -48,7 +49,7 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 
 	switch askType := params.(type) {
 	case *AskParams:
-		question = simple.NewSimpleQuestion(
+		sq := simple.NewSimpleQuestion(
 			askType.Question,
 			askType.SessionID,
 			askType.Model,
@@ -60,27 +61,36 @@ func Ask(agent *simple.SimpleAgent, appConfig *core.AppConfig, params any) (*Ask
 			askType.Timestamp,
 		)
 		// inject plan overrides from middleware into the question
-		if sq, ok := question.(*simple.SimpleQuestion); ok {
-			sq.SetPlanOverrides(askType.PlanReActMaxRounds, askType.PlanMaxToken, askType.PlanAvailableModels)
-		}
+		sq.SetPlanOverrides(core.Plan{
+			MaxRoundsReAct:   askType.PlanReActMaxRounds,
+			MaxToken:         askType.PlanMaxToken,
+			AvailableModels:  askType.PlanAvailableModels,
+			MemoryWindowSize: askType.PlanMemoryWindowSize,
+		})
+		question = sq
 	case *ToolConfirmAskParams:
-		question = &SimpleToolConfirmQuestion{
-			SimpleQuestion: *simple.NewSimpleQuestion(
-				askType.Question,
-				askType.SessionID,
-				askType.Model,
-				responseChan,
-				hintChan,
-				askType.Stream,
-				askType.EnableThinking,
-				core.QuestionTypeToolConfirm,
-				askType.Timestamp,
-			),
-			Confirms: askType.Confirms,
-		}
+		sq := simple.NewSimpleQuestion(
+			askType.Question,
+			askType.SessionID,
+			askType.Model,
+			responseChan,
+			hintChan,
+			askType.Stream,
+			askType.EnableThinking,
+			core.QuestionTypeToolConfirm,
+			askType.Timestamp,
+		)
 		// inject plan overrides for tool_confirm too
-		sq := &question.(*SimpleToolConfirmQuestion).SimpleQuestion
-		sq.SetPlanOverrides(askType.PlanReActMaxRounds, askType.PlanMaxToken, askType.PlanAvailableModels)
+		sq.SetPlanOverrides(core.Plan{
+			MaxRoundsReAct:   askType.PlanReActMaxRounds,
+			MaxToken:         askType.PlanMaxToken,
+			AvailableModels:  askType.PlanAvailableModels,
+			MemoryWindowSize: askType.PlanMemoryWindowSize,
+		})
+		question = &SimpleToolConfirmQuestion{
+			SimpleQuestion: *sq,
+			Confirms:       askType.Confirms,
+		}
 	default:
 		return nil, &core.Diagnostic{
 			Code:    core.MessageCodeSystemError,

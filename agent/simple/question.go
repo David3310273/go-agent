@@ -26,9 +26,10 @@ type SimpleQuestion struct {
 	toolCalls      map[string]any
 
 	// plan overrides injected by middleware – zero means use agent default
-	planReActMaxRounds  int
-	planMaxToken        uint64
-	planAvailableModels []string
+	planReActMaxRounds   int
+	planMaxToken         uint64
+	planAvailableModels  []string
+	planMemoryWindowSize uint64
 }
 
 var _ core.Question = (*SimpleQuestion)(nil)
@@ -78,17 +79,19 @@ func (q *SimpleQuestion) GetHintChan() chan core.Answer     { return q.hintChan 
 func (q *SimpleQuestion) GetPlanReActMaxRounds() int       { return q.planReActMaxRounds }
 func (q *SimpleQuestion) GetPlanMaxToken() uint64          { return q.planMaxToken }
 func (q *SimpleQuestion) GetPlanAvailableModels() []string { return q.planAvailableModels }
-func (q *SimpleQuestion) SetPlanOverrides(reActMaxRounds int, maxToken uint64, availableModels []string) {
-	q.planReActMaxRounds = reActMaxRounds
-	q.planMaxToken = maxToken
-	q.planAvailableModels = availableModels
+func (q *SimpleQuestion) SetPlanOverrides(plan core.Plan) {
+	q.planReActMaxRounds = plan.MaxRoundsReAct
+	q.planMaxToken = plan.MaxToken
+	q.planAvailableModels = plan.AvailableModels
+	q.planMemoryWindowSize = plan.MemoryWindowSize
 }
 
 func (q *SimpleQuestion) GetUserPlan() core.Plan {
 	return core.Plan{
-		MaxRoundsReAct:  q.planReActMaxRounds,
-		MaxToken:        q.planMaxToken,
-		AvailableModels: q.planAvailableModels,
+		MaxRoundsReAct:   q.planReActMaxRounds,
+		MaxToken:         q.planMaxToken,
+		AvailableModels:  q.planAvailableModels,
+		MemoryWindowSize: q.planMemoryWindowSize,
 	}
 }
 

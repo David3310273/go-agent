@@ -239,6 +239,7 @@ func injectPlanIntoBody(c *gin.Context, plan core.Plan) {
 	bodyMap["planReActMaxRounds"] = plan.MaxRoundsReAct
 	bodyMap["planMaxToken"] = plan.MaxToken
 	bodyMap["planAvailableModels"] = plan.AvailableModels
+	bodyMap["planMemoryWindowSize"] = plan.MemoryWindowSize
 
 	newBody, err := json.Marshal(bodyMap)
 	if err != nil {
