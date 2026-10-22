@@ -114,6 +114,34 @@ func (mr *MockAgentAppMockRecorder) AuthUser(token any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AuthUser", reflect.TypeOf((*MockAgentApp)(nil).AuthUser), token)
 }
 
+// BeforeStart mocks base method.
+func (m *MockAgentApp) BeforeStart() []core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BeforeStart")
+	ret0, _ := ret[0].([]core.Diagnostic)
+	return ret0
+}
+
+// BeforeStart indicates an expected call of BeforeStart.
+func (mr *MockAgentAppMockRecorder) BeforeStart() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStart", reflect.TypeOf((*MockAgentApp)(nil).BeforeStart))
+}
+
+// BeforeStop mocks base method.
+func (m *MockAgentApp) BeforeStop() []core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BeforeStop")
+	ret0, _ := ret[0].([]core.Diagnostic)
+	return ret0
+}
+
+// BeforeStop indicates an expected call of BeforeStop.
+func (mr *MockAgentAppMockRecorder) BeforeStop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockAgentApp)(nil).BeforeStop))
+}
+
 // CheckUserPlan mocks base method.
 func (m *MockAgentApp) CheckUserPlan(userInfo any, plan core.Plan) *core.Diagnostic {
 	m.ctrl.T.Helper()
@@ -248,9 +276,11 @@ func (mr *MockAgentAppMockRecorder) SetRouter() *gomock.Call {
 }
 
 // Start mocks base method.
-func (m *MockAgentApp) Start() {
+func (m *MockAgentApp) Start() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Start")
+	ret := m.ctrl.Call(m, "Start")
+	ret0, _ := ret[0].([]core.Diagnostic)
+	return ret0
 }
 
 // Start indicates an expected call of Start.
@@ -260,9 +290,11 @@ func (mr *MockAgentAppMockRecorder) Start() *gomock.Call {
 }
 
 // Stop mocks base method.
-func (m *MockAgentApp) Stop() {
+func (m *MockAgentApp) Stop() []core.Diagnostic {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Stop")
+	ret := m.ctrl.Call(m, "Stop")
+	ret0, _ := ret[0].([]core.Diagnostic)
+	return ret0
 }
 
 // Stop indicates an expected call of Stop.

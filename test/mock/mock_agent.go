@@ -194,6 +194,20 @@ func (mr *MockQuestionMockRecorder) GetType() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetType", reflect.TypeOf((*MockQuestion)(nil).GetType))
 }
 
+// GetUserPlan mocks base method.
+func (m *MockQuestion) GetUserPlan() core.Plan {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserPlan")
+	ret0, _ := ret[0].(core.Plan)
+	return ret0
+}
+
+// GetUserPlan indicates an expected call of GetUserPlan.
+func (mr *MockQuestionMockRecorder) GetUserPlan() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserPlan", reflect.TypeOf((*MockQuestion)(nil).GetUserPlan))
+}
+
 // SetQuery mocks base method.
 func (m *MockQuestion) SetQuery(arg0 string) {
 	m.ctrl.T.Helper()
@@ -412,86 +426,6 @@ func (mr *MockConfigurableMockRecorder) GetConfigPath() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConfigPath", reflect.TypeOf((*MockConfigurable)(nil).GetConfigPath))
 }
 
-// MockWorkFlow is a mock of WorkFlow interface.
-type MockWorkFlow struct {
-	ctrl     *gomock.Controller
-	recorder *MockWorkFlowMockRecorder
-	isgomock struct{}
-}
-
-// MockWorkFlowMockRecorder is the mock recorder for MockWorkFlow.
-type MockWorkFlowMockRecorder struct {
-	mock *MockWorkFlow
-}
-
-// NewMockWorkFlow creates a new mock instance.
-func NewMockWorkFlow(ctrl *gomock.Controller) *MockWorkFlow {
-	mock := &MockWorkFlow{ctrl: ctrl}
-	mock.recorder = &MockWorkFlowMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockWorkFlow) EXPECT() *MockWorkFlowMockRecorder {
-	return m.recorder
-}
-
-// BeforeStart mocks base method.
-func (m *MockWorkFlow) BeforeStart() []core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeforeStart")
-	ret0, _ := ret[0].([]core.Diagnostic)
-	return ret0
-}
-
-// BeforeStart indicates an expected call of BeforeStart.
-func (mr *MockWorkFlowMockRecorder) BeforeStart() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStart", reflect.TypeOf((*MockWorkFlow)(nil).BeforeStart))
-}
-
-// BeforeStop mocks base method.
-func (m *MockWorkFlow) BeforeStop() []core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BeforeStop")
-	ret0, _ := ret[0].([]core.Diagnostic)
-	return ret0
-}
-
-// BeforeStop indicates an expected call of BeforeStop.
-func (mr *MockWorkFlowMockRecorder) BeforeStop() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockWorkFlow)(nil).BeforeStop))
-}
-
-// Start mocks base method.
-func (m *MockWorkFlow) Start() []core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Start")
-	ret0, _ := ret[0].([]core.Diagnostic)
-	return ret0
-}
-
-// Start indicates an expected call of Start.
-func (mr *MockWorkFlowMockRecorder) Start() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockWorkFlow)(nil).Start))
-}
-
-// Stop mocks base method.
-func (m *MockWorkFlow) Stop() []core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Stop")
-	ret0, _ := ret[0].([]core.Diagnostic)
-	return ret0
-}
-
-// Stop indicates an expected call of Stop.
-func (mr *MockWorkFlowMockRecorder) Stop() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockWorkFlow)(nil).Stop))
-}
-
 // MockSessionManager is a mock of SessionManager interface.
 type MockSessionManager struct {
 	ctrl     *gomock.Controller
@@ -653,32 +587,6 @@ func (mr *MockAgentCoreMockRecorder) BeforeStop() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeforeStop", reflect.TypeOf((*MockAgentCore)(nil).BeforeStop))
 }
 
-// CloseBenchmarkListeningChannels mocks base method.
-func (m *MockAgentCore) CloseBenchmarkListeningChannels() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CloseBenchmarkListeningChannels")
-}
-
-// CloseBenchmarkListeningChannels indicates an expected call of CloseBenchmarkListeningChannels.
-func (mr *MockAgentCoreMockRecorder) CloseBenchmarkListeningChannels() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseBenchmarkListeningChannels", reflect.TypeOf((*MockAgentCore)(nil).CloseBenchmarkListeningChannels))
-}
-
-// GetObjectID mocks base method.
-func (m *MockAgentCore) GetObjectID() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetObjectID")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// GetObjectID indicates an expected call of GetObjectID.
-func (mr *MockAgentCoreMockRecorder) GetObjectID() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObjectID", reflect.TypeOf((*MockAgentCore)(nil).GetObjectID))
-}
-
 // GetBenchmarkListeningChannels mocks base method.
 func (m *MockAgentCore) GetBenchmarkListeningChannels() map[core.MetricType]chan core.BenchmarkEvent[any] {
 	m.ctrl.T.Helper()
@@ -817,6 +725,20 @@ func (m *MockAgentCore) GetModelProviders() []core.Provider {
 func (mr *MockAgentCoreMockRecorder) GetModelProviders() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetModelProviders", reflect.TypeOf((*MockAgentCore)(nil).GetModelProviders))
+}
+
+// GetObjectID mocks base method.
+func (m *MockAgentCore) GetObjectID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetObjectID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetObjectID indicates an expected call of GetObjectID.
+func (mr *MockAgentCoreMockRecorder) GetObjectID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObjectID", reflect.TypeOf((*MockAgentCore)(nil).GetObjectID))
 }
 
 // GetPrompt mocks base method.

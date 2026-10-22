@@ -17,6 +17,201 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockQueryManager is a mock of QueryManager interface.
+type MockQueryManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockQueryManagerMockRecorder
+	isgomock struct{}
+}
+
+// MockQueryManagerMockRecorder is the mock recorder for MockQueryManager.
+type MockQueryManagerMockRecorder struct {
+	mock *MockQueryManager
+}
+
+// NewMockQueryManager creates a new mock instance.
+func NewMockQueryManager(ctrl *gomock.Controller) *MockQueryManager {
+	mock := &MockQueryManager{ctrl: ctrl}
+	mock.recorder = &MockQueryManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockQueryManager) EXPECT() *MockQueryManagerMockRecorder {
+	return m.recorder
+}
+
+// CancelQuery mocks base method.
+func (m *MockQueryManager) CancelQuery() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CancelQuery")
+}
+
+// CancelQuery indicates an expected call of CancelQuery.
+func (mr *MockQueryManagerMockRecorder) CancelQuery() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CancelQuery", reflect.TypeOf((*MockQueryManager)(nil).CancelQuery))
+}
+
+// GetQueryCtx mocks base method.
+func (m *MockQueryManager) GetQueryCtx() context.Context {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetQueryCtx")
+	ret0, _ := ret[0].(context.Context)
+	return ret0
+}
+
+// GetQueryCtx indicates an expected call of GetQueryCtx.
+func (mr *MockQueryManagerMockRecorder) GetQueryCtx() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetQueryCtx", reflect.TypeOf((*MockQueryManager)(nil).GetQueryCtx))
+}
+
+// GetQuestionChan mocks base method.
+func (m *MockQueryManager) GetQuestionChan() chan core.Question {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetQuestionChan")
+	ret0, _ := ret[0].(chan core.Question)
+	return ret0
+}
+
+// GetQuestionChan indicates an expected call of GetQuestionChan.
+func (mr *MockQueryManagerMockRecorder) GetQuestionChan() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetQuestionChan", reflect.TypeOf((*MockQueryManager)(nil).GetQuestionChan))
+}
+
+// ProcessQuery mocks base method.
+func (m *MockQueryManager) ProcessQuery(query core.Question) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ProcessQuery", query)
+}
+
+// ProcessQuery indicates an expected call of ProcessQuery.
+func (mr *MockQueryManagerMockRecorder) ProcessQuery(query any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessQuery", reflect.TypeOf((*MockQueryManager)(nil).ProcessQuery), query)
+}
+
+// SetQueryContext mocks base method.
+func (m *MockQueryManager) SetQueryContext(ctx context.Context, cancel context.CancelFunc) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetQueryContext", ctx, cancel)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// SetQueryContext indicates an expected call of SetQueryContext.
+func (mr *MockQueryManagerMockRecorder) SetQueryContext(ctx, cancel any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetQueryContext", reflect.TypeOf((*MockQueryManager)(nil).SetQueryContext), ctx, cancel)
+}
+
+// MockReActDataManager is a mock of ReActDataManager interface.
+type MockReActDataManager struct {
+	ctrl     *gomock.Controller
+	recorder *MockReActDataManagerMockRecorder
+	isgomock struct{}
+}
+
+// MockReActDataManagerMockRecorder is the mock recorder for MockReActDataManager.
+type MockReActDataManagerMockRecorder struct {
+	mock *MockReActDataManager
+}
+
+// NewMockReActDataManager creates a new mock instance.
+func NewMockReActDataManager(ctrl *gomock.Controller) *MockReActDataManager {
+	mock := &MockReActDataManager{ctrl: ctrl}
+	mock.recorder = &MockReActDataManagerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockReActDataManager) EXPECT() *MockReActDataManagerMockRecorder {
+	return m.recorder
+}
+
+// DeleteMemory mocks base method.
+func (m *MockReActDataManager) DeleteMemory() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "DeleteMemory")
+}
+
+// DeleteMemory indicates an expected call of DeleteMemory.
+func (mr *MockReActDataManagerMockRecorder) DeleteMemory() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMemory", reflect.TypeOf((*MockReActDataManager)(nil).DeleteMemory))
+}
+
+// ExportChatHistory mocks base method.
+func (m *MockReActDataManager) ExportChatHistory(size int) ([]byte, *core.Diagnostic) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExportChatHistory", size)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(*core.Diagnostic)
+	return ret0, ret1
+}
+
+// ExportChatHistory indicates an expected call of ExportChatHistory.
+func (mr *MockReActDataManagerMockRecorder) ExportChatHistory(size any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportChatHistory", reflect.TypeOf((*MockReActDataManager)(nil).ExportChatHistory), size)
+}
+
+// GetConversation mocks base method.
+func (m *MockReActDataManager) GetConversation() *core.Conversation {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetConversation")
+	ret0, _ := ret[0].(*core.Conversation)
+	return ret0
+}
+
+// GetConversation indicates an expected call of GetConversation.
+func (mr *MockReActDataManagerMockRecorder) GetConversation() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetConversation", reflect.TypeOf((*MockReActDataManager)(nil).GetConversation))
+}
+
+// GetLoadTools mocks base method.
+func (m *MockReActDataManager) GetLoadTools() *[]core.Tool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLoadTools")
+	ret0, _ := ret[0].(*[]core.Tool)
+	return ret0
+}
+
+// GetLoadTools indicates an expected call of GetLoadTools.
+func (mr *MockReActDataManagerMockRecorder) GetLoadTools() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLoadTools", reflect.TypeOf((*MockReActDataManager)(nil).GetLoadTools))
+}
+
+// SaveMemory mocks base method.
+func (m *MockReActDataManager) SaveMemory(arg0 core.ReActMessage) *core.Diagnostic {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveMemory", arg0)
+	ret0, _ := ret[0].(*core.Diagnostic)
+	return ret0
+}
+
+// SaveMemory indicates an expected call of SaveMemory.
+func (mr *MockReActDataManagerMockRecorder) SaveMemory(arg0 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveMemory", reflect.TypeOf((*MockReActDataManager)(nil).SaveMemory), arg0)
+}
+
+// SetLoadTools mocks base method.
+func (m *MockReActDataManager) SetLoadTools(tool core.Tool) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetLoadTools", tool)
+}
+
+// SetLoadTools indicates an expected call of SetLoadTools.
+func (mr *MockReActDataManagerMockRecorder) SetLoadTools(tool any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLoadTools", reflect.TypeOf((*MockReActDataManager)(nil).SetLoadTools), tool)
+}
+
 // MockSession is a mock of Session interface.
 type MockSession struct {
 	ctrl     *gomock.Controller
@@ -53,6 +248,18 @@ func (m *MockSession) Acquire() *core.Diagnostic {
 func (mr *MockSessionMockRecorder) Acquire() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Acquire", reflect.TypeOf((*MockSession)(nil).Acquire))
+}
+
+// AddUsedToken mocks base method.
+func (m *MockSession) AddUsedToken(token uint64) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "AddUsedToken", token)
+}
+
+// AddUsedToken indicates an expected call of AddUsedToken.
+func (mr *MockSessionMockRecorder) AddUsedToken(token any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddUsedToken", reflect.TypeOf((*MockSession)(nil).AddUsedToken), token)
 }
 
 // BeforeStart mocks base method.
@@ -107,18 +314,6 @@ func (mr *MockSessionMockRecorder) ClearToolConfirmed(toolCallID any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ClearToolConfirmed", reflect.TypeOf((*MockSession)(nil).ClearToolConfirmed), toolCallID)
 }
 
-// CloseBenchmarkListeningChannels mocks base method.
-func (m *MockSession) CloseBenchmarkListeningChannels() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CloseBenchmarkListeningChannels")
-}
-
-// CloseBenchmarkListeningChannels indicates an expected call of CloseBenchmarkListeningChannels.
-func (mr *MockSessionMockRecorder) CloseBenchmarkListeningChannels() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseBenchmarkListeningChannels", reflect.TypeOf((*MockSession)(nil).CloseBenchmarkListeningChannels))
-}
-
 // DeleteMemory mocks base method.
 func (m *MockSession) DeleteMemory() {
 	m.ctrl.T.Helper()
@@ -156,20 +351,6 @@ func (m *MockSession) ExportChatHistory(size int) ([]byte, *core.Diagnostic) {
 func (mr *MockSessionMockRecorder) ExportChatHistory(size any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExportChatHistory", reflect.TypeOf((*MockSession)(nil).ExportChatHistory), size)
-}
-
-// GetObjectID mocks base method.
-func (m *MockSession) GetObjectID() string {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetObjectID")
-	ret0, _ := ret[0].(string)
-	return ret0
-}
-
-// GetObjectID indicates an expected call of GetObjectID.
-func (mr *MockSessionMockRecorder) GetObjectID() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObjectID", reflect.TypeOf((*MockSession)(nil).GetObjectID))
 }
 
 // GetBenchmarkListeningChannels mocks base method.
@@ -284,6 +465,20 @@ func (mr *MockSessionMockRecorder) GetLoadTools() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLoadTools", reflect.TypeOf((*MockSession)(nil).GetLoadTools))
 }
 
+// GetObjectID mocks base method.
+func (m *MockSession) GetObjectID() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetObjectID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// GetObjectID indicates an expected call of GetObjectID.
+func (mr *MockSessionMockRecorder) GetObjectID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObjectID", reflect.TypeOf((*MockSession)(nil).GetObjectID))
+}
+
 // GetPendingToolCall mocks base method.
 func (m *MockSession) GetPendingToolCall(toolCallID string) *core.ConfirmToolCall {
 	m.ctrl.T.Helper()
@@ -326,18 +521,18 @@ func (mr *MockSessionMockRecorder) GetQuestionChan() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetQuestionChan", reflect.TypeOf((*MockSession)(nil).GetQuestionChan))
 }
 
-// GetStatus mocks base method.
-func (m *MockSession) GetStatus() core.SessionStatus {
+// GetUsedToken mocks base method.
+func (m *MockSession) GetUsedToken() uint64 {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetStatus")
-	ret0, _ := ret[0].(core.SessionStatus)
+	ret := m.ctrl.Call(m, "GetUsedToken")
+	ret0, _ := ret[0].(uint64)
 	return ret0
 }
 
-// GetStatus indicates an expected call of GetStatus.
-func (mr *MockSessionMockRecorder) GetStatus() *gomock.Call {
+// GetUsedToken indicates an expected call of GetUsedToken.
+func (mr *MockSessionMockRecorder) GetUsedToken() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatus", reflect.TypeOf((*MockSession)(nil).GetStatus))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUsedToken", reflect.TypeOf((*MockSession)(nil).GetUsedToken))
 }
 
 // IsToolConfirmed mocks base method.
@@ -468,20 +663,6 @@ func (m *MockSession) SetQueryContext(ctx context.Context, cancel context.Cancel
 func (mr *MockSessionMockRecorder) SetQueryContext(ctx, cancel any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetQueryContext", reflect.TypeOf((*MockSession)(nil).SetQueryContext), ctx, cancel)
-}
-
-// SetStatus mocks base method.
-func (m *MockSession) SetStatus(status core.SessionStatus) *core.Diagnostic {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetStatus", status)
-	ret0, _ := ret[0].(*core.Diagnostic)
-	return ret0
-}
-
-// SetStatus indicates an expected call of SetStatus.
-func (mr *MockSessionMockRecorder) SetStatus(status any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetStatus", reflect.TypeOf((*MockSession)(nil).SetStatus), status)
 }
 
 // SetToolConfirmed mocks base method.
