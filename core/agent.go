@@ -238,7 +238,10 @@ func processResponse(
 	// send thoughts to hint chan only when thinking is enabled
 	if question.GetEnableThinking() {
 		if hintChan := question.GetHintChan(); hintChan != nil {
-			hintChan <- answer
+			select {
+			case hintChan <- answer:
+			default:
+			}
 		}
 	}
 
@@ -440,7 +443,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		runtimeTools = reActContext.GetTools()
 	}
 
-	if config.MaxTokenLimit < session.GetUsedToken() {
+	if config.MaxTokenLimit != 0 && config.MaxTokenLimit < session.GetUsedToken() {
 		return harness.GetTokenExceededAnswer(), diagnostics
 	}
 
@@ -662,7 +665,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		runtimeTools = reActContext.GetTools()
 	}
 
-	if config.MaxTokenLimit < session.GetUsedToken() {
+	if config.MaxTokenLimit != 0 && config.MaxTokenLimit < session.GetUsedToken() {
 		return harness.GetTokenExceededAnswer(), diagnostics
 	}
 
@@ -867,20 +870,30 @@ func AskQuestionStream(session Session, messages []ReActMessage, tools []Tool, q
 			// push reasoning/thinking content to hintChan only when thinking is enabled
 			if question.GetEnableThinking() && resp.Choices[0].Message.ReasoningContent != nil && *resp.Choices[0].Message.ReasoningContent != "" {
 				if hintChan := question.GetHintChan(); hintChan != nil {
-					hintChan <- answer
+					select {
+					case hintChan <- answer:
+					default:
+					}
 				}
 			}
 			// push answer content to responseChan for streaming output
 			if resp.Choices[0].Message.Content != "" {
 				if responseChan := question.GetResponseChan(); responseChan != nil {
-					responseChan <- answer
+					select {
+					case responseChan <- answer:
+					default:
+					}
 				}
 			}
 		}
 	}
 
 	if acc.content == "" && len(acc.toolCalls) == 0 {
-		LogStd(LogLevelWarn, "[session=%s] stream produced no content, returning empty accumulator", session.GetID())
+		if question.GetEnableThinking() && acc.reasoningContent != "" {
+			acc.content = acc.reasoningContent
+		} else {
+			LogStd(LogLevelWarn, "[session=%s] stream produced no content, returning empty accumulator", session.GetID())
+		}
 	}
 
 	return acc, diagnostics

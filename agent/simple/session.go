@@ -282,18 +282,9 @@ func (s *SimpleAgentSession) AddUsedToken(token uint64) {
 }
 
 func (s *SimpleAgentSession) SetQueryContext(ctx context.Context, cancel context.CancelFunc) *core.Diagnostic {
-	if diag := s.Acquire(); diag == nil {
-		defer s.Release()
-		s.queryCtx = ctx
-		s.queryCancel = cancel
-		return nil
-	}
-
-	return &core.Diagnostic{
-		Level:   core.SeverityError,
-		Code:    core.MessageCodeSessionMultiQueryError,
-		Message: "Failed to set query context while session is processing another query, please wait.",
-	}
+	s.queryCtx = ctx
+	s.queryCancel = cancel
+	return nil
 }
 
 func (s *SimpleAgentSession) CancelQuery() {
@@ -551,6 +542,17 @@ func (r SimpleToolConfirmResponse) GetSessionID() string {
 // Unlike ProcessQuery, this is a direct synchronous call without channels,
 // streaming, or event emission. Designed for sub-sessions and internal use.
 func (s *SimpleAgentSession) RunQuery(query core.Question) (core.Answer, []core.Diagnostic) {
+	// acquire lock for the entire query processing duration
+	if diag := s.Acquire(); diag != nil {
+		return SimpleNormalResponse{
+			SessionID: s.GetID(),
+			Response: core.AgentResponse{
+				Response: diag.Message,
+			},
+		}, []core.Diagnostic{*diag}
+	}
+	defer s.Release()
+
 	// set up query context for cancellation
 	baseCtx := s.parentQueryCtx
 	if baseCtx == nil {

@@ -387,7 +387,10 @@ func (a *SimpleAgent) Start() []core.Diagnostic {
 					session, err := a.GetSessionOnCreate(sessionID, true)
 					if err != nil {
 						core.LogStd(core.LogLevelError, "failed to create session: %s", err.Message)
-						query.GetResponseChan() <- err
+						select {
+						case query.GetResponseChan() <- err:
+						default:
+						}
 					} else {
 						core.LogStd(core.LogLevelDebug, "worker %d forwarding question to session: sessionID=%s", workerID, session.GetID())
 						session.GetQuestionChan() <- query
