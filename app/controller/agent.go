@@ -49,7 +49,7 @@ type AskRequest struct {
 
 	// injected by auth middleware from user plan – not sent by client
 	PlanReActMaxRounds  int      `json:"planReActMaxRounds,omitempty"`
-	PlanMaxToken        int64    `json:"planMaxToken,omitempty"`
+	PlanMaxToken        uint64   `json:"planMaxToken,omitempty"`
 	PlanAvailableModels []string `json:"planAvailableModels,omitempty"`
 }
 

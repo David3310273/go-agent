@@ -244,6 +244,7 @@ func processResponse(
 
 	// TODO: support multiple choices
 	operation := answer.Choices[0]
+	session.AddUsedToken(answer.Usage.TotalTokens)
 	if operation.FinishReason == FinishReasonStop {
 		// append final assistant message to conversation so next question has full history
 		finalMessage := ReActMessage{
@@ -438,6 +439,10 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 	runtimeTools := session.GetLoadTools()
 	if len(*runtimeTools) == 0 {
 		runtimeTools = reActContext.GetTools()
+	}
+
+	if config.MaxTokenLimit > session.GetUsedToken() {
+		return harness.GetTokenExceededAnswer(), diagnostics
 	}
 
 	var tokenUsage uint64 = 0

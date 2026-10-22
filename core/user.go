@@ -5,7 +5,7 @@ import "time"
 type Plan struct {
 	Name     PlanType `json:"name"`
 	MaxUser  int      `json:"maxUser"`
-	MaxToken int64    `json:"maxToken"`
+	MaxToken uint64   `json:"maxToken"`
 	// start date
 	StartUseDate time.Time `json:"startDate"`
 	// expiry date

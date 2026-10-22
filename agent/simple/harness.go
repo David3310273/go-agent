@@ -166,6 +166,12 @@ func (h SimpleHarness) GetUserToolConfirmMessage(toolName string) string {
 	return fmt.Sprintf("The tool %s may be destructive, are you sure you want to proceed?", toolName)
 }
 
+func (h SimpleHarness) GetTokenExceededAnswer() core.AgentResponse {
+	return core.AgentResponse{
+		Response: "You have exceeded the maximum number of tokens allowed by your plan. Please use the new session.",
+	}
+}
+
 func (h SimpleHarness) GetConfirmToolMessage(toolCall core.ConfirmToolCall) string {
 	return fmt.Sprintf("The tool %s is destructive (tool call id: %s), should make sure if user want to use. Keep running if user responses yes.", toolCall.ToolName, toolCall.ToolCallID)
 }

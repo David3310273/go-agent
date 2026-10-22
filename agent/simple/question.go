@@ -27,7 +27,7 @@ type SimpleQuestion struct {
 
 	// plan overrides injected by middleware – zero means use agent default
 	planReActMaxRounds  int
-	planMaxToken        int64
+	planMaxToken        uint64
 	planAvailableModels []string
 }
 
@@ -76,9 +76,9 @@ func (q *SimpleQuestion) GetResponseChan() chan core.Answer { return q.responseC
 func (q *SimpleQuestion) GetHintChan() chan core.Answer     { return q.hintChan }
 
 func (q *SimpleQuestion) GetPlanReActMaxRounds() int       { return q.planReActMaxRounds }
-func (q *SimpleQuestion) GetPlanMaxToken() int64           { return q.planMaxToken }
+func (q *SimpleQuestion) GetPlanMaxToken() uint64          { return q.planMaxToken }
 func (q *SimpleQuestion) GetPlanAvailableModels() []string { return q.planAvailableModels }
-func (q *SimpleQuestion) SetPlanOverrides(reActMaxRounds int, maxToken int64, availableModels []string) {
+func (q *SimpleQuestion) SetPlanOverrides(reActMaxRounds int, maxToken uint64, availableModels []string) {
 	q.planReActMaxRounds = reActMaxRounds
 	q.planMaxToken = maxToken
 	q.planAvailableModels = availableModels
