@@ -258,10 +258,10 @@ func (mr *MockCommandAppMockRecorder) GetConfig() *gomock.Call {
 }
 
 // GetHelpDoc mocks base method.
-func (m *MockCommandApp) GetHelpDoc() string {
+func (m *MockCommandApp) GetHelpDoc() map[string]any {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHelpDoc")
-	ret0, _ := ret[0].(string)
+	ret0, _ := ret[0].(map[string]any)
 	return ret0
 }
 

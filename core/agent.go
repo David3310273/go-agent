@@ -244,7 +244,6 @@ func processResponse(
 
 	// TODO: support multiple choices
 	operation := answer.Choices[0]
-	session.AddUsedToken(answer.Usage.TotalTokens)
 	if operation.FinishReason == FinishReasonStop {
 		// append final assistant message to conversation so next question has full history
 		finalMessage := ReActMessage{
@@ -441,7 +440,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		runtimeTools = reActContext.GetTools()
 	}
 
-	if config.MaxTokenLimit > session.GetUsedToken() {
+	if config.MaxTokenLimit < session.GetUsedToken() {
 		return harness.GetTokenExceededAnswer(), diagnostics
 	}
 
@@ -458,6 +457,7 @@ func ProcessQuestion(session Session, question Question, harness Harness) (Answe
 		answer, ok := response.(AgentResponse)
 		if ok {
 			tokenUsage += answer.Usage.TotalTokens
+			session.AddUsedToken(answer.Usage.TotalTokens)
 		}
 		if !ok || len(answer.Choices) == 0 || answer.Choices[0].Message == nil {
 			// force final answer if reached max rounds
@@ -662,6 +662,10 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		runtimeTools = reActContext.GetTools()
 	}
 
+	if config.MaxTokenLimit < session.GetUsedToken() {
+		return harness.GetTokenExceededAnswer(), diagnostics
+	}
+
 	var tokenUsage uint64 = 0
 
 	// main loop of reAct process
@@ -700,6 +704,7 @@ func ProcessQuestionStream(session Session, question Question, harness Harness) 
 		}
 
 		tokenUsage += acc.usage.TotalTokens
+		session.AddUsedToken(acc.usage.TotalTokens)
 
 		if acc.finishReason != FinishReasonStop && round == maxReActRounds-1 {
 			if session.GetConfigs().EnableBenchmark {

@@ -30,32 +30,6 @@ func TestMockSession_GetID(t *testing.T) {
 	}
 }
 
-func TestMockSession_GetStatus(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSession := testmock.NewMockSession(ctrl)
-	mockSession.EXPECT().GetStatus().Return(core.SessionStatusRunning)
-
-	status := mockSession.GetStatus()
-	if status != core.SessionStatusRunning {
-		t.Errorf("expected status Running, got %d", status)
-	}
-}
-
-func TestMockSession_SetStatus(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockSession := testmock.NewMockSession(ctrl)
-	mockSession.EXPECT().SetStatus(core.SessionStatusIdle).Return(nil)
-
-	err := mockSession.SetStatus(core.SessionStatusIdle)
-	if err != nil {
-		t.Errorf("expected nil error, got %v", err)
-	}
-}
-
 func TestMockSession_GetConfigs(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
