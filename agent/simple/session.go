@@ -264,6 +264,9 @@ func (s *SimpleAgentSession) applyPlanOverrides(plan core.Plan) {
 	if len(plan.AvailableModels) > 0 {
 		s.Config.AllowedModels = plan.AvailableModels
 	}
+	if plan.MemoryWindowSize > 0 {
+		s.Config.MemoryWindowSize = int64(plan.MemoryWindowSize)
+	}
 }
 
 func (s *SimpleAgentSession) GetQueryCtx() context.Context {

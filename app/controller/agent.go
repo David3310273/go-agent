@@ -48,9 +48,10 @@ type AskRequest struct {
 	Timestamp int64                      `json:"timestamp,omitempty"`
 
 	// injected by auth middleware from user plan – not sent by client
-	PlanReActMaxRounds  int      `json:"planReActMaxRounds,omitempty"`
-	PlanMaxToken        uint64   `json:"planMaxToken,omitempty"`
-	PlanAvailableModels []string `json:"planAvailableModels,omitempty"`
+	PlanReActMaxRounds   int      `json:"planReActMaxRounds,omitempty"`
+	PlanMaxToken         uint64   `json:"planMaxToken,omitempty"`
+	PlanAvailableModels  []string `json:"planAvailableModels,omitempty"`
+	PlanMemoryWindowSize uint64   `json:"planMemoryWindowSize,omitempty"`
 }
 
 // AskResponse represents the response body for /v1/ask endpoint
@@ -179,14 +180,15 @@ func HandleAsk(c *gin.Context) {
 
 	// build params
 	params := &services.AskParams{
-		Question:            req.Question,
-		Type:                req.Type,
-		Stream:              req.Stream,
-		EnableThinking:      req.EnableThinking,
-		Timestamp:           sendTime,
-		PlanReActMaxRounds:  req.PlanReActMaxRounds,
-		PlanMaxToken:        req.PlanMaxToken,
-		PlanAvailableModels: req.PlanAvailableModels,
+		Question:             req.Question,
+		Type:                 req.Type,
+		Stream:               req.Stream,
+		EnableThinking:       req.EnableThinking,
+		Timestamp:            sendTime,
+		PlanReActMaxRounds:   req.PlanReActMaxRounds,
+		PlanMaxToken:         req.PlanMaxToken,
+		PlanAvailableModels:  req.PlanAvailableModels,
+		PlanMemoryWindowSize: req.PlanMemoryWindowSize,
 	}
 
 	if req.SessionID != nil {

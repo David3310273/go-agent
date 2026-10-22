@@ -4,7 +4,6 @@ import "time"
 
 type Plan struct {
 	Name     PlanType `json:"name"`
-	MaxUser  int      `json:"maxUser"`
 	MaxToken uint64   `json:"maxToken"`
 	// start date
 	StartUseDate time.Time `json:"startDate"`
@@ -14,6 +13,8 @@ type Plan struct {
 	AvailableModels []string `json:"availableModels"`
 	// max rounds of reAct
 	MaxRoundsReAct int `json:"maxRoundsReAct"`
+	// max memory size
+	MemoryWindowSize uint64 `json:"memoryWindowSize"`
 }
 
 // user info manager
