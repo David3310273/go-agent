@@ -1,11 +1,9 @@
 package server
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 
@@ -171,19 +169,6 @@ func authMiddleware(app core.AgentApp) gin.HandlerFunc {
 			return
 		}
 
-		// get user plan
-		plan, diag := app.GetUserPlan(userID)
-		if diag != nil {
-			c.AbortWithStatusJSON(http.StatusForbidden, diag)
-			return
-		}
-
-		// inject plan overrides into request body so downstream handlers
-		// receive them transparently without the client sending them.
-		if c.Request.Method == "POST" || c.Request.Method == "PUT" {
-			injectPlanIntoBody(c, plan)
-		}
-
 		// store user info in context for downstream handlers
 		c.Set("userID", userID)
 		c.Next()
@@ -214,39 +199,4 @@ func parseJWTUserID(token string) (string, error) {
 	}
 
 	return userID, nil
-}
-
-// injectPlanIntoBody reads the request body, injects plan-level overrides,
-// and writes the modified body back so downstream ShouldBindJSON picks them up.
-func injectPlanIntoBody(c *gin.Context, plan core.Plan) {
-	if c.Request.Body == nil {
-		return
-	}
-
-	bodyBytes, err := io.ReadAll(c.Request.Body)
-	c.Request.Body.Close()
-	if err != nil {
-		return
-	}
-
-	var bodyMap map[string]any
-	if err := json.Unmarshal(bodyBytes, &bodyMap); err != nil {
-		// body is not valid JSON or empty, restore original
-		c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-		return
-	}
-
-	bodyMap["planReActMaxRounds"] = plan.MaxRoundsReAct
-	bodyMap["planMaxToken"] = plan.MaxToken
-	bodyMap["planAvailableModels"] = plan.AvailableModels
-	bodyMap["planMemoryWindowSize"] = plan.MemoryWindowSize
-
-	newBody, err := json.Marshal(bodyMap)
-	if err != nil {
-		c.Request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-		return
-	}
-
-	c.Request.Body = io.NopCloser(bytes.NewReader(newBody))
-	c.Request.ContentLength = int64(len(newBody))
 }

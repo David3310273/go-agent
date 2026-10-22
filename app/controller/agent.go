@@ -46,12 +46,6 @@ type AskRequest struct {
 	// a batch of answers replaces the single toolName/serverName pair
 	Confirms  []ToolConfirmAnswerRequest `json:"confirms,omitempty"`
 	Timestamp int64                      `json:"timestamp,omitempty"`
-
-	// injected by auth middleware from user plan – not sent by client
-	PlanReActMaxRounds   int      `json:"planReActMaxRounds,omitempty"`
-	PlanMaxToken         uint64   `json:"planMaxToken,omitempty"`
-	PlanAvailableModels  []string `json:"planAvailableModels,omitempty"`
-	PlanMemoryWindowSize uint64   `json:"planMemoryWindowSize,omitempty"`
 }
 
 // AskResponse represents the response body for /v1/ask endpoint
@@ -128,6 +122,7 @@ func HandleAsk(c *gin.Context) {
 	}
 
 	// check user plan validity when user is authenticated
+	var userPlan core.Plan
 	userID, userExists := c.Get("userID")
 	if userExists {
 		plan, diag := app.GetUserPlan(userID.(string))
@@ -139,6 +134,7 @@ func HandleAsk(c *gin.Context) {
 			c.JSON(http.StatusUnauthorized, diag)
 			return
 		}
+		userPlan = plan
 	}
 
 	// validate the field the request type actually carries. A tool_confirm request
@@ -180,15 +176,12 @@ func HandleAsk(c *gin.Context) {
 
 	// build params
 	params := &services.AskParams{
-		Question:             req.Question,
-		Type:                 req.Type,
-		Stream:               req.Stream,
-		EnableThinking:       req.EnableThinking,
-		Timestamp:            sendTime,
-		PlanReActMaxRounds:   req.PlanReActMaxRounds,
-		PlanMaxToken:         req.PlanMaxToken,
-		PlanAvailableModels:  req.PlanAvailableModels,
-		PlanMemoryWindowSize: req.PlanMemoryWindowSize,
+		Question:       req.Question,
+		Type:           req.Type,
+		Stream:         req.Stream,
+		EnableThinking: req.EnableThinking,
+		Timestamp:      sendTime,
+		Plan:           userPlan,
 	}
 
 	if req.SessionID != nil {
