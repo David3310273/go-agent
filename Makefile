@@ -85,6 +85,7 @@ run-server:
 
 # ---- 一键启动前后端 (Ctrl+C 同时停止) ----
 FE_DIR := app/frontend/web
+BE_DIR := app
 
 dev:
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -93,18 +94,8 @@ dev:
 	@echo " Ctrl+C to stop both"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@trap 'kill 0; exit' INT TERM; \
-	go run ./app & \
+	cd $(BE_DIR) && go run main.go & \
 	cd $(FE_DIR) && npm run dev & \
-	wait
-
-dev-quick:
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo " 后端: http://localhost:8080"
-	@echo " 前端: http://localhost:5173"
-	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@trap 'kill 0; exit' INT TERM; \
-	go run ./app 2>&1 & \
-	cd $(FE_DIR) && npx vite --host & \
 	wait
 
 # =============================================================================
