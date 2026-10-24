@@ -16,6 +16,7 @@ data:
       "maxWaitingRequest": {{ .Values.server.config.maxWaitingRequest }},
       "maxWaitingSeconds": {{ .Values.server.config.maxWaitingSeconds }},
       "requestQueueLength": {{ .Values.server.config.requestQueueLength }},
+      "workerCount": {{ .Values.server.workerCount }},
       "service": {
         "port": {{ .Values.server.service.port }},
         "maxCloseWaitingSeconds": {{ .Values.server.config.maxCloseWaitingSeconds }}

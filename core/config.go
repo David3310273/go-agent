@@ -34,6 +34,7 @@ type AppConfig struct {
 	RequestQueueLength int           `json:"requestQueueLength"`
 	Service            ServiceConfig `json:"service"`
 	EnableBenchmark    bool          `json:"enableBenchmark"`
+	WorkerCount        int           `json:"workerCount"`
 }
 
 type ServiceConfig struct {
@@ -75,7 +76,6 @@ type AgentConfig struct {
 	// question buffer size
 	QuestionBufferSize int      `json:"questionBufferSize"`
 	QuestionProvider   []string `json:"questionProvider"`
-	WorkerCount        int      `json:"workerCount"`
 	// enable benchmark per agent
 	EnableBenchmark bool `json:"enableBenchmark"`
 }

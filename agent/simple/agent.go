@@ -65,6 +65,7 @@ type SimpleAgent struct {
 
 	// start time
 	startUpTime time.Time
+	startOnce   sync.Once
 
 	// benchmarker chans
 	benchmarkerChans      map[core.MetricType]chan core.BenchmarkEvent[any]
@@ -266,7 +267,9 @@ func (a *SimpleAgent) OnEvent() {
 			return
 		// for benchmarker
 		case <-a.eventChans[core.AgentEventStart]:
-			a.startUpTime = time.Now()
+			a.startOnce.Do(func() {
+				a.startUpTime = time.Now()
+			})
 		case event := <-a.eventChans[core.AgentEventDeleteSessionFailed]:
 			info := event.GetData()
 			if sessionInfo, ok := info.(AgentEventData); ok {
@@ -360,75 +363,8 @@ func (a *SimpleAgent) Start() []core.Diagnostic {
 			Message:      fmt.Sprintf("Agent %s started", a.GetID()),
 		},
 	})
-	// determine worker count: config value or default to 1
-	workerCount := a.Configs.Agent.WorkerCount
-	if workerCount <= 0 {
-		workerCount = 1
-	}
-	core.LogStd(core.LogLevelInfo, "agent starting with %d dispatcher workers, agentID=%s", workerCount, a.GetID())
 
-	// launch worker goroutines to consume from the shared Question channel
-	var wg sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
-		wg.Add(1)
-		go func(workerID int) {
-			defer wg.Done()
-			core.LogStd(core.LogLevelDebug, "agent dispatcher worker %d started, agentID=%s", workerID, a.GetID())
-
-			for {
-				select {
-				case query, ok := <-a.Question:
-					if !ok {
-						core.LogStd(core.LogLevelDebug, "agent Question channel closed, worker %d exiting, agentID=%s", workerID, a.GetID())
-						return
-					}
-					core.LogStd(core.LogLevelDebug, "agent worker %d received question: sessionID=%s, query=%s", workerID, query.GetSessionID(), query.GetQuery())
-					sessionID := query.GetSessionID()
-					session, err := a.GetSessionOnCreate(sessionID, true)
-					if err != nil {
-						core.LogStd(core.LogLevelError, "failed to create session: %s", err.Message)
-						select {
-						case query.GetResponseChan() <- err:
-						default:
-						}
-					} else {
-						core.LogStd(core.LogLevelDebug, "worker %d forwarding question to session: sessionID=%s", workerID, session.GetID())
-						session.GetQuestionChan() <- query
-					}
-
-				case <-a.ctx.Done():
-					core.LogStd(core.LogLevelDebug, "agent context done, worker %d exiting, agentID=%s", workerID, a.GetID())
-					return
-				}
-			}
-		}(i)
-	}
-
-	// wait for all workers to finish before returning
-	wg.Wait()
-	core.LogStd(core.LogLevelDebug, "all dispatcher workers exited, agentID=%s", a.GetID())
-
-	// send start event
-	if a.Configs.Agent.EnableBenchmark {
-		core.LogInfo("", "[agent] Start: sending agent running time via benchmarkerEventChans (pull trigger) agentID=%s", a.GetID())
-		currentTime := time.Now()
-		core.SendBenchmarkEvent(a.benchmarkerEventChans[core.MetricAgentRunningTime], core.BenchmarkEvent[any]{
-			TimeStamp: currentTime.UnixMilli(),
-			Type:      core.MetricAgentRunningTime,
-			Data: metrics.AgentRunningTimeMetric{
-				AgentID:   a.GetID(),
-				StartTime: a.startUpTime,
-				EndTime:   currentTime,
-			},
-		})
-	}
-
-	return []core.Diagnostic{
-		{
-			Level: core.SeverityWarn,
-			Code:  core.MessageSystemClosed,
-		},
-	}
+	return nil
 }
 
 func (a *SimpleAgent) BeforeStop() []core.Diagnostic {
