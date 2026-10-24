@@ -41,8 +41,6 @@ spec:
           env:
             - name: TZ
               value: {{ .Values.global.timezone | quote }}
-            - name: GO_AGENT_WORKER_COUNT
-              value: {{ .Values.server.workerCount | quote }}
           volumeMounts:
             - name: app-config
               mountPath: /app/config.json
