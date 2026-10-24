@@ -176,9 +176,19 @@ func (a *SimpleCommandApp) BeforeStart() []core.Diagnostic {
 }
 
 func (a *SimpleCommandApp) Start() []core.Diagnostic {
-	// start agent core in a goroutine
+	// init agent core first
+	initDiagnostics := core.InitAgentCore(a.Agent, a.Config.AppConfig)
+	if len(initDiagnostics) > 0 {
+		for _, d := range initDiagnostics {
+			if d.Level >= core.SeverityError {
+				core.LogStd(core.LogLevelError, "InitAgentCore error: %s", d.ToString())
+			}
+		}
+	}
+
+	// start agent core
 	go func() {
-		diagnostics := core.StartAgentCore(a.Agent, a.Config.AppConfig)
+		diagnostics := core.StartAgentCore(a.Agent)
 		if len(diagnostics) > 0 {
 			for _, d := range diagnostics {
 				if d.Level >= core.SeverityError {

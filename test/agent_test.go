@@ -188,7 +188,7 @@ func TestMockAgentCore_SetID(t *testing.T) {
 // StartAgentCore function tests
 // =============================================================================
 
-func TestStartAgentCore_Success(t *testing.T) {
+func TestInitAgentCore_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -200,7 +200,6 @@ func TestStartAgentCore_Success(t *testing.T) {
 		},
 	}
 
-	//  updated LoadConfigs to new no-arg signature
 	gomock.InOrder(
 		mockAgent.EXPECT().LoadConfigs().Return(agentConfig),
 		mockAgent.EXPECT().SetID().Return(nil),
@@ -209,21 +208,32 @@ func TestStartAgentCore_Success(t *testing.T) {
 		mockAgent.EXPECT().SetKnowledgeBase(agentConfig.Agent.KnowledgeBase).Return(nil),
 		mockAgent.EXPECT().LoadTools(agentConfig.Agent.Tool).Return(nil),
 		mockAgent.EXPECT().SetMCPClient(agentConfig.Agent.MCPServer),
-		mockAgent.EXPECT().BeforeStart().Return(nil),
-		mockAgent.EXPECT().Start().Return(nil),
 	)
 
-	diagnostics := core.StartAgentCore(mockAgent, appConfig)
+	diagnostics := core.InitAgentCore(mockAgent, appConfig)
 	if len(diagnostics) != 0 {
 		t.Errorf("expected 0 diagnostics, got %d", len(diagnostics))
 	}
 }
 
-//	LoadConfigs no longer returns error in StartAgentCore,
-//
-// config loading errors are now handled in NewSimpleAgent.
-// This test now verifies StartAgentCore with SetID error.
-func TestStartAgentCore_SetIDError(t *testing.T) {
+func TestStartAgentCore_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockAgent := testmock.NewMockAgentCore(ctrl)
+
+	gomock.InOrder(
+		mockAgent.EXPECT().BeforeStart().Return(nil),
+		mockAgent.EXPECT().Start().Return(nil),
+	)
+
+	diagnostics := core.StartAgentCore(mockAgent)
+	if len(diagnostics) != 0 {
+		t.Errorf("expected 0 diagnostics, got %d", len(diagnostics))
+	}
+}
+
+func TestInitAgentCore_SetIDError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -236,7 +246,6 @@ func TestStartAgentCore_SetIDError(t *testing.T) {
 		Message: "Failed to generate UUID",
 	}
 
-	//  updated LoadConfigs to new no-arg signature
 	mockAgent.EXPECT().LoadConfigs().Return(agentConfig).AnyTimes()
 	mockAgent.EXPECT().SetID().Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetHistory(gomock.Any()).Return(expectedErr).AnyTimes()
@@ -244,10 +253,8 @@ func TestStartAgentCore_SetIDError(t *testing.T) {
 	mockAgent.EXPECT().SetKnowledgeBase(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().LoadTools(gomock.Any()).Return(expectedErr).AnyTimes()
 	mockAgent.EXPECT().SetMCPClient(gomock.Any()).AnyTimes()
-	mockAgent.EXPECT().BeforeStart().Return(nil).AnyTimes()
-	mockAgent.EXPECT().Start().Return(nil).AnyTimes()
 
-	diagnostics := core.StartAgentCore(mockAgent, appConfig)
+	diagnostics := core.InitAgentCore(mockAgent, appConfig)
 	if len(diagnostics) == 0 {
 		t.Error("expected diagnostics, got empty")
 	}
