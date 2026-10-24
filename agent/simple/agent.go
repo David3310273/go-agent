@@ -64,8 +64,10 @@ type SimpleAgent struct {
 	eventBufferSize int
 
 	// start time
-	startUpTime time.Time
-	startOnce   sync.Once
+	startUpTime   time.Time
+	startOnce     sync.Once
+	dispatchOnce  sync.Once
+	eventChanOnce sync.Once
 
 	// benchmarker chans
 	benchmarkerChans      map[core.MetricType]chan core.BenchmarkEvent[any]
@@ -322,26 +324,23 @@ func (a *SimpleAgent) RegisterEventChans() {
 }
 
 func (a *SimpleAgent) GetEventChans() map[string]chan core.Event[any] {
-	a.RegisterEventChans()
 	return a.eventChans
 }
 
 // WorkFlow
 
 func (a *SimpleAgent) BeforeStart() []core.Diagnostic {
-	// 1. register event handlers
-	a.RegisterEventChans()
-
-	// auto-add: initialise benchmarker if enabled by config.
-	// Must run after RegisterEventChans (so channels exist) and before
-	// go a.OnEvent() (so benchmarker can subscribe before event loop starts).
-	if a.Configs.Agent.EnableBenchmark {
-		a.benchmarker = benchmarker.NewBenchmarker(a.Configs.Benchmarker)
-		a.benchmarker.OnEvent(a)
-		if errs := a.benchmarker.Start(); len(errs) > 0 {
-			core.LogError("", "[agent] benchmarker start failed: %v", errs)
+	// initialise benchmarker if enabled by config.
+	a.eventChanOnce.Do(func() {
+		a.RegisterEventChans()
+		if a.Configs.Agent.EnableBenchmark {
+			a.benchmarker = benchmarker.NewBenchmarker(a.Configs.Benchmarker)
+			a.benchmarker.OnEvent(a)
+			if errs := a.benchmarker.Start(); len(errs) > 0 {
+				core.LogError("", "[agent] benchmarker start failed: %v", errs)
+			}
 		}
-	}
+	})
 
 	go a.OnEvent()
 	// 2. model auth and init
@@ -351,6 +350,10 @@ func (a *SimpleAgent) BeforeStart() []core.Diagnostic {
 }
 
 func (a *SimpleAgent) Start() []core.Diagnostic {
+	a.dispatchOnce.Do(func() {
+		go a.dispatch()
+	})
+
 	// get input from question, listen session output outside
 	relativePath := fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))
 	core.LogInfo(utils.ResolvePath(a.RootPath, relativePath), "agent started: id=%s", a.GetID())
@@ -365,6 +368,30 @@ func (a *SimpleAgent) Start() []core.Diagnostic {
 	})
 
 	return nil
+}
+
+func (a *SimpleAgent) dispatch() {
+	for {
+		select {
+		case query, ok := <-a.Question:
+			if !ok {
+				return
+			}
+			sessionID := query.GetSessionID()
+			session, err := a.GetSessionOnCreate(sessionID, true)
+			if err != nil {
+				core.LogError("", "failed to create session: %s", err.Message)
+				select {
+				case query.GetResponseChan() <- err:
+				default:
+				}
+			} else {
+				session.GetQuestionChan() <- query
+			}
+		case <-a.ctx.Done():
+			return
+		}
+	}
 }
 
 func (a *SimpleAgent) BeforeStop() []core.Diagnostic {

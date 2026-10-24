@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sync"
 
 	"github.com/David3310273/go-agent/core"
 )
@@ -25,6 +26,7 @@ type MilvusStorage struct {
 
 // MilvusClientInstance is the singleton instance.
 var MilvusClientInstance *MilvusStorage
+var milvusInitOnce sync.Once
 
 const (
 	MilvusStoragePath = "storage/milvus/config.json"
@@ -33,14 +35,11 @@ const (
 // Init initializes the Milvus singleton with the given rootPath.
 // lazy init to allow rootPath injection for config resolution.
 func Init(rootPath string) {
-	if MilvusClientInstance != nil {
-		return
-	}
-
-	MilvusClientInstance = &MilvusStorage{}
-	core.InitStorageClient(MilvusClientInstance, rootPath)
-
-	core.LogStd(core.LogLevelInfo, "[Milvus] init done: Client=%v\n", MilvusClientInstance.Client)
+	milvusInitOnce.Do(func() {
+		MilvusClientInstance = &MilvusStorage{}
+		core.InitStorageClient(MilvusClientInstance, rootPath)
+		core.LogStd(core.LogLevelInfo, "[Milvus] init done: Client=%v\n", MilvusClientInstance.Client)
+	})
 }
 
 // SetConfig implements core.Storage interface

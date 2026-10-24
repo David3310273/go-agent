@@ -185,10 +185,8 @@ func InitContext(agent AgentCore, agentConfigs AgentCoreConfig) []Diagnostic {
 	return diagnostics
 }
 
-func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
+func InitAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 	diagnostics := []Diagnostic{}
-
-	// DON'T modify the init order here.
 
 	// load all configs
 	agentConfigs := agent.LoadConfigs()
@@ -205,13 +203,11 @@ func StartAgentCore(agent AgentCore, appConfigs AppConfig) []Diagnostic {
 		diagnostics = append(diagnostics, contextDiagnostics...)
 	}
 
-	workflowDiagnostics := StartWorkFlow(agent)
-	if len(workflowDiagnostics) > 0 {
-		diagnostics = append(diagnostics, workflowDiagnostics...)
-		return diagnostics
-	}
-
 	return diagnostics
+}
+
+func StartAgentCore(agent AgentCore) []Diagnostic {
+	return StartWorkFlow(agent)
 }
 
 func StopAgentCore(agent AgentCore) []Diagnostic {
