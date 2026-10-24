@@ -330,7 +330,8 @@ func (a *SimpleAgent) GetEventChans() map[string]chan core.Event[any] {
 // WorkFlow
 
 func (a *SimpleAgent) BeforeStart() []core.Diagnostic {
-	// initialise benchmarker if enabled by config.
+	var diagnostics []core.Diagnostic
+
 	a.eventChanOnce.Do(func() {
 		a.RegisterEventChans()
 		if a.Configs.Agent.EnableBenchmark {
@@ -340,31 +341,32 @@ func (a *SimpleAgent) BeforeStart() []core.Diagnostic {
 				core.LogError("", "[agent] benchmarker start failed: %v", errs)
 			}
 		}
+
+		// 2. model auth and init
+		diagnostics = core.ValidateProviders(a.GetModelProviders())
 	})
 
 	go a.OnEvent()
-	// 2. model auth and init
-	diagnostics := core.ValidateProviders(a.GetModelProviders())
 
 	return diagnostics
 }
 
 func (a *SimpleAgent) Start() []core.Diagnostic {
+	go a.dispatch()
+
 	a.dispatchOnce.Do(func() {
-		go a.dispatch()
-	})
+		// get input from question, listen session output outside
+		relativePath := fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))
+		core.LogInfo(utils.ResolvePath(a.RootPath, relativePath), "agent started: id=%s", a.GetID())
 
-	// get input from question, listen session output outside
-	relativePath := fmt.Sprintf("%s/%s", SimpleAgentPath, fmt.Sprintf(a.Configs.Agent.LogPath, a.GetID()))
-	core.LogInfo(utils.ResolvePath(a.RootPath, relativePath), "agent started: id=%s", a.GetID())
-
-	// emit start event for benchmark
-	core.Emit(a, core.CommonEvent[AgentEventTimeData]{
-		SourceType: core.AgentEventStart,
-		Data: AgentEventTimeData{
-			SnapshotTime: time.Now(),
-			Message:      fmt.Sprintf("Agent %s started", a.GetID()),
-		},
+		// emit start event for benchmark
+		core.Emit(a, core.CommonEvent[AgentEventTimeData]{
+			SourceType: core.AgentEventStart,
+			Data: AgentEventTimeData{
+				SnapshotTime: time.Now(),
+				Message:      fmt.Sprintf("Agent %s started", a.GetID()),
+			},
+		})
 	})
 
 	return nil
